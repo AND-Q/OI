@@ -1,0 +1,128 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A100000100000001 /* OIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000001 /* OIApp.swift */; };
+		A100000100000002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000002 /* AppDelegate.swift */; };
+		A100000100000003 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000003 /* AppCoordinator.swift */; };
+		A100000100000004 /* AppDescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000004 /* AppDescriptor.swift */; };
+		A100000100000005 /* ApplicationIconProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000005 /* ApplicationIconProviding.swift */; };
+		A100000100000006 /* AppCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000006 /* AppCatalog.swift */; };
+		A100000100000007 /* WorkspaceApplicationIconProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000007 /* WorkspaceApplicationIconProvider.swift */; };
+		A100000100000008 /* ApplicationLaunching.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000008 /* ApplicationLaunching.swift */; };
+		A100000100000009 /* GlobalShortcutHandling.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000009 /* GlobalShortcutHandling.swift */; };
+		A10000010000000A /* FileSystemAppCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000A /* FileSystemAppCatalog.swift */; };
+		A10000010000000B /* WorkspaceApplicationLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000B /* WorkspaceApplicationLauncher.swift */; };
+		A10000010000000C /* CarbonGlobalShortcutService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000C /* CarbonGlobalShortcutService.swift */; };
+		A10000010000000D /* LauncherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000D /* LauncherView.swift */; };
+		A10000010000000E /* LauncherViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000E /* LauncherViewModel.swift */; };
+		A10000010000000F /* LauncherPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000F /* LauncherPanelController.swift */; };
+		A100000100000010 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000010 /* StatusBarController.swift */; };
+		A100000100000011 /* DiscoverApplications.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000013 /* DiscoverApplications.swift */; };
+		A100000100000012 /* LaunchApplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000014 /* LaunchApplication.swift */; };
+		B100000100000001 /* LauncherModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000001 /* LauncherModelTests.swift */; };
+		B100000100000002 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B200000100000003 /* XCTest.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A200000100000001 /* OIApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OIApp.swift; sourceTree = "<group>"; };
+		A200000100000002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		A200000100000003 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
+		A200000100000004 /* AppDescriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDescriptor.swift; sourceTree = "<group>"; };
+		A200000100000005 /* ApplicationIconProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationIconProviding.swift; sourceTree = "<group>"; };
+		A200000100000006 /* AppCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCatalog.swift; sourceTree = "<group>"; };
+		A200000100000007 /* WorkspaceApplicationIconProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceApplicationIconProvider.swift; sourceTree = "<group>"; };
+		A200000100000008 /* ApplicationLaunching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationLaunching.swift; sourceTree = "<group>"; };
+		A200000100000009 /* GlobalShortcutHandling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalShortcutHandling.swift; sourceTree = "<group>"; };
+		A20000010000000A /* FileSystemAppCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileSystemAppCatalog.swift; sourceTree = "<group>"; };
+		A20000010000000B /* WorkspaceApplicationLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceApplicationLauncher.swift; sourceTree = "<group>"; };
+		A20000010000000C /* CarbonGlobalShortcutService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbonGlobalShortcutService.swift; sourceTree = "<group>"; };
+		A20000010000000D /* LauncherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherView.swift; sourceTree = "<group>"; };
+		A20000010000000E /* LauncherViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherViewModel.swift; sourceTree = "<group>"; };
+		A20000010000000F /* LauncherPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherPanelController.swift; sourceTree = "<group>"; };
+		A200000100000010 /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
+		A200000100000011 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A200000100000012 /* OI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OI.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A200000100000013 /* DiscoverApplications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverApplications.swift; sourceTree = "<group>"; };
+		A200000100000014 /* LaunchApplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchApplication.swift; sourceTree = "<group>"; };
+		B200000100000001 /* LauncherModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherModelTests.swift; sourceTree = "<group>"; };
+		B200000100000002 /* OITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B200000100000003 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A300000100000001 /* Frameworks */ = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		B300000100000001 /* Test Frameworks */ = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (B100000100000002 /* XCTest.framework in Frameworks */); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A400000100000001 = { isa = PBXGroup; children = (A400000100000002 /* App */, A400000100000003 /* Domain */, A400000100000013 /* Application */, A400000100000004 /* Features */, A400000100000005 /* Infrastructure */, A400000100000006 /* UI */, A200000100000011 /* Info.plist */, A400000100000007 /* OITests */, A400000100000008 /* Products */); sourceTree = "<group>"; };
+		A400000100000002 /* App */ = { isa = PBXGroup; children = (A200000100000001, A200000100000002, A200000100000003); path = App; sourceTree = "<group>"; };
+		A400000100000003 /* Domain */ = { isa = PBXGroup; children = (A400000100000009 /* Models */); path = Domain; sourceTree = "<group>"; };
+		A400000100000013 /* Application */ = { isa = PBXGroup; children = (A40000010000000A /* Ports */, A400000100000015 /* UseCases */); path = Application; sourceTree = "<group>"; };
+		A400000100000004 /* Features */ = { isa = PBXGroup; children = (A40000010000000B /* Launcher */); path = Features; sourceTree = "<group>"; };
+		A400000100000005 /* Infrastructure */ = { isa = PBXGroup; children = (A40000010000000C /* AppCatalog */, A40000010000000D /* Launch */, A40000010000000E /* Shortcut */, A400000100000011 /* Icons */); path = Infrastructure; sourceTree = "<group>"; };
+		A400000100000006 /* UI */ = { isa = PBXGroup; children = (A40000010000000F /* Panel */, A400000100000010 /* StatusBar */, A400000100000012 /* Shared */); path = UI; sourceTree = "<group>"; };
+		A400000100000008 /* Products */ = { isa = PBXGroup; children = (A200000100000012 /* OI.app */, B200000100000002 /* OITests.xctest */); name = Products; sourceTree = "<group>"; };
+		A400000100000007 /* OITests */ = { isa = PBXGroup; children = (B200000100000001); path = OITests; sourceTree = "<group>"; };
+		A400000100000009 /* Models */ = { isa = PBXGroup; children = (A200000100000004); path = Models; sourceTree = "<group>"; };
+		A40000010000000A /* Ports */ = { isa = PBXGroup; children = (A200000100000006, A200000100000008, A200000100000009); path = Ports; sourceTree = "<group>"; };
+		A40000010000000B /* Launcher */ = { isa = PBXGroup; children = (A20000010000000D, A20000010000000E); path = Launcher; sourceTree = "<group>"; };
+		A40000010000000C /* AppCatalog */ = { isa = PBXGroup; children = (A20000010000000A); path = AppCatalog; sourceTree = "<group>"; };
+		A40000010000000D /* Launch */ = { isa = PBXGroup; children = (A20000010000000B); path = Launch; sourceTree = "<group>"; };
+		A40000010000000E /* Shortcut */ = { isa = PBXGroup; children = (A20000010000000C); path = Shortcut; sourceTree = "<group>"; };
+		A40000010000000F /* Panel */ = { isa = PBXGroup; children = (A20000010000000F); path = Panel; sourceTree = "<group>"; };
+		A400000100000010 /* StatusBar */ = { isa = PBXGroup; children = (A200000100000010); path = StatusBar; sourceTree = "<group>"; };
+		A400000100000011 /* Icons */ = { isa = PBXGroup; children = (A200000100000007); path = Icons; sourceTree = "<group>"; };
+		A400000100000012 /* Shared */ = { isa = PBXGroup; children = (A200000100000005); path = Shared; sourceTree = "<group>"; };
+		A400000100000015 /* UseCases */ = { isa = PBXGroup; children = (A200000100000013, A200000100000014); path = UseCases; sourceTree = "<group>"; };
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A500000100000001 /* OI */ = { isa = PBXNativeTarget; buildConfigurationList = A600000100000002 /* Build configuration list for PBXNativeTarget "OI" */; buildPhases = (A300000100000002 /* Sources */, A300000100000001 /* Frameworks */, A300000100000003 /* Resources */); buildRules = (); dependencies = (); name = OI; productName = OI; productReference = A200000100000012 /* OI.app */; productType = "com.apple.product-type.application"; };
+		B500000100000001 /* OITests */ = { isa = PBXNativeTarget; buildConfigurationList = A600000100000003 /* Build configuration list for PBXNativeTarget "OITests" */; buildPhases = (B300000100000002 /* Test Sources */, B300000100000001 /* Test Frameworks */, B300000100000003 /* Test Resources */); buildRules = (); dependencies = (BA000000100000001 /* TargetDependency */); name = OITests; productName = OITests; productReference = B200000100000002 /* OITests.xctest */; productType = "com.apple.product-type.bundle.unit-test"; };
+/* End PBXNativeTarget section */
+
+/* Begin PBXContainerItemProxy section */
+		B900000100000001 /* ContainerItemProxy */ = { isa = PBXContainerItemProxy; containerPortal = A500000100000002 /* Project object */; proxyType = 1; remoteGlobalIDString = A500000100000001; remoteInfo = OI; };
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXProject section */
+		A500000100000002 /* Project object */ = { isa = PBXProject; attributes = { BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 1600; LastUpgradeCheck = 1600; }; buildConfigurationList = A600000100000001 /* Build configuration list for PBXProject "OI" */; compatibilityVersion = "Xcode 15.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = A400000100000001; productRefGroup = A400000100000008 /* Products */; projectDirPath = ""; projectRoot = ""; targets = (A500000100000001 /* OI */, B500000100000001 /* OITests */); };
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A300000100000003 /* Resources */ = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		B300000100000003 /* Test Resources */ = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A300000100000002 /* Sources */ = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A100000100000001, A100000100000002, A100000100000003, A100000100000004, A100000100000005, A100000100000006, A100000100000007, A100000100000008, A100000100000009, A10000010000000A, A10000010000000B, A10000010000000C, A10000010000000D, A10000010000000E, A10000010000000F, A100000100000010, A100000100000011, A100000100000012); runOnlyForDeploymentPostprocessing = 0; };
+		B300000100000002 /* Test Sources */ = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B100000100000001 /* LauncherModelTests.swift in Sources */); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		BA000000100000001 /* TargetDependency */ = { isa = PBXTargetDependency; target = A500000100000001 /* OI */; targetProxy = B900000100000001 /* ContainerItemProxy */; };
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		A700000100000001 /* Debug */ = { isa = XCBuildConfiguration; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; CURRENT_PROJECT_VERSION = 1; ENABLE_TESTABILITY = YES; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Info.plist; MACOSX_DEPLOYMENT_TARGET = 13.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.example.OI; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = macosx; SWIFT_VERSION = 5.9; }; name = Debug; };
+		A700000100000002 /* Release */ = { isa = XCBuildConfiguration; buildSettings = { ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Info.plist; MACOSX_DEPLOYMENT_TARGET = 13.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.example.OI; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = macosx; SWIFT_OPTIMIZATION_LEVEL = "-O"; SWIFT_VERSION = 5.9; }; name = Release; };
+		A700000100000003 /* Project Debug */ = { isa = XCBuildConfiguration; buildSettings = {}; name = Debug; };
+		A700000100000004 /* Project Release */ = { isa = XCBuildConfiguration; buildSettings = {}; name = Release; };
+		A700000100000005 /* Test Debug */ = { isa = XCBuildConfiguration; buildSettings = { BUNDLE_LOADER = "$(TEST_HOST)"; GENERATE_INFOPLIST_FILE = YES; MACOSX_DEPLOYMENT_TARGET = 13.0; PRODUCT_BUNDLE_IDENTIFIER = com.example.OITests; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = macosx; SWIFT_VERSION = 5.9; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OI.app/Contents/MacOS/OI"; }; name = Debug; };
+		A700000100000006 /* Test Release */ = { isa = XCBuildConfiguration; buildSettings = { BUNDLE_LOADER = "$(TEST_HOST)"; GENERATE_INFOPLIST_FILE = YES; MACOSX_DEPLOYMENT_TARGET = 13.0; PRODUCT_BUNDLE_IDENTIFIER = com.example.OITests; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = macosx; SWIFT_VERSION = 5.9; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OI.app/Contents/MacOS/OI"; }; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A600000100000001 /* Build configuration list for PBXProject "OI" */ = { isa = XCConfigurationList; buildConfigurations = (A700000100000003, A700000100000004); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A600000100000002 /* Build configuration list for PBXNativeTarget "OI" */ = { isa = XCConfigurationList; buildConfigurations = (A700000100000001, A700000100000002); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A600000100000003 /* Build configuration list for PBXNativeTarget "OITests" */ = { isa = XCConfigurationList; buildConfigurations = (A700000100000005, A700000100000006); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = A500000100000002 /* Project object */;
+}
