@@ -91,6 +91,42 @@ final class LauncherModelTests: XCTestCase {
         XCTAssertFalse(viewModel.isLaunching)
     }
 
+    func testViewModelPublishesLoadedStateAfterDiscovery() async {
+        let viewModel = makeViewModel(with: [])
+
+        await viewModel.loadApps()?.value
+
+        XCTAssertEqual(viewModel.loadState, .loaded)
+    }
+
+    func testViewModelPublishesDiscoveryFailure() async {
+        let viewModel = LauncherViewModel(
+            discoverApplications: DiscoverApplications(catalog: ThrowingAppCatalog()),
+            launchApplication: LaunchApplication(launcher: StubApplicationLauncher())
+        )
+
+        await viewModel.loadApps()?.value
+
+        XCTAssertEqual(viewModel.errorMessage, "无法加载应用列表：目录不可用")
+        XCTAssertEqual(viewModel.loadState, .failed("无法加载应用列表：目录不可用"))
+    }
+
+    func testViewModelPublishesLaunchFailure() async {
+        let application = AppDescriptor(
+            name: "Demo",
+            url: URL(fileURLWithPath: "/Applications/Demo.app")
+        )
+        let viewModel = LauncherViewModel(
+            discoverApplications: DiscoverApplications(catalog: StubAppCatalog(descriptors: [])),
+            launchApplication: LaunchApplication(launcher: ThrowingApplicationLauncher())
+        )
+
+        await viewModel.launch(application)?.value
+
+        XCTAssertEqual(viewModel.launchErrorMessage, "无法启动 Demo：启动失败")
+        XCTAssertEqual(viewModel.launchState, .failed("无法启动 Demo：启动失败"))
+    }
+
     private func makeViewModel(with descriptors: [AppDescriptor]) -> LauncherViewModel {
         LauncherViewModel(
             discoverApplications: DiscoverApplications(
@@ -138,11 +174,36 @@ private struct StubAppCatalog: AppCatalog {
     }
 }
 
+private struct ThrowingAppCatalog: AppCatalog {
+    enum CatalogError: LocalizedError {
+        case unavailable
+
+        var errorDescription: String? { "目录不可用" }
+    }
+
+    func scan() async throws -> [AppDescriptor] {
+        throw CatalogError.unavailable
+    }
+}
+
 @MainActor
 private final class StubApplicationLauncher: ApplicationLaunching {
     private(set) var launchedApplications: [AppDescriptor] = []
 
     func launch(_ application: AppDescriptor) async throws {
         launchedApplications.append(application)
+    }
+}
+
+@MainActor
+private final class ThrowingApplicationLauncher: ApplicationLaunching {
+    enum LaunchError: LocalizedError {
+        case failed
+
+        var errorDescription: String? { "启动失败" }
+    }
+
+    func launch(_ application: AppDescriptor) async throws {
+        throw LaunchError.failed
     }
 }

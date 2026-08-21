@@ -3,7 +3,7 @@ import Foundation
 struct FileSystemAppCatalog: AppCatalog, Sendable {
     let searchDirectories: [URL]
 
-    init(searchDirectories: [URL] = FileSystemAppCatalog.defaultSearchDirectories) {
+    init(searchDirectories: [URL]) {
         self.searchDirectories = searchDirectories
     }
 
@@ -64,13 +64,5 @@ struct FileSystemAppCatalog: AppCatalog, Sendable {
         return descriptors.sorted {
             $0.name.localizedStandardCompare($1.name) == .orderedAscending
         }
-    }
-
-    private static var defaultSearchDirectories: [URL] {
-        [
-            URL(fileURLWithPath: "/Applications"),
-            FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications"),
-            URL(fileURLWithPath: "/System/Applications")
-        ]
     }
 }

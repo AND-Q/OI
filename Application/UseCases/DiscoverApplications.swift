@@ -8,6 +8,12 @@ struct DiscoverApplications: Sendable {
     }
 
     func execute() async throws -> [AppDescriptor] {
-        try await catalog.scan()
+        do {
+            return try await catalog.scan()
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw ApplicationError.discoveryFailed(reason: error.localizedDescription)
+        }
     }
 }

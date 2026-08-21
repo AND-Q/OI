@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 @MainActor
@@ -23,7 +24,7 @@ struct LauncherView: View {
                 .strokeBorder(Color.white.opacity(0.22), lineWidth: 1)
         }
         .onAppear { isSearchFocused = true }
-        .onChange(of: viewModel.focusRequest) { _ in
+        .onReceive(viewModel.$focusRequest.dropFirst()) { _ in
             isSearchFocused = true
         }
         .onExitCommand(perform: onDismiss)

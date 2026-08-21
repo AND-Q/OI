@@ -9,11 +9,9 @@ final class LauncherViewModel: ObservableObject {
     @Published private(set) var apps: [AppDescriptor] = []
     @Published private(set) var filteredApps: [AppDescriptor] = []
     @Published private(set) var selectedIndex = 0
-    @Published private(set) var isLoading = false
     @Published private(set) var focusRequest = 0
-    @Published private(set) var errorMessage: String?
-    @Published private(set) var isLaunching = false
-    @Published private(set) var launchErrorMessage: String?
+    @Published private(set) var loadState: LauncherLoadState = .idle
+    @Published private(set) var launchState: LauncherLaunchState = .idle
 
     private let discoverApplications: DiscoverApplications
     private let launchApplication: LaunchApplication
@@ -38,13 +36,32 @@ final class LauncherViewModel: ObservableObject {
         return filteredApps[selectedIndex]
     }
 
+    var isLoading: Bool {
+        if case .loading = loadState { return true }
+        return false
+    }
+
+    var errorMessage: String? {
+        guard case .failed(let message) = loadState else { return nil }
+        return message
+    }
+
+    var isLaunching: Bool {
+        if case .launching = launchState { return true }
+        return false
+    }
+
+    var launchErrorMessage: String? {
+        guard case .failed(let message) = launchState else { return nil }
+        return message
+    }
+
     @discardableResult
     func loadApps() -> Task<Void, Never>? {
         guard loadTask == nil else { return loadTask }
-        guard apps.isEmpty else { return nil }
+        if case .loaded = loadState { return nil }
 
-        isLoading = true
-        errorMessage = nil
+        loadState = .loading
         let discoverApplications = self.discoverApplications
 
         loadTask = Task { [weak self] in
@@ -55,10 +72,11 @@ final class LauncherViewModel: ObservableObject {
                 guard let self else { return }
                 apps = descriptors
                 updateFilteredApps()
+                loadState = .loaded
             } catch is CancellationError {
-                // Cancellation is an expected lifecycle event.
+                self?.loadState = .idle
             } catch {
-                self?.errorMessage = error.localizedDescription
+                self?.loadState = .failed(LauncherErrorMessage.message(for: error))
             }
 
             self?.finishLoading()
@@ -71,17 +89,17 @@ final class LauncherViewModel: ObservableObject {
     func launch(_ application: AppDescriptor) -> Task<Void, Never>? {
         guard launchTask == nil else { return launchTask }
 
-        isLaunching = true
-        launchErrorMessage = nil
+        launchState = .launching
         let launchApplication = self.launchApplication
 
         launchTask = Task { [weak self] in
             do {
                 try await launchApplication.execute(application)
+                self?.launchState = .idle
             } catch is CancellationError {
-                // Cancellation is an expected lifecycle event.
+                self?.launchState = .idle
             } catch {
-                self?.launchErrorMessage = error.localizedDescription
+                self?.launchState = .failed(LauncherErrorMessage.message(for: error))
             }
 
             self?.finishLaunching()
@@ -93,8 +111,8 @@ final class LauncherViewModel: ObservableObject {
     func cancelOperations() {
         loadTask?.cancel()
         launchTask?.cancel()
-        isLoading = false
-        isLaunching = false
+        if isLoading { loadState = .idle }
+        if isLaunching { launchState = .idle }
     }
 
     func prepareForPresentation() {
@@ -113,12 +131,10 @@ final class LauncherViewModel: ObservableObject {
     }
 
     private func finishLoading() {
-        isLoading = false
         loadTask = nil
     }
 
     private func finishLaunching() {
-        isLaunching = false
         launchTask = nil
     }
 
@@ -132,6 +148,26 @@ final class LauncherViewModel: ObservableObject {
             selectedIndex = 0
         } else {
             selectedIndex = min(selectedIndex, filteredApps.count - 1)
+        }
+    }
+}
+
+private enum LauncherErrorMessage {
+    static func message(for error: Error) -> String {
+        switch error {
+        case let applicationError as ApplicationError:
+            return message(for: applicationError)
+        default:
+            return "操作未能完成，请重试。"
+        }
+    }
+
+    private static func message(for error: ApplicationError) -> String {
+        switch error {
+        case .discoveryFailed(let reason):
+            return "无法加载应用列表：\(reason)"
+        case .launchFailed(let applicationName, let reason):
+            return "无法启动 \(applicationName)：\(reason)"
         }
     }
 }

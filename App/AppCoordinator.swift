@@ -1,43 +1,41 @@
 import AppKit
-import Carbon.HIToolbox
 import os
 
 @MainActor
 final class AppCoordinator {
-    private let logger = Logger(subsystem: "com.example.OI", category: "AppCoordinator")
+    private let configuration: AppConfiguration
+    private let logger: Logger
     private let viewModel: LauncherViewModel
     private let shortcutService: any GlobalShortcutHandling
     private let panelController: LauncherPanelController
-    private var statusBarController: StatusBarController?
+    private lazy var statusBarController = StatusBarController(
+        onShow: { [weak self] in self?.panelController.show() },
+        onQuit: { NSApp.terminate(nil) }
+    )
     private var didStart = false
 
     convenience init() {
-        let applicationLauncher = WorkspaceApplicationLauncher()
+        let configuration = AppConfiguration.live
         self.init(
-            viewModel: LauncherViewModel(
-                discoverApplications: DiscoverApplications(catalog: FileSystemAppCatalog()),
-                launchApplication: LaunchApplication(launcher: applicationLauncher)
-            ),
-            iconProvider: WorkspaceApplicationIconProvider(),
-            shortcutService: CarbonGlobalShortcutService()
+            configuration: configuration,
+            dependencies: AppDependencies.live(configuration: configuration)
         )
     }
 
     init(
-        viewModel: LauncherViewModel,
-        iconProvider: any ApplicationIconProviding,
-        shortcutService: any GlobalShortcutHandling
+        configuration: AppConfiguration,
+        dependencies: AppDependencies
     ) {
-        self.viewModel = viewModel
-        self.shortcutService = shortcutService
-        self.panelController = LauncherPanelController(
-            viewModel: viewModel,
-            iconProvider: iconProvider
+        self.configuration = configuration
+        self.logger = Logger(
+            subsystem: Bundle.main.bundleIdentifier ?? "OI",
+            category: "AppCoordinator"
         )
-        self.statusBarController = nil
-        self.statusBarController = StatusBarController(
-            onShow: { [weak self] in self?.panelController.show() },
-            onQuit: { NSApp.terminate(nil) }
+        self.viewModel = dependencies.launcherViewModel
+        self.shortcutService = dependencies.globalShortcutService
+        self.panelController = LauncherPanelController(
+            viewModel: dependencies.launcherViewModel,
+            iconProvider: dependencies.applicationIconProvider
         )
     }
 
@@ -45,7 +43,7 @@ final class AppCoordinator {
         guard !didStart else { return }
         didStart = true
         NSApp.setActivationPolicy(.accessory)
-        statusBarController?.start()
+        statusBarController.start()
         registerShortcut()
         viewModel.loadApps()
     }
@@ -55,14 +53,14 @@ final class AppCoordinator {
         didStart = false
         shortcutService.unregister()
         panelController.stop()
-        statusBarController?.stop()
+        statusBarController.stop()
     }
 
     private func registerShortcut() {
         do {
             try shortcutService.register(
-                keyCode: UInt32(kVK_Space),
-                modifiers: UInt32(optionKey),
+                keyCode: configuration.launcherShortcut.keyCode,
+                modifiers: configuration.launcherShortcut.modifiers,
                 handler: { [weak self] in
                     Task { @MainActor in
                         self?.panelController.toggle()

@@ -9,6 +9,15 @@ struct LaunchApplication {
     }
 
     func execute(_ application: AppDescriptor) async throws {
-        try await launcher.launch(application)
+        do {
+            try await launcher.launch(application)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw ApplicationError.launchFailed(
+                applicationName: application.name,
+                reason: error.localizedDescription
+            )
+        }
     }
 }
