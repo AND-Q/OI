@@ -1,1 +1,18 @@
+# Xcode 和 macOS 生成的文件
 .DS_Store
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.tmp-swift/
+
+# 本地构建产物
+build-*/
+build/
+
+# Swift Package Manager（引入软件包时使用）
+.build/
+Package.resolved
+
+# 本地签名和环境文件
+*.mobileprovision
+.env
