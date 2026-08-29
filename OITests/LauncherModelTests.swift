@@ -56,20 +56,41 @@ final class LauncherModelTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedApp?.name, "Xcode")
     }
 
-    func testViewModelClampsSelectionWhenFilteringResults() async {
+    func testViewModelResetsSelectionAndScrollWhenFilteringResults() async {
         let apps = [
-            AppDescriptor(name: "Safari", url: URL(fileURLWithPath: "/Applications/Safari.app")),
-            AppDescriptor(name: "Notes", url: URL(fileURLWithPath: "/Applications/Notes.app")),
-            AppDescriptor(name: "Xcode", url: URL(fileURLWithPath: "/Applications/Xcode.app"))
+            AppDescriptor(name: "Alpha", url: URL(fileURLWithPath: "/Applications/Alpha.app")),
+            AppDescriptor(name: "Almanac", url: URL(fileURLWithPath: "/Applications/Almanac.app")),
+            AppDescriptor(name: "Arc", url: URL(fileURLWithPath: "/Applications/Arc.app"))
         ]
         let viewModel = makeViewModel(with: apps)
 
         await viewModel.loadApps()?.value
         viewModel.moveSelection(by: 2)
-        viewModel.query = "safari"
+        let previousResetRequest = viewModel.listResetRequest
+        viewModel.query = "a"
 
         XCTAssertEqual(viewModel.selectedIndex, 0)
-        XCTAssertEqual(viewModel.selectedApp?.name, "Safari")
+        XCTAssertEqual(viewModel.selectedApp?.name, "Alpha")
+        XCTAssertGreaterThan(viewModel.listResetRequest, previousResetRequest)
+    }
+
+    func testViewModelResetsSelectionAndScrollWhenPresentedAgain() async {
+        let apps = [
+            AppDescriptor(name: "Alpha", url: URL(fileURLWithPath: "/Applications/Alpha.app")),
+            AppDescriptor(name: "Beta", url: URL(fileURLWithPath: "/Applications/Beta.app")),
+            AppDescriptor(name: "Gamma", url: URL(fileURLWithPath: "/Applications/Gamma.app"))
+        ]
+        let viewModel = makeViewModel(with: apps)
+
+        await viewModel.loadApps()?.value
+        viewModel.moveSelection(by: 2)
+        let previousResetRequest = viewModel.listResetRequest
+
+        viewModel.prepareForPresentation()
+
+        XCTAssertEqual(viewModel.filteredApps, apps)
+        XCTAssertEqual(viewModel.selectedIndex, 0)
+        XCTAssertGreaterThan(viewModel.listResetRequest, previousResetRequest)
     }
 
     func testViewModelLaunchesApplicationThroughApplicationUseCase() async {

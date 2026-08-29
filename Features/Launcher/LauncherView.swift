@@ -16,7 +16,7 @@ struct LauncherView: View {
             Divider()
             results
         }
-        .frame(width: 640, height: 430)
+        .frame(width: 640, height: 386)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay {
@@ -86,14 +86,14 @@ struct LauncherView: View {
                     }
                     .buttonStyle(.bordered)
                 }
-                .frame(maxWidth: .infinity, minHeight: 260)
+                .frame(maxWidth: .infinity, minHeight: 323)
             } else if viewModel.isLoading && viewModel.apps.isEmpty {
                 VStack(spacing: 10) {
                     ProgressView()
                     Text("正在加载应用…")
                         .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity, minHeight: 260)
+                .frame(maxWidth: .infinity, minHeight: 323)
             } else if viewModel.filteredApps.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "app.dashed")
@@ -102,51 +102,17 @@ struct LauncherView: View {
                     Text("没有找到匹配的 App")
                         .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity, minHeight: 260)
+                .frame(maxWidth: .infinity, minHeight: 323)
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 3) {
-                        ForEach(Array(viewModel.filteredApps.enumerated()), id: \.element.id) { index, app in
-                            appRow(app, isSelected: index == viewModel.selectedIndex)
-                        }
-                    }
-                    .padding(10)
-                }
-                .frame(maxHeight: 315)
+                LauncherResultsList(
+                    apps: viewModel.filteredApps,
+                    selectedIndex: viewModel.selectedIndex,
+                    resetRequest: viewModel.listResetRequest,
+                    iconProvider: iconProvider,
+                    onLaunch: onLaunch
+                )
+                .frame(height: 323)
             }
         }
     }
-
-    private func appRow(_ app: AppDescriptor, isSelected: Bool) -> some View {
-        Button {
-            onLaunch(app)
-        } label: {
-            HStack(spacing: 12) {
-                Image(nsImage: iconProvider.icon(for: app.url))
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 34, height: 34)
-                    .cornerRadius(7)
-
-                Text(app.name)
-                    .font(.system(size: 16))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-
-                Spacer(minLength: 8)
-                if isSelected {
-                    Image(systemName: "return")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(isSelected ? Color.accentColor.opacity(0.18) : .clear)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        }
-        .buttonStyle(.plain)
-    }
-
 }

@@ -4,11 +4,15 @@ import Foundation
 @MainActor
 final class LauncherViewModel: ObservableObject {
     @Published var query = "" {
-        didSet { updateFilteredApps() }
+        didSet {
+            updateFilteredApps()
+            requestListReset()
+        }
     }
     @Published private(set) var apps: [AppDescriptor] = []
     @Published private(set) var filteredApps: [AppDescriptor] = []
     @Published private(set) var selectedIndex = 0
+    @Published private(set) var listResetRequest = 0
     @Published private(set) var focusRequest = 0
     @Published private(set) var loadState: LauncherLoadState = .idle
     @Published private(set) var launchState: LauncherLaunchState = .idle
@@ -72,6 +76,7 @@ final class LauncherViewModel: ObservableObject {
                 guard let self else { return }
                 apps = descriptors
                 updateFilteredApps()
+                requestListReset()
                 loadState = .loaded
             } catch is CancellationError {
                 self?.loadState = .idle
@@ -117,8 +122,6 @@ final class LauncherViewModel: ObservableObject {
 
     func prepareForPresentation() {
         query = ""
-        selectedIndex = 0
-        updateFilteredApps()
     }
 
     func requestFocus() {
@@ -127,7 +130,9 @@ final class LauncherViewModel: ObservableObject {
 
     func moveSelection(by offset: Int) {
         guard !filteredApps.isEmpty else { return }
-        selectedIndex = min(max(selectedIndex + offset, 0), filteredApps.count - 1)
+        let newIndex = min(max(selectedIndex + offset, 0), filteredApps.count - 1)
+        guard newIndex != selectedIndex else { return }
+        selectedIndex = newIndex
     }
 
     private func finishLoading() {
@@ -144,11 +149,11 @@ final class LauncherViewModel: ObservableObject {
             ? apps
             : apps.filter { $0.name.localizedCaseInsensitiveContains(normalizedQuery) }
 
-        if filteredApps.isEmpty {
-            selectedIndex = 0
-        } else {
-            selectedIndex = min(selectedIndex, filteredApps.count - 1)
-        }
+        selectedIndex = 0
+    }
+
+    private func requestListReset() {
+        listResetRequest &+= 1
     }
 }
 

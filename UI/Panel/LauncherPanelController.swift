@@ -17,7 +17,7 @@ final class LauncherPanelController {
         self.iconProvider = iconProvider
 
         panel = LauncherPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 640, height: 430),
+            contentRect: NSRect(x: 0, y: 0, width: 640, height: 386),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
