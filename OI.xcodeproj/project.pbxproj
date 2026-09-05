@@ -30,6 +30,7 @@
 		A100000100000015 /* ApplicationError.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000017 /* ApplicationError.swift */; };
 		A100000100000016 /* LauncherState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000018 /* LauncherState.swift */; };
 		A100000100000017 /* LauncherResultsList.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000019 /* LauncherResultsList.swift */; };
+		A100000100000018 /* VisualEffectBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000001A /* VisualEffectBackground.swift */; };
 		B100000100000001 /* LauncherModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000001 /* LauncherModelTests.swift */; };
 		B100000100000002 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B200000100000003 /* XCTest.framework */; };
 		C100000100000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C200000100000001 /* Assets.xcassets */; };
@@ -71,6 +72,7 @@
 		A200000100000017 /* ApplicationError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationError.swift; sourceTree = "<group>"; };
 		A200000100000018 /* LauncherState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherState.swift; sourceTree = "<group>"; };
 		A200000100000019 /* LauncherResultsList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherResultsList.swift; sourceTree = "<group>"; };
+		A20000010000001A /* VisualEffectBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectBackground.swift; sourceTree = "<group>"; };
 		B200000100000001 /* LauncherModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherModelTests.swift; sourceTree = "<group>"; };
 		B200000100000002 /* OITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B200000100000003 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
@@ -235,6 +237,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000010000000F /* LauncherPanelController.swift */,
+				A20000010000001A /* VisualEffectBackground.swift */,
 			);
 			path = Panel;
 			sourceTree = "<group>";
@@ -404,6 +407,7 @@
 				A100000100000015 /* ApplicationError.swift in Sources */,
 				A100000100000016 /* LauncherState.swift in Sources */,
 				A100000100000017 /* LauncherResultsList.swift in Sources */,
+				A100000100000018 /* VisualEffectBackground.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

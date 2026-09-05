@@ -17,8 +17,9 @@ struct LauncherResultsList: NSViewRepresentable {
         let tableView = LauncherTableView()
         tableView.backgroundColor = .clear
         tableView.headerView = nil
-        tableView.intercellSpacing = NSSize(width: 0, height: 3)
-        tableView.rowHeight = 48
+        tableView.style = .fullWidth
+        tableView.intercellSpacing = NSSize(width: 0, height: 0)
+        tableView.rowHeight = LauncherLayout.rowHeight
         tableView.selectionHighlightStyle = .regular
         tableView.allowsEmptySelection = false
         tableView.allowsMultipleSelection = false
@@ -41,7 +42,12 @@ struct LauncherResultsList: NSViewRepresentable {
         scrollView.autohidesScrollers = true
         scrollView.scrollerStyle = .overlay
         scrollView.automaticallyAdjustsContentInsets = false
-        scrollView.contentInsets = NSEdgeInsets(top: 10, left: 0, bottom: 10, right: 0)
+        scrollView.contentInsets = NSEdgeInsets(
+            top: LauncherLayout.listVerticalPadding,
+            left: 0,
+            bottom: LauncherLayout.listVerticalPadding,
+            right: 0
+        )
         scrollView.documentView = tableView
         return scrollView
     }
@@ -167,51 +173,58 @@ private final class LauncherTableView: NSTableView {
     }
 }
 
+/// Neutral gray rounded selection matching Spotlight (never the system accent blue).
 private final class LauncherResultRowView: NSTableRowView {
+    override var isEmphasized: Bool {
+        get { false }
+        set { }
+    }
+
     override func drawSelection(in dirtyRect: NSRect) {
         guard selectionHighlightStyle != .none else { return }
 
-        NSColor.controlAccentColor.withAlphaComponent(0.18).setFill()
+        LauncherResultRowView.selectionFill.setFill()
         NSBezierPath(
-            roundedRect: bounds.insetBy(dx: 10, dy: 0),
+            roundedRect: bounds.insetBy(dx: 12, dy: 1.5),
             xRadius: 8,
             yRadius: 8
         ).fill()
     }
+
+    private static let selectionFill = NSColor(name: nil) { appearance in
+        appearance.isDarkMode ? NSColor.white.withAlphaComponent(0.10)
+                              : NSColor.black.withAlphaComponent(0.09)
+    }
 }
 
 private final class LauncherResultCellView: NSTableCellView {
+    private enum Metrics {
+        static let horizontalInset: CGFloat = 20
+        static let iconSize: CGFloat = 32
+        static let iconTextSpacing: CGFloat = 18
+        static let badgeWidth: CGFloat = 28
+        static let badgeHeight: CGFloat = 18
+        static let badgeSpacing: CGFloat = 12
+    }
+
     private let appIconView = NSImageView()
     private let nameLabel = NSTextField(labelWithString: "")
-    private let returnImageView = NSImageView()
+    private let returnBadge = LauncherReturnBadge()
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
 
         appIconView.imageScaling = .scaleProportionallyUpOrDown
-        appIconView.wantsLayer = true
-        appIconView.layer?.cornerRadius = 7
-        appIconView.layer?.masksToBounds = true
+        appIconView.translatesAutoresizingMaskIntoConstraints = false
 
-        nameLabel.font = .systemFont(ofSize: 16)
+        nameLabel.font = .systemFont(ofSize: 17, weight: .regular)
         nameLabel.textColor = .labelColor
         nameLabel.lineBreakMode = .byTruncatingTail
         nameLabel.maximumNumberOfLines = 1
 
-        let symbolConfiguration = NSImage.SymbolConfiguration(
-            pointSize: 13,
-            weight: .semibold
-        )
-        returnImageView.image = NSImage(
-            systemSymbolName: "return",
-            accessibilityDescription: "打开"
-        )?.withSymbolConfiguration(symbolConfiguration)
-        returnImageView.contentTintColor = .secondaryLabelColor
-        returnImageView.imageScaling = .scaleProportionallyDown
-
         addSubview(appIconView)
         addSubview(nameLabel)
-        addSubview(returnImageView)
+        addSubview(returnBadge)
     }
 
     @available(*, unavailable)
@@ -222,26 +235,22 @@ private final class LauncherResultCellView: NSTableCellView {
     override func layout() {
         super.layout()
 
-        let iconSize: CGFloat = 34
-        let horizontalInset: CGFloat = 20
-        let accessorySize: CGFloat = 18
-        let spacing: CGFloat = 12
-
+        let m = Metrics.self
         appIconView.frame = NSRect(
-            x: horizontalInset,
-            y: (bounds.height - iconSize) / 2,
-            width: iconSize,
-            height: iconSize
+            x: m.horizontalInset,
+            y: (bounds.height - m.iconSize) / 2,
+            width: m.iconSize,
+            height: m.iconSize
         )
-        returnImageView.frame = NSRect(
-            x: bounds.width - horizontalInset - accessorySize,
-            y: (bounds.height - accessorySize) / 2,
-            width: accessorySize,
-            height: accessorySize
+        returnBadge.frame = NSRect(
+            x: bounds.width - m.horizontalInset - m.badgeWidth,
+            y: (bounds.height - m.badgeHeight) / 2,
+            width: m.badgeWidth,
+            height: m.badgeHeight
         )
 
-        let labelX = appIconView.frame.maxX + spacing
-        let labelRight = returnImageView.frame.minX - spacing
+        let labelX = appIconView.frame.maxX + m.iconTextSpacing
+        let labelRight = returnBadge.frame.minX - m.badgeSpacing
         nameLabel.frame = NSRect(
             x: labelX,
             y: (bounds.height - 22) / 2,
@@ -257,6 +266,70 @@ private final class LauncherResultCellView: NSTableCellView {
     }
 
     func setSelected(_ isSelected: Bool) {
-        returnImageView.alphaValue = isSelected ? 1 : 0
+        returnBadge.alphaValue = isSelected ? 1 : 0
+    }
+}
+
+/// Small keycap-styled badge containing the return glyph, shown on the selected row.
+private final class LauncherReturnBadge: NSView {
+    private let glyphView = NSImageView()
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        layer?.cornerRadius = 5
+        layer?.cornerCurve = .continuous
+        layer?.borderWidth = 0.5
+        layer?.masksToBounds = true
+        updateColors()
+
+        let symbolConfiguration = NSImage.SymbolConfiguration(
+            pointSize: 14,
+            weight: .semibold
+        )
+        glyphView.image = NSImage(
+            systemSymbolName: "return",
+            accessibilityDescription: "打开"
+        )?.withSymbolConfiguration(symbolConfiguration)
+        glyphView.contentTintColor = .secondaryLabelColor
+        glyphView.imageScaling = .scaleProportionallyDown
+        glyphView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(glyphView)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layout() {
+        super.layout()
+        glyphView.frame = bounds.insetBy(dx: 6, dy: 3.5)
+    }
+
+    override func updateLayer() {
+        super.updateLayer()
+        updateColors()
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        updateColors()
+    }
+
+    private func updateColors() {
+        let isDark = effectiveAppearance.isDarkMode
+        layer?.backgroundColor = (isDark
+            ? NSColor.white.withAlphaComponent(0.12)
+            : NSColor.white.withAlphaComponent(0.35)).cgColor
+        layer?.borderColor = (isDark
+            ? NSColor.white.withAlphaComponent(0.10)
+            : NSColor.black.withAlphaComponent(0.08)).cgColor
+    }
+}
+
+private extension NSAppearance {
+    var isDarkMode: Bool {
+        bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
     }
 }

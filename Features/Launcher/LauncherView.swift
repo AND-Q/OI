@@ -1,6 +1,42 @@
 import Combine
 import SwiftUI
 
+/// Pixel-matched layout metrics for the Spotlight-style launcher.
+/// Values are derived from native Spotlight screenshots (see git history).
+enum LauncherLayout {
+    static let width: CGFloat = 640
+    static let searchHeight: CGFloat = 55
+    static let rowHeight: CGFloat = 58
+    static let listVerticalPadding: CGFloat = 7
+    static let statusHeight: CGFloat = 205
+    static let maximumVisibleRows = 7
+
+    static let compactCornerRadius: CGFloat = searchHeight / 2
+    static let expandedCornerRadius: CGFloat = 16
+
+    /// What the expanded area below the search field shows.
+    enum ExpandedContent: Equatable {
+        case results(rowCount: Int)
+        case status
+
+        var height: CGFloat {
+            switch self {
+            case .results(let rowCount):
+                let visibleRows = min(max(rowCount, 0), LauncherLayout.maximumVisibleRows)
+                return LauncherLayout.listVerticalPadding * 2
+                    + CGFloat(visibleRows) * LauncherLayout.rowHeight
+            case .status:
+                return LauncherLayout.statusHeight
+            }
+        }
+    }
+
+    static func totalHeight(isExpanded: Bool, content: ExpandedContent?) -> CGFloat {
+        guard isExpanded, let content else { return searchHeight }
+        return searchHeight + 1 + content.height
+    }
+}
+
 @MainActor
 struct LauncherView: View {
     @ObservedObject var viewModel: LauncherViewModel
@@ -10,19 +46,45 @@ struct LauncherView: View {
 
     @FocusState private var isSearchFocused: Bool
 
+    private var isExpanded: Bool {
+        !viewModel.query.isEmpty
+    }
+
+    private var expandedContent: LauncherLayout.ExpandedContent {
+        viewModel.expandedContent
+    }
+
+    private var panelHeight: CGFloat {
+        LauncherLayout.totalHeight(
+            isExpanded: isExpanded,
+            content: isExpanded ? expandedContent : nil
+        )
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             searchBar
-            Divider()
-            results
+                .frame(height: LauncherLayout.searchHeight)
+
+            if isExpanded {
+                divider
+                results
+                    .frame(height: expandedContent.height)
+            }
         }
-        .frame(width: 640, height: 386)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .frame(width: LauncherLayout.width, height: panelHeight)
+        .background(
+            VisualEffectBackground(cornerRadius: cornerRadius)
+        )
+        .clipShape(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        )
         .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.22), lineWidth: 1)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
         }
+        .animation(.easeOut(duration: 0.18), value: isExpanded)
+        .animation(.easeOut(duration: 0.18), value: panelHeight)
         .onAppear { isSearchFocused = true }
         .onReceive(viewModel.$focusRequest.dropFirst()) { _ in
             isSearchFocused = true
@@ -37,15 +99,21 @@ struct LauncherView: View {
         }
     }
 
-    private var searchBar: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 21, weight: .medium))
-                .foregroundStyle(.secondary)
+    private var cornerRadius: CGFloat {
+        isExpanded ? LauncherLayout.expandedCornerRadius : LauncherLayout.compactCornerRadius
+    }
 
-            TextField("搜索 App", text: $viewModel.query)
+    private var searchBar: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 28, weight: .regular))
+                .foregroundStyle(.secondary)
+                .frame(width: 28)
+
+            TextField("聚焦搜索", text: $viewModel.query)
                 .textFieldStyle(.plain)
-                .font(.system(size: 22, weight: .regular))
+                .font(.system(size: 24, weight: .regular))
+                .tint(.primary)
                 .focused($isSearchFocused)
                 .onSubmit {
                     guard let app = viewModel.selectedApp else { return }
@@ -61,6 +129,7 @@ struct LauncherView: View {
                     isSearchFocused = true
                 } label: {
                     Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 20))
                         .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
@@ -68,7 +137,12 @@ struct LauncherView: View {
             }
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 17)
+    }
+
+    private var divider: some View {
+        Color.primary.opacity(0.08)
+            .frame(height: 1)
+            .padding(.horizontal, 12)
     }
 
     private var results: some View {
@@ -86,14 +160,14 @@ struct LauncherView: View {
                     }
                     .buttonStyle(.bordered)
                 }
-                .frame(maxWidth: .infinity, minHeight: 323)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if viewModel.isLoading && viewModel.apps.isEmpty {
                 VStack(spacing: 10) {
                     ProgressView()
                     Text("正在加载应用…")
                         .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity, minHeight: 323)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if viewModel.filteredApps.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "app.dashed")
@@ -102,7 +176,7 @@ struct LauncherView: View {
                     Text("没有找到匹配的 App")
                         .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity, minHeight: 323)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 LauncherResultsList(
                     apps: viewModel.filteredApps,
@@ -111,7 +185,6 @@ struct LauncherView: View {
                     iconProvider: iconProvider,
                     onLaunch: onLaunch
                 )
-                .frame(height: 323)
             }
         }
     }

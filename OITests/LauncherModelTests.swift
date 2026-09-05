@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import XCTest
 
@@ -56,6 +57,21 @@ final class LauncherModelTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedApp?.name, "Xcode")
     }
 
+    func testViewModelDoesNotExposeSelectionForEmptyQuery() async {
+        let app = AppDescriptor(
+            name: "Alpha",
+            url: URL(fileURLWithPath: "/Applications/Alpha.app")
+        )
+        let viewModel = makeViewModel(with: [app])
+
+        await viewModel.loadApps()?.value
+
+        XCTAssertNil(viewModel.selectedApp)
+
+        viewModel.query = "Alpha"
+        XCTAssertEqual(viewModel.selectedApp, app)
+    }
+
     func testViewModelResetsSelectionAndScrollWhenFilteringResults() async {
         let apps = [
             AppDescriptor(name: "Alpha", url: URL(fileURLWithPath: "/Applications/Alpha.app")),
@@ -91,6 +107,32 @@ final class LauncherModelTests: XCTestCase {
         XCTAssertEqual(viewModel.filteredApps, apps)
         XCTAssertEqual(viewModel.selectedIndex, 0)
         XCTAssertGreaterThan(viewModel.listResetRequest, previousResetRequest)
+    }
+
+    func testViewModelPublishesFinalPanelHeightAfterFiltering() async {
+        let apps = [
+            AppDescriptor(name: "Alpha", url: URL(fileURLWithPath: "/Applications/Alpha.app")),
+            AppDescriptor(name: "Beta", url: URL(fileURLWithPath: "/Applications/Beta.app")),
+            AppDescriptor(name: "Gamma", url: URL(fileURLWithPath: "/Applications/Gamma.app"))
+        ]
+        let viewModel = makeViewModel(with: apps)
+        await viewModel.loadApps()?.value
+
+        var publishedHeights: [CGFloat] = []
+        let cancellable = viewModel.$panelHeight
+            .dropFirst()
+            .sink { publishedHeights.append($0) }
+
+        viewModel.query = "Alpha"
+        viewModel.query = "Missing"
+        viewModel.query = ""
+
+        XCTAssertEqual(publishedHeights, [
+            LauncherLayout.totalHeight(isExpanded: true, content: .results(rowCount: 1)),
+            LauncherLayout.totalHeight(isExpanded: true, content: .status),
+            LauncherLayout.searchHeight
+        ])
+        withExtendedLifetime(cancellable) {}
     }
 
     func testViewModelLaunchesApplicationThroughApplicationUseCase() async {

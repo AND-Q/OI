@@ -1,4 +1,5 @@
 import Combine
+import CoreGraphics
 import Foundation
 
 @MainActor
@@ -16,6 +17,7 @@ final class LauncherViewModel: ObservableObject {
     @Published private(set) var focusRequest = 0
     @Published private(set) var loadState: LauncherLoadState = .idle
     @Published private(set) var launchState: LauncherLaunchState = .idle
+    @Published private(set) var panelHeight = LauncherLayout.searchHeight
 
     private let discoverApplications: DiscoverApplications
     private let launchApplication: LaunchApplication
@@ -36,13 +38,28 @@ final class LauncherViewModel: ObservableObject {
     }
 
     var selectedApp: AppDescriptor? {
-        guard filteredApps.indices.contains(selectedIndex) else { return nil }
+        guard isExpanded, filteredApps.indices.contains(selectedIndex) else { return nil }
         return filteredApps[selectedIndex]
     }
 
     var isLoading: Bool {
         if case .loading = loadState { return true }
         return false
+    }
+
+    /// Whether the panel is expanded (Spotlight collapses to a capsule with an empty query).
+    var isExpanded: Bool {
+        !query.isEmpty
+    }
+
+    /// What the expanded area shows; kept here so view and window share one source of truth.
+    var expandedContent: LauncherLayout.ExpandedContent {
+        if (errorMessage != nil && apps.isEmpty)
+            || (isLoading && apps.isEmpty)
+            || filteredApps.isEmpty {
+            return .status
+        }
+        return .results(rowCount: filteredApps.count)
     }
 
     var errorMessage: String? {
@@ -150,6 +167,10 @@ final class LauncherViewModel: ObservableObject {
             : apps.filter { $0.name.localizedCaseInsensitiveContains(normalizedQuery) }
 
         selectedIndex = 0
+        panelHeight = LauncherLayout.totalHeight(
+            isExpanded: isExpanded,
+            content: isExpanded ? expandedContent : nil
+        )
     }
 
     private func requestListReset() {
