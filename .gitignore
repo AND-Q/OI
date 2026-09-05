@@ -16,3 +16,6 @@ Package.resolved
 # 本地签名和环境文件
 *.mobileprovision
 .env
+
+# 本地参考项目（不随仓库分发）
+ReferenceProjects/
