@@ -40,51 +40,32 @@ enum LauncherLayout {
 @MainActor
 struct LauncherView: View {
     @ObservedObject var viewModel: LauncherViewModel
+    @ObservedObject var animation: PanelAnimationCoordinator
     let iconProvider: any ApplicationIconProviding
     let onLaunch: (AppDescriptor) -> Void
     let onDismiss: () -> Void
 
     @FocusState private var isSearchFocused: Bool
 
-    private var isExpanded: Bool {
-        !viewModel.query.isEmpty
-    }
-
-    private var expandedContent: LauncherLayout.ExpandedContent {
-        viewModel.expandedContent
-    }
-
-    private var panelHeight: CGFloat {
-        LauncherLayout.totalHeight(
-            isExpanded: isExpanded,
-            content: isExpanded ? expandedContent : nil
-        )
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             searchBar
                 .frame(height: LauncherLayout.searchHeight)
 
-            if isExpanded {
+            // The coordinator steps the window height; the content simply fills
+            // whatever space is published each frame, so it can never drift
+            // from the window edge. Mounting also requires the expanded query
+            // state, matching native Spotlight: clearing the query unmounts
+            // the list immediately instead of flashing it while the window
+            // shrinks back to the capsule.
+            if viewModel.isExpanded, animation.currentHeight > LauncherLayout.searchHeight + 1 {
                 divider
                 results
-                    .frame(height: expandedContent.height)
+                    .frame(height: animation.currentHeight - LauncherLayout.searchHeight - 1)
             }
         }
-        .frame(width: LauncherLayout.width, height: panelHeight)
-        .background(
-            VisualEffectBackground(cornerRadius: cornerRadius)
-        )
-        .clipShape(
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
-        }
-        .animation(.easeOut(duration: 0.18), value: isExpanded)
-        .animation(.easeOut(duration: 0.18), value: panelHeight)
+        .frame(width: LauncherLayout.width, height: animation.currentHeight)
+        .launcherPanelSurface(cornerRadius: animation.cornerRadius)
         .onAppear { isSearchFocused = true }
         .onReceive(viewModel.$focusRequest.dropFirst()) { _ in
             isSearchFocused = true
@@ -97,10 +78,6 @@ struct LauncherView: View {
             default: break
             }
         }
-    }
-
-    private var cornerRadius: CGFloat {
-        isExpanded ? LauncherLayout.expandedCornerRadius : LauncherLayout.compactCornerRadius
     }
 
     private var searchBar: some View {

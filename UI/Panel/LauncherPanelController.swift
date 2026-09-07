@@ -5,15 +5,10 @@ import SwiftUI
 
 @MainActor
 final class LauncherPanelController {
-    private enum Layout {
-        /// Gap between the menu bar and the panel's top edge, matching Spotlight.
-        static let topGap: CGFloat = 94
-        static let resizeAnimationDuration: TimeInterval = 0.18
-    }
-
     private let viewModel: LauncherViewModel
     private let iconProvider: any ApplicationIconProviding
     private let panel: LauncherPanel
+    private let animationCoordinator: PanelAnimationCoordinator
     private var keyMonitor: Any?
     private var cancellables = Set<AnyCancellable>()
     private var activeScreen: NSScreen?
@@ -44,12 +39,18 @@ final class LauncherPanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
 
+        animationCoordinator = PanelAnimationCoordinator(
+            panel: panel,
+            initialHeight: LauncherLayout.searchHeight
+        )
+
         // Dismiss when the panel loses key focus (clicking the desktop or another
         // app), matching native Spotlight's default behavior.
         panel.onResignKey = { [weak self] in self?.hide() }
 
         let launcherView = LauncherView(
             viewModel: viewModel,
+            animation: animationCoordinator,
             iconProvider: iconProvider,
             onLaunch: { [weak self] app in self?.launch(app) },
             onDismiss: { [weak self] in self?.hide() }
@@ -65,7 +66,7 @@ final class LauncherPanelController {
         // Grow/shrink the window in step with the SwiftUI layout.
         viewModel.$panelHeight
             .sink { [weak self] height in
-                self?.resizePanel(to: height, animated: true)
+                self?.resizePanel(to: height)
             }
             .store(in: &cancellables)
     }
@@ -84,47 +85,64 @@ final class LauncherPanelController {
             self.keyMonitor = nil
         }
         cancellables.removeAll()
+        animationCoordinator.stopAnimations()
+        panel.orderOut(nil)
         viewModel.cancelOperations()
-        hide()
     }
 
     func toggle() {
-        isVisible ? hide() : show()
+        // During an in-flight fade-out route to show(): hide() would drop the
+        // request, leaving the hotkey press swallowed.
+        (isVisible && !animationCoordinator.isDismissalInProgress) ? hide() : show()
     }
 
     func show() {
+        guard !panel.isVisible else {
+            // Already showing: refocus instead of resetting the session. Reverse
+            // an in-flight fade-out first, or its completion would order the
+            // panel out right after this wake.
+            animationCoordinator.cancelDismissal()
+            panel.makeKeyAndOrderFront(nil)
+            viewModel.requestFocus()
+            return
+        }
+
         viewModel.prepareForPresentation()
 
         activeScreen = targetScreen()
+        animationCoordinator.screen = activeScreen
+        let height = viewModel.panelHeight
         panel.setFrame(
-            desiredFrame(for: activeScreen, height: viewModel.panelHeight),
+            PanelAnimationCoordinator.frame(for: activeScreen, height: height),
             display: true
         )
+        // Re-derive the window shadow for the just-applied frame; the glass
+        // surface doesn't refresh it automatically (see animation coordinator).
+        panel.invalidateShadow()
+        animationCoordinator.prepareForPresentation(height: height)
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
+        animationCoordinator.fadeIn()
         viewModel.requestFocus()
     }
 
     func hide() {
-        panel.orderOut(nil)
+        guard panel.isVisible, !animationCoordinator.isDismissalInProgress else { return }
+        animationCoordinator.fadeOutAndOrderOut()
         NSApp.deactivate()
     }
 
-    private func resizePanel(to height: CGFloat, animated: Bool) {
+    private func resizePanel(to height: CGFloat) {
         guard panel.isVisible else { return }
 
-        let target = desiredFrame(for: resolvedScreen(), height: height)
+        animationCoordinator.screen = resolvedScreen()
+        let target = PanelAnimationCoordinator.frame(
+            for: animationCoordinator.screen,
+            height: height
+        )
         guard target.size != panel.frame.size else { return }
 
-        if animated {
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = Layout.resizeAnimationDuration
-                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                panel.animator().setFrame(target, display: true)
-            }
-        } else {
-            panel.setFrame(target, display: true)
-        }
+        animationCoordinator.resize(toHeight: height)
     }
 
     private func targetScreen() -> NSScreen? {
@@ -140,22 +158,6 @@ final class LauncherPanelController {
         }
         activeScreen = targetScreen()
         return activeScreen
-    }
-
-    /// The panel keeps a fixed top edge and horizontal center; its height grows downward,
-    /// exactly like the native Spotlight panel.
-    private func desiredFrame(for screen: NSScreen?, height: CGFloat) -> NSRect {
-        let visibleFrame = screen?.visibleFrame
-            ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let size = NSSize(
-            width: LauncherLayout.width,
-            height: height
-        )
-        let origin = NSPoint(
-            x: visibleFrame.midX - size.width / 2,
-            y: visibleFrame.maxY - Layout.topGap - size.height
-        )
-        return NSRect(origin: origin, size: size)
     }
 
     private func handleKeyDown(_ event: NSEvent) -> NSEvent? {

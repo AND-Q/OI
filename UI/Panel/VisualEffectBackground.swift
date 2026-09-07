@@ -1,72 +1,71 @@
 import AppKit
 import SwiftUI
 
-/// AppKit `NSVisualEffectView` bridge used for the launcher panel's frosted glass.
-/// `.titlebar` + behind-window blending matches native Spotlight on macOS 26
-/// (near-white over bright backgrounds, frosted over wallpaper; measured against
-/// full-resolution native screenshots). A small dynamic white tint adds the extra frost.
+/// The launcher panel surface: system Liquid Glass via SwiftUI `glassEffect`
+/// on macOS 26+ — the only rendering path whose window shadow follows the
+/// capsule shape when the panel is key — and a frosted material below that.
+extension View {
+    @ViewBuilder
+    func launcherPanelSurface(cornerRadius: CGFloat) -> some View {
+        if #available(macOS 26.0, *) {
+            let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            ZStack {
+                // glassEffect inserts itself in front of content *backgrounds*,
+                // so a `.background` wash would hide under the glass body. As
+                // content, the wash drives the glass's brightness sampling:
+                // the capsule stays frosted-light in light appearance on any
+                // backdrop, matching native Spotlight. The wash must be a
+                // static color resolved before rendering — the glass sampler
+                // cannot read dynamic NSColors (proven by A/B).
+                PanelInnerWash()
+                self
+            }
+            .clipShape(shape)
+            .glassEffect(.regular, in: shape)
+        } else {
+            self
+                .background(VisualEffectBackground(cornerRadius: cornerRadius))
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.15), lineWidth: 1)
+                }
+        }
+    }
+}
+
+/// Light wash inside the glass. Resolved per color scheme at view build time
+/// so the glassEffect sampler sees a static color.
+@available(macOS 26.0, *)
+private struct PanelInnerWash: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        colorScheme == .dark ? Color.black.opacity(0.25) : Color.white.opacity(0.35)
+    }
+}
+
+/// Legacy frosted material for systems without Liquid Glass.
 struct VisualEffectBackground: NSViewRepresentable {
-    let material: NSVisualEffectView.Material
-    let blendingMode: NSVisualEffectView.BlendingMode
     let cornerRadius: CGFloat
 
-    init(
-        material: NSVisualEffectView.Material = .titlebar,
-        blendingMode: NSVisualEffectView.BlendingMode = .behindWindow,
-        cornerRadius: CGFloat = 0
-    ) {
-        self.material = material
-        self.blendingMode = blendingMode
+    init(cornerRadius: CGFloat) {
         self.cornerRadius = cornerRadius
     }
 
-    func makeNSView(context: Context) -> NSVisualEffectView {
+    func makeNSView(context: Context) -> NSView {
         let view = NSVisualEffectView()
-        view.material = material
-        view.blendingMode = blendingMode
+        view.material = .titlebar
+        view.blendingMode = .behindWindow
         view.state = .active
         view.isEmphasized = false
         view.wantsLayer = true
         view.layer?.cornerCurve = .continuous
         view.layer?.masksToBounds = true
-
-        let tint = FrostTintView()
-        tint.autoresizingMask = [.width, .height]
-        view.addSubview(tint)
         return view
     }
 
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        nsView.material = material
-        nsView.blendingMode = blendingMode
-        nsView.state = .active
-        nsView.layer?.cornerRadius = cornerRadius
-    }
-}
-
-/// Thin white wash whose strength follows the system appearance.
-private final class FrostTintView: NSView {
-    private static let lightAlpha: CGFloat = 0.20
-    private static let darkAlpha: CGFloat = 0.06
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        wantsLayer = true
-        layer?.backgroundColor = Self.tintColor(for: effectiveAppearance).cgColor
-        autoresizingMask = [.width, .height]
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        layer?.backgroundColor = Self.tintColor(for: effectiveAppearance).cgColor
-    }
-
-    private static func tintColor(for appearance: NSAppearance) -> NSColor {
-        let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        return NSColor.white.withAlphaComponent(dark ? Self.darkAlpha : Self.lightAlpha)
+    func updateNSView(_ view: NSView, context: Context) {
+        view.layer?.cornerRadius = cornerRadius
     }
 }
