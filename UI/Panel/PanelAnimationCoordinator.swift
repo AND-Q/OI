@@ -40,7 +40,9 @@ final class PanelAnimationCoordinator: ObservableObject {
     init(panel: NSPanel, initialHeight: CGFloat) {
         self.panel = panel
         self.currentHeight = initialHeight
-        self.cornerRadius = Self.cornerRadius(forHeight: initialHeight)
+        let radius = Self.cornerRadius(forHeight: initialHeight)
+        self.cornerRadius = radius
+        updateLayerCornerRadius(radius)
     }
 
     var isDismissalInProgress: Bool { isDismissing }
@@ -69,7 +71,9 @@ final class PanelAnimationCoordinator: ObservableObject {
     func prepareForPresentation(height: CGFloat) {
         stopAnimations()
         currentHeight = height
-        cornerRadius = Self.cornerRadius(forHeight: height)
+        let radius = Self.cornerRadius(forHeight: height)
+        cornerRadius = radius
+        updateLayerCornerRadius(radius)
     }
 
     /// Grows/shrinks the window to `height`, retargeting from the current
@@ -154,24 +158,22 @@ final class PanelAnimationCoordinator: ObservableObject {
             )
             let height = resize.start + (resize.target - resize.start) * settled
             if height != currentHeight { currentHeight = height }
-            cornerRadius = resize.startRadius + (resize.targetRadius - resize.startRadius) * settled
+            let radius = resize.startRadius + (resize.targetRadius - resize.startRadius) * settled
+            cornerRadius = radius
             // `display: false` pipelines the commit instead of blocking per frame.
             panel.setFrame(Self.frame(for: screen, height: height), display: false)
+            updateLayerCornerRadius(radius)
 
             if abs(resize.target - height) < Layout.settleDistance
                 || now - resize.startTime > Layout.resizeResponse * 3 {
                 currentHeight = resize.target
                 cornerRadius = resize.targetRadius
                 panel.setFrame(Self.frame(for: screen, height: resize.target), display: false)
+                updateLayerCornerRadius(resize.targetRadius)
                 resizeState = nil
             } else {
                 isBusy = true
             }
-            // The glass surface doesn't participate in the system's automatic
-            // window-shadow derivation, so re-derive it after every geometry
-            // change — otherwise the shadow keeps a stale (rectangular) shape
-            // and its corners peek out around the capsule.
-            panel.invalidateShadow()
         }
 
         if let alpha = alphaState {
@@ -179,6 +181,7 @@ final class PanelAnimationCoordinator: ObservableObject {
             panel.alphaValue = alpha.from + (alpha.to - alpha.from) * CGFloat(fraction)
             if fraction >= 1 {
                 alphaState = nil
+                updateLayerCornerRadius(cornerRadius)
                 alpha.completion?()
             } else {
                 isBusy = true
@@ -189,6 +192,25 @@ final class PanelAnimationCoordinator: ObservableObject {
             clock?.stop()
             clock = nil
         }
+    }
+
+    /// Updates the AppKit host layers' corner radii and masks so macOS WindowServer
+    /// derives the window shadow from the exact capsule/rounded shape rather than
+    /// falling back to a rectangular bounds shadow.
+    private func updateLayerCornerRadius(_ radius: CGFloat) {
+        for view in [panel.contentView?.superview, panel.contentView].compactMap({ $0 }) {
+            view.wantsLayer = true
+            if view.layer?.cornerRadius != radius {
+                view.layer?.cornerRadius = radius
+            }
+            if view.layer?.cornerCurve != .continuous {
+                view.layer?.cornerCurve = .continuous
+            }
+            if view.layer?.masksToBounds != true {
+                view.layer?.masksToBounds = true
+            }
+        }
+        panel.invalidateShadow()
     }
 
     /// Critically damped spring: s(t) = 1 - (1 + ω·t)·e^(-ω·t), ω = 6/response.

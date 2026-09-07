@@ -1,51 +1,60 @@
 import AppKit
 import SwiftUI
 
-/// The launcher panel surface: system Liquid Glass via SwiftUI `glassEffect`
-/// on macOS 26+ — the only rendering path whose window shadow follows the
-/// capsule shape when the panel is key — and a frosted material below that.
+/// The launcher panel surface: native frosted vibrancy material (`NSVisualEffectView`)
+/// paired with an appearance-matched wash and subtle highlight stroke, mirroring
+/// native Spotlight across both light and dark backgrounds.
 extension View {
     @ViewBuilder
     func launcherPanelSurface(cornerRadius: CGFloat) -> some View {
-        if #available(macOS 26.0, *) {
-            let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            ZStack {
-                // glassEffect inserts itself in front of content *backgrounds*,
-                // so a `.background` wash would hide under the glass body. As
-                // content, the wash drives the glass's brightness sampling:
-                // the capsule stays frosted-light in light appearance on any
-                // backdrop, matching native Spotlight. The wash must be a
-                // static color resolved before rendering — the glass sampler
-                // cannot read dynamic NSColors (proven by A/B).
-                PanelInnerWash()
-                self
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        self
+            .background {
+                ZStack {
+                    VisualEffectBackground(cornerRadius: cornerRadius)
+                    PanelInnerWash()
+                }
             }
             .clipShape(shape)
-            .glassEffect(.regular, in: shape)
-        } else {
-            self
-                .background(VisualEffectBackground(cornerRadius: cornerRadius))
-                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.15), lineWidth: 1)
-                }
-        }
+            .overlay {
+                PanelBorder(cornerRadius: cornerRadius)
+            }
     }
 }
 
-/// Light wash inside the glass. Resolved per color scheme at view build time
-/// so the glassEffect sampler sees a static color.
-@available(macOS 26.0, *)
+/// Base wash that prevents dark backdrops (e.g. Terminal) from washing out the
+/// panel in light mode, while providing rich graphite depth in dark mode.
 private struct PanelInnerWash: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        colorScheme == .dark ? Color.black.opacity(0.25) : Color.white.opacity(0.35)
+        if colorScheme == .dark {
+            Color.black.opacity(0.35)
+        } else {
+            // High-opacity white wash keeps the capsule clean and crisp even over dark windows
+            Color.white.opacity(0.85)
+        }
     }
 }
 
-/// Legacy frosted material for systems without Liquid Glass.
+/// Subtle hairline stroke: 0.5pt specular border in dark mode (matching native
+/// Spotlight), soft neutral stroke in light mode.
+private struct PanelBorder: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let cornerRadius: CGFloat
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        shape.strokeBorder(
+            colorScheme == .dark
+                ? Color.white.opacity(0.15)
+                : Color.black.opacity(0.08),
+            lineWidth: 0.5
+        )
+    }
+}
+
+/// AppKit `NSVisualEffectView` bridge for native macOS vibrancy.
 struct VisualEffectBackground: NSViewRepresentable {
     let cornerRadius: CGFloat
 
@@ -53,19 +62,22 @@ struct VisualEffectBackground: NSViewRepresentable {
         self.cornerRadius = cornerRadius
     }
 
-    func makeNSView(context: Context) -> NSView {
+    func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
-        view.material = .titlebar
+        view.material = .hudWindow
         view.blendingMode = .behindWindow
         view.state = .active
         view.isEmphasized = false
         view.wantsLayer = true
         view.layer?.cornerCurve = .continuous
+        view.layer?.cornerRadius = cornerRadius
         view.layer?.masksToBounds = true
         return view
     }
 
-    func updateNSView(_ view: NSView, context: Context) {
-        view.layer?.cornerRadius = cornerRadius
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        if nsView.layer?.cornerRadius != cornerRadius {
+            nsView.layer?.cornerRadius = cornerRadius
+        }
     }
 }

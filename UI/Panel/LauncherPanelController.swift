@@ -57,7 +57,18 @@ final class LauncherPanelController {
         )
         let hostingView = NSHostingView(rootView: launcherView)
         hostingView.autoresizingMask = [.width, .height]
+        hostingView.wantsLayer = true
+        hostingView.layer?.cornerRadius = LauncherLayout.compactCornerRadius
+        hostingView.layer?.cornerCurve = .continuous
+        hostingView.layer?.masksToBounds = true
         panel.contentView = hostingView
+
+        if let frameView = panel.contentView?.superview {
+            frameView.wantsLayer = true
+            frameView.layer?.cornerRadius = LauncherLayout.compactCornerRadius
+            frameView.layer?.cornerCurve = .continuous
+            frameView.layer?.masksToBounds = true
+        }
 
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             self?.handleKeyDown(event) ?? event
@@ -116,12 +127,10 @@ final class LauncherPanelController {
             PanelAnimationCoordinator.frame(for: activeScreen, height: height),
             display: true
         )
-        // Re-derive the window shadow for the just-applied frame; the glass
-        // surface doesn't refresh it automatically (see animation coordinator).
-        panel.invalidateShadow()
         animationCoordinator.prepareForPresentation(height: height)
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
+        panel.invalidateShadow()
         animationCoordinator.fadeIn()
         viewModel.requestFocus()
     }
