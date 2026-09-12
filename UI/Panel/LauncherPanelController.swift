@@ -130,6 +130,9 @@ final class LauncherPanelController {
         )
         animationCoordinator.prepareForPresentation(height: height)
         NSApp.activate(ignoringOtherApps: true)
+        // The panel keeps alpha 1 after a completed fade-out; ordering it front
+        // at full opacity would flash one frame before fadeIn reaches 0.
+        panel.alphaValue = 0
         panel.makeKeyAndOrderFront(nil)
         panel.invalidateShadow()
         animationCoordinator.fadeIn()

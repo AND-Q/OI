@@ -54,14 +54,15 @@ struct LauncherView: View {
 
             // The coordinator steps the window height; the content simply fills
             // whatever space is published each frame, so it can never drift
-            // from the window edge. Mounting also requires the expanded query
-            // state, matching native Spotlight: clearing the query unmounts
-            // the list immediately instead of flashing it while the window
-            // shrinks back to the capsule.
-            if viewModel.isExpanded, animation.currentHeight > LauncherLayout.searchHeight + 1 {
+            // from the window edge. Mounting follows only the expanded query
+            // state: the list is created before the first geometry tick instead
+            // of mid-animation (its height clamps to 0 until the window grows).
+            // Clearing the query still unmounts it immediately, matching native
+            // Spotlight's collapse back to the capsule.
+            if viewModel.isExpanded {
                 divider
                 results
-                    .frame(height: animation.currentHeight - LauncherLayout.searchHeight - 1)
+                    .frame(height: max(0, animation.currentHeight - LauncherLayout.searchHeight - 1))
             }
         }
         .frame(width: LauncherLayout.width, height: animation.currentHeight)

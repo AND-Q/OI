@@ -60,6 +60,10 @@ struct LauncherResultsList: NSViewRepresentable {
         let selectionChanged = coordinator.selectedIndex != selectedIndex
         let shouldResetScroll = coordinator.resetRequest != resetRequest
 
+        // The parent re-renders on every animation frame (it observes the panel
+        // geometry), so skip all AppKit work when nothing actually changed.
+        guard appsChanged || selectionChanged || shouldResetScroll else { return }
+
         coordinator.parent = self
         coordinator.apps = apps
         coordinator.selectedIndex = selectedIndex

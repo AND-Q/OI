@@ -37,6 +37,12 @@ final class PanelAnimationCoordinator: ObservableObject {
     )?
     private var isDismissing = false
 
+    /// Breaks the clock ⇄ CADisplayLink target retain cycle if the owner is
+    /// released while an animation is still running.
+    deinit {
+        clock?.stop()
+    }
+
     init(panel: NSPanel, initialHeight: CGFloat) {
         self.panel = panel
         self.currentHeight = initialHeight
@@ -142,7 +148,7 @@ final class PanelAnimationCoordinator: ObservableObject {
 
     private func ensureClock() {
         guard clock == nil else { return }
-        let clock = DisplayStepClock { [weak self] in self?.step() }
+        let clock = DisplayStepClock(window: panel) { [weak self] in self?.step() }
         self.clock = clock
         clock.start()
     }
@@ -162,7 +168,7 @@ final class PanelAnimationCoordinator: ObservableObject {
             cornerRadius = radius
             // `display: false` pipelines the commit instead of blocking per frame.
             panel.setFrame(Self.frame(for: screen, height: height), display: false)
-            updateLayerCornerRadius(radius)
+            setLayerCornerRadius(radius)
 
             if abs(resize.target - height) < Layout.settleDistance
                 || now - resize.startTime > Layout.resizeResponse * 3 {
@@ -194,9 +200,21 @@ final class PanelAnimationCoordinator: ObservableObject {
         }
     }
 
+    /// Per-frame corner radius update only. Shadow recompute is deliberately
+    /// kept off the animation loop: `invalidateShadow` makes WindowServer
+    /// rebuild the shadow from the window's alpha, too costly at display rate.
+    private func setLayerCornerRadius(_ radius: CGFloat) {
+        for view in [panel.contentView?.superview, panel.contentView].compactMap({ $0 }) {
+            if view.layer?.cornerRadius != radius {
+                view.layer?.cornerRadius = radius
+            }
+        }
+    }
+
     /// Updates the AppKit host layers' corner radii and masks so macOS WindowServer
     /// derives the window shadow from the exact capsule/rounded shape rather than
-    /// falling back to a rectangular bounds shadow.
+    /// falling back to a rectangular bounds shadow. Runs on init and whenever a
+    /// geometry transition settles — never per animation frame.
     private func updateLayerCornerRadius(_ radius: CGFloat) {
         for view in [panel.contentView?.superview, panel.contentView].compactMap({ $0 }) {
             view.wantsLayer = true
@@ -220,14 +238,20 @@ final class PanelAnimationCoordinator: ObservableObject {
     }
 }
 
-/// Vsync-locked step clock: one `onTick` per display refresh, hopped onto the
-/// main thread. CVDisplayLink is the only display-linked clock available across
-/// the deployment target range (macOS 13+).
+/// Vsync-locked step clock: one `onTick` per display refresh. On macOS 14+ the
+/// link synchronizes with the panel window's own screen and delivers on the
+/// main thread — correct on ProMotion and mixed-refresh multi-display setups.
+/// macOS 13 falls back to CVDisplayLink with a main-queue hop.
 private final class DisplayStepClock {
-    private var displayLink: CVDisplayLink?
     private let onTick: () -> Void
+    private weak var window: NSWindow?
+    /// `CADisplayLink` on macOS 14+, typed as `AnyObject` because the type is
+    /// unavailable on the macOS 13 deployment target.
+    private var cadence: AnyObject?
+    private var cvDisplayLink: CVDisplayLink?
 
-    init(onTick: @escaping () -> Void) {
+    init(window: NSWindow, onTick: @escaping () -> Void) {
+        self.window = window
         self.onTick = onTick
     }
 
@@ -236,7 +260,13 @@ private final class DisplayStepClock {
     }
 
     func start() {
-        guard displayLink == nil else { return }
+        guard cadence == nil, cvDisplayLink == nil else { return }
+        if #available(macOS 14.0, *), let window, window.isVisible {
+            let link = window.displayLink(target: self, selector: #selector(stepLink(_:)))
+            link.add(to: .main, forMode: .common)
+            cadence = link
+            return
+        }
         var link: CVDisplayLink?
         guard CVDisplayLinkCreateWithActiveCGDisplays(&link) == kCVReturnSuccess, let link else { return }
         let context = Unmanaged.passUnretained(self).toOpaque()
@@ -245,15 +275,29 @@ private final class DisplayStepClock {
             Unmanaged<DisplayStepClock>.fromOpaque(userData).takeUnretainedValue().fire()
             return kCVReturnSuccess
         }, context)
-        displayLink = link
+        cvDisplayLink = link
         CVDisplayLinkStart(link)
     }
 
     func stop() {
-        if let displayLink {
-            CVDisplayLinkStop(displayLink)
+        if #available(macOS 14.0, *), let link = cadence as? CADisplayLink {
+            link.remove(from: .main, forMode: .common)
+            link.invalidate()
         }
-        displayLink = nil
+        cadence = nil
+        if let cvDisplayLink {
+            CVDisplayLinkStop(cvDisplayLink)
+        }
+        cvDisplayLink = nil
+    }
+
+    /// CADisplayLink callback: invoked in-sync with the panel's display.
+    @objc private func stepLink(_ sender: Any) {
+        if Thread.isMainThread {
+            onTick()
+        } else {
+            DispatchQueue.main.async { [weak self] in self?.onTick() }
+        }
     }
 
     /// Runs on the display link's background thread; hop to main.
