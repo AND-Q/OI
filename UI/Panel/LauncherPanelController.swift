@@ -71,7 +71,8 @@ final class LauncherPanelController {
         }
 
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            self?.handleKeyDown(event) ?? event
+            guard let self else { return event }
+            return self.handleKeyDown(event)
         }
 
         // Grow/shrink the window in step with the SwiftUI layout.
@@ -172,6 +173,13 @@ final class LauncherPanelController {
     private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
         guard panel.isVisible else { return event }
 
+        // When the focused field editor has marked text (e.g. active Pinyin/IME composition),
+        // let the input method handle all keys: Return commits the composition, Escape aborts it,
+        // and arrow keys browse candidate words.
+        if hasActiveMarkedText {
+            return event
+        }
+
         switch event.keyCode {
         case UInt16(kVK_Escape):
             hide()
@@ -195,6 +203,16 @@ final class LauncherPanelController {
     private func launch(_ app: AppDescriptor) {
         viewModel.launch(app)
         hide()
+    }
+
+    private var hasActiveMarkedText: Bool {
+        if let client = panel.firstResponder as? NSTextInputClient, client.hasMarkedText() {
+            return true
+        }
+        if let fieldEditor = panel.fieldEditor(false, for: nil) as? NSTextInputClient, fieldEditor.hasMarkedText() {
+            return true
+        }
+        return false
     }
 }
 
