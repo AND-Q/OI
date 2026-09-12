@@ -72,6 +72,23 @@ final class LauncherModelTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedApp, app)
     }
 
+    /// 回归测试：纯空白输入按空查询处理（文档 §8.3）——面板保持折叠、不暴露可启动选中项。
+    func testViewModelTreatsWhitespaceOnlyQueryAsEmpty() async {
+        let app = AppDescriptor(
+            name: "Alpha",
+            url: URL(fileURLWithPath: "/Applications/Alpha.app")
+        )
+        let viewModel = makeViewModel(with: [app])
+
+        await viewModel.loadApps()?.value
+
+        viewModel.query = "   "
+
+        XCTAssertFalse(viewModel.isExpanded)
+        XCTAssertNil(viewModel.selectedApp)
+        XCTAssertEqual(viewModel.panelHeight, LauncherLayout.searchHeight)
+    }
+
     func testViewModelResetsSelectionAndScrollWhenFilteringResults() async {
         let apps = [
             AppDescriptor(name: "Alpha", url: URL(fileURLWithPath: "/Applications/Alpha.app")),
@@ -86,7 +103,8 @@ final class LauncherModelTests: XCTestCase {
         viewModel.query = "a"
 
         XCTAssertEqual(viewModel.selectedIndex, 0)
-        XCTAssertEqual(viewModel.selectedApp?.name, "Alpha")
+        // 同等级、同分数的结果按名称稳定排序：Almanac < Alpha < Arc。
+        XCTAssertEqual(viewModel.selectedApp?.name, "Almanac")
         XCTAssertGreaterThan(viewModel.listResetRequest, previousResetRequest)
     }
 
@@ -190,14 +208,238 @@ final class LauncherModelTests: XCTestCase {
         XCTAssertEqual(viewModel.launchState, .failed("无法启动 Demo：启动失败"))
     }
 
-    private func makeViewModel(with descriptors: [AppDescriptor]) -> LauncherViewModel {
+    func testFileSystemAppCatalogReadsBundleIdentifier() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        try makeApplicationBundle(
+            directoryName: "demo.app",
+            displayName: "Demo",
+            bundleIdentifier: "com.example.demo",
+            in: root
+        )
+
+        let catalog = FileSystemAppCatalog(searchDirectories: [root])
+        let descriptors = try await catalog.scan()
+
+        XCTAssertEqual(descriptors.first?.bundleIdentifier, "com.example.demo")
+    }
+
+    func testFileSystemAppCatalogKeepsShallowerPathForSameBundleIdentifier() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        try makeApplicationBundle(
+            directoryName: "nested/Demo.app",
+            displayName: "Demo",
+            bundleIdentifier: "com.example.demo",
+            in: root
+        )
+        try makeApplicationBundle(
+            directoryName: "Demo.app",
+            displayName: "Demo",
+            bundleIdentifier: "com.example.demo",
+            in: root
+        )
+
+        let catalog = FileSystemAppCatalog(searchDirectories: [root])
+        let descriptors = try await catalog.scan()
+
+        XCTAssertEqual(descriptors.count, 1)
+        XCTAssertEqual(descriptors.first?.url.path, root.appendingPathComponent("Demo.app").path)
+    }
+
+    func testFileSystemAppCatalogDeduplicatesSymlinkedBundles() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let realURL = try makeApplicationBundle(
+            directoryName: "Real.app",
+            displayName: "Real",
+            in: root
+        )
+        try FileManager.default.createSymbolicLink(
+            at: root.appendingPathComponent("Link.app", isDirectory: true),
+            withDestinationURL: realURL
+        )
+
+        let catalog = FileSystemAppCatalog(searchDirectories: [root])
+        let descriptors = try await catalog.scan()
+
+        XCTAssertEqual(descriptors.count, 1)
+        XCTAssertEqual(descriptors.first?.url, realURL)
+    }
+
+    func testFileSystemAppCatalogSkipsAppsNestedInsideOtherApps() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        try makeApplicationBundle(directoryName: "Outer.app", displayName: "Outer", in: root)
+        try makeApplicationBundle(
+            directoryName: "Outer.app/Contents/Inner.app",
+            displayName: "Inner",
+            in: root
+        )
+
+        let catalog = FileSystemAppCatalog(searchDirectories: [root])
+        let descriptors = try await catalog.scan()
+
+        XCTAssertEqual(descriptors.map(\.name), ["Outer"])
+    }
+
+    func testViewModelSearchesThroughIndexWithInitialsAndAliases() async {
+        let vsCode = AppDescriptor(
+            name: "Visual Studio Code",
+            url: URL(fileURLWithPath: "/Applications/Visual Studio Code.app"),
+            bundleIdentifier: "com.example.editor"
+        )
+        let viewModel = makeViewModel(
+            with: [vsCode],
+            aliases: ["com.example.editor": ["vscode"]]
+        )
+        await viewModel.loadApps()?.value
+
+        viewModel.query = "vsc"
+        XCTAssertEqual(viewModel.filteredApps.map(\.name), ["Visual Studio Code"])
+
+        viewModel.query = "vscode"
+        XCTAssertEqual(viewModel.filteredApps.map(\.name), ["Visual Studio Code"])
+    }
+
+    func testViewModelRecordsUsageOnlyAfterSuccessfulLaunch() async {
+        let application = AppDescriptor(
+            name: "Demo",
+            url: URL(fileURLWithPath: "/Applications/Demo.app"),
+            bundleIdentifier: "com.example.demo"
+        )
+        let store = MemoryAppUsageStore()
+        let viewModel = LauncherViewModel(
+            discoverApplications: DiscoverApplications(catalog: StubAppCatalog(descriptors: [])),
+            launchApplication: LaunchApplication(launcher: StubApplicationLauncher()),
+            usageStore: store
+        )
+
+        await viewModel.launch(application)?.value
+        let successfulRecord = await pollUsageRecord(store: store, key: application.usageKey)
+        XCTAssertEqual(successfulRecord?.launchCount, 1)
+
+        let failingViewModel = LauncherViewModel(
+            discoverApplications: DiscoverApplications(catalog: StubAppCatalog(descriptors: [])),
+            launchApplication: LaunchApplication(launcher: ThrowingApplicationLauncher()),
+            usageStore: store
+        )
+        await failingViewModel.launch(application)?.value
+        let failedRecord = await pollUsageRecord(
+            store: store,
+            key: application.usageKey,
+            expecting: 2
+        )
+        XCTAssertEqual(failedRecord?.launchCount, 1)
+    }
+
+    func testViewModelRefreshesSnapshotOnlyWhenStale() async {
+        let apps = [
+            AppDescriptor(name: "Alpha", url: URL(fileURLWithPath: "/Applications/Alpha.app"))
+        ]
+        let counter = ScanCounter()
+        let holder = DateHolder()
+        let viewModel = LauncherViewModel(
+            discoverApplications: DiscoverApplications(
+                catalog: CountingAppCatalog(descriptors: apps, counter: counter)
+            ),
+            launchApplication: LaunchApplication(launcher: StubApplicationLauncher()),
+            now: { holder.date }
+        )
+
+        await viewModel.loadApps()?.value
+        XCTAssertEqual(counter.count, 1)
+
+        XCTAssertNil(viewModel.refreshApplications(force: false))
+        XCTAssertEqual(counter.count, 1)
+
+        holder.date = holder.date.addingTimeInterval(601)
+        let refresh = viewModel.refreshApplications(force: false)
+        XCTAssertNotNil(refresh)
+        await refresh?.value
+        XCTAssertEqual(counter.count, 2)
+        XCTAssertEqual(viewModel.apps, apps)
+    }
+
+    func testViewModelForcedRefreshReplacesSnapshotWithLatestScan() async {
+        let first = [AppDescriptor(name: "Alpha", url: URL(fileURLWithPath: "/Applications/Alpha.app"))]
+        let second = [
+            AppDescriptor(name: "Alpha", url: URL(fileURLWithPath: "/Applications/Alpha.app")),
+            AppDescriptor(name: "Beta", url: URL(fileURLWithPath: "/Applications/Beta.app"))
+        ]
+        let viewModel = LauncherViewModel(
+            discoverApplications: DiscoverApplications(
+                catalog: SequencedAppCatalog(results: [first, second])
+            ),
+            launchApplication: LaunchApplication(launcher: StubApplicationLauncher())
+        )
+
+        await viewModel.loadApps()?.value
+        XCTAssertEqual(viewModel.apps.map(\.name), ["Alpha"])
+
+        await viewModel.refreshApplications(force: true)?.value
+        XCTAssertEqual(viewModel.apps.map(\.name), ["Alpha", "Beta"])
+    }
+
+    /// 回归测试：空扫描结果（如目录临时异常）不得清空使用历史。
+    func testViewModelKeepsUsageHistoryWhenScanReturnsEmpty() async {
+        let demo = AppDescriptor(
+            name: "Demo",
+            url: URL(fileURLWithPath: "/Applications/Demo.app"),
+            bundleIdentifier: "com.example.demo"
+        )
+        let store = MemoryAppUsageStore()
+        await store.recordLaunch(key: demo.usageKey)
+
+        let viewModel = LauncherViewModel(
+            discoverApplications: DiscoverApplications(
+                catalog: SequencedAppCatalog(results: [[demo], []])
+            ),
+            launchApplication: LaunchApplication(launcher: StubApplicationLauncher()),
+            usageStore: store
+        )
+
+        await viewModel.loadApps()?.value
+        await viewModel.refreshApplications(force: true)?.value
+
+        let record = await store.records()[demo.usageKey]
+        XCTAssertNotNil(record)
+        XCTAssertEqual(record?.launchCount, 1)
+    }
+
+    private func pollUsageRecord(
+        store: MemoryAppUsageStore,
+        key: String,
+        expecting launchCount: Int = 1
+    ) async -> AppUsageRecord? {
+        for _ in 0..<100 {
+            let record = await store.records()[key]
+            if record?.launchCount == launchCount { return record }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        return await store.records()[key]
+    }
+
+    private func makeViewModel(
+        with descriptors: [AppDescriptor],
+        aliases: [String: [String]] = [:],
+        usageStore: any AppUsageStoring = MemoryAppUsageStore(),
+        now: @escaping () -> Date = { Date() }
+    ) -> LauncherViewModel {
         LauncherViewModel(
             discoverApplications: DiscoverApplications(
                 catalog: StubAppCatalog(descriptors: descriptors)
             ),
             launchApplication: LaunchApplication(
                 launcher: StubApplicationLauncher()
-            )
+            ),
+            usageStore: usageStore,
+            aliases: aliases,
+            now: now
         )
     }
 
@@ -211,17 +453,21 @@ final class LauncherModelTests: XCTestCase {
     private func makeApplicationBundle(
         directoryName: String,
         displayName: String,
+        bundleIdentifier: String? = nil,
         in root: URL
     ) throws -> URL {
         let bundleURL = root.appendingPathComponent(directoryName, isDirectory: true)
         let contentsURL = bundleURL.appendingPathComponent("Contents", isDirectory: true)
         try FileManager.default.createDirectory(at: contentsURL, withIntermediateDirectories: true)
 
-        let info: [String: Any] = [
+        var info: [String: Any] = [
             "CFBundleDisplayName": displayName,
             "CFBundleName": displayName,
             "CFBundlePackageType": "APPL"
         ]
+        if let bundleIdentifier {
+            info["CFBundleIdentifier"] = bundleIdentifier
+        }
         let data = try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
         try data.write(to: contentsURL.appendingPathComponent("Info.plist"))
         return bundleURL
@@ -235,6 +481,57 @@ private struct StubAppCatalog: AppCatalog {
         try Task.checkCancellation()
         return descriptors
     }
+}
+
+private struct CountingAppCatalog: AppCatalog {
+    let descriptors: [AppDescriptor]
+    let counter: ScanCounter
+
+    func scan() async throws -> [AppDescriptor] {
+        counter.increment()
+        return descriptors
+    }
+}
+
+private final class SequencedAppCatalog: AppCatalog, @unchecked Sendable {
+    private let results: [[AppDescriptor]]
+    private let lock = NSLock()
+    private var scans = 0
+
+    init(results: [[AppDescriptor]]) {
+        self.results = results
+    }
+
+    func scan() async throws -> [AppDescriptor] {
+        lock.lock()
+        let index = scans
+        scans += 1
+        lock.unlock()
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        guard index < results.count else { return results.last ?? [] }
+        return results[index]
+    }
+}
+
+private final class ScanCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var countValue = 0
+
+    var count: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return countValue
+    }
+
+    func increment() {
+        lock.lock()
+        countValue += 1
+        lock.unlock()
+    }
+}
+
+private final class DateHolder {
+    var date = Date(timeIntervalSinceReferenceDate: 0)
 }
 
 private struct ThrowingAppCatalog: AppCatalog {

@@ -5,6 +5,7 @@ import os
 final class AppCoordinator {
     private let configuration: AppConfiguration
     private let logger: Logger
+    private let dependencies: AppDependencies
     private let viewModel: LauncherViewModel
     private let shortcutService: any GlobalShortcutHandling
     private let panelController: LauncherPanelController
@@ -31,6 +32,7 @@ final class AppCoordinator {
             subsystem: Bundle.main.bundleIdentifier ?? "OI",
             category: "AppCoordinator"
         )
+        self.dependencies = dependencies
         self.viewModel = dependencies.launcherViewModel
         self.shortcutService = dependencies.globalShortcutService
         self.panelController = LauncherPanelController(

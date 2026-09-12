@@ -29,7 +29,7 @@ FileManager 扫描应用目录
 
 ### 2.1 选择理由
 
-OI 当前只搜索应用，候选数量通常只有几十到几百个。对三个或几个标准应用目录做一次后台扫描，成本很低，且结果完全可控、可注入测试目录。
+OI 当前只搜索应用，候选数量通常只有几十到几百个。对少量标准应用目录（见 6.1）做一次后台扫描，成本很低，且结果完全可控、可注入测试目录。
 
 `NSMetadataQuery` 更适合未来的文件搜索。将它用于当前 App-only 场景会增加异步通知、索引延迟、隐私设置和 `Sendable` 隔离等复杂度，但不会立即带来相应收益。
 
@@ -82,7 +82,7 @@ apps.filter {
 - 搜索输入路径不执行磁盘递归扫描；
 - 精确匹配始终优先于模糊匹配；
 - 前缀匹配始终优先于普通包含匹配；
-- 使用历史只能在匹配质量相同或接近时参与排序；
+- 使用历史只在相同匹配等级内参与排序；
 - 支持英文 App 名称和本地化名称；
 - 支持 Bundle 文件名、Bundle Identifier 或明确配置的别名；
 - 中文输入法组合文本不影响原生搜索框占位符；
@@ -181,7 +181,7 @@ SearchCoordinator
 - 优先读取 `CFBundleDisplayName`，其次读取 `CFBundleName`；
 - 没有可用显示名时回退到 Bundle 文件名；
 - 不把 App 内的 helper、插件或测试应用当作顶层结果；
-- 对符号链接进行明确策略处理，避免同一个 Bundle 重复出现。
+- 符号链接解析为真实路径后参与标准化路径去重，避免同一个 Bundle 重复出现。
 
 ### 6.3 身份策略
 
@@ -194,16 +194,19 @@ SearchCoordinator
 辅助身份：CFBundleIdentifier
 ```
 
+Bundle Identifier 是应用元数据而非派生匹配字段，在阶段 1 直接加入 `AppDescriptor`（`bundleIdentifier: String?`）；`ApplicationSearchDocument` 只保存派生匹配字段（见第 7 节）。
+
 两个不同路径具有同一个 Bundle Identifier 时，必须定义保留策略。第一阶段保留路径更浅、位于标准应用目录的版本，并让排序稳定；不要在没有产品规则的情况下随机选择。
 
 ## 7. 搜索文档和标准化
 
-新增搜索层内部模型，不把搜索辅助字段直接塞进领域模型：
+新增搜索层内部模型，只保存从 `AppDescriptor` 元数据派生的标准化匹配字段，不把搜索辅助字段直接塞进领域模型：
 
 ```swift
 struct ApplicationSearchDocument: Sendable {
     let app: AppDescriptor
     let normalizedName: String
+    let nameTokens: [String]
     let normalizedBundleName: String
     let normalizedBundleIdentifier: String
     let aliases: [String]
@@ -223,6 +226,8 @@ struct ApplicationSearchDocument: Sendable {
 - 英文名称首字母；
 - 中文名称首字母或拼音（在技术验证通过后启用）。
 
+`initials` 只保存英文名称首字母（如 `vsc`）；中文首字母（如"微信"的 `wx`）在匹配时由 `pinyin` 全拼派生，不单独建字段。
+
 示例：
 
 ```text
@@ -232,6 +237,8 @@ Bundle ID：com.microsoft.VSCode
 别名：vscode
 首字母：vsc
 ```
+
+别名来源：第一阶段使用内置静态映射（代码内字典，key 为 Bundle Identifier），只覆盖少量常见应用（如 `com.microsoft.VSCode -> ["vscode"]`），不做用户配置界面。
 
 ### 7.2 标准化规则
 
@@ -246,23 +253,25 @@ Bundle ID：com.microsoft.VSCode
 - 保留原始名称用于展示；
 - 中文转拼音时保留原名，拼音只用于匹配。
 
+索引同时保留两种形式：去分隔符形式（如 `visualstudiocode`，用于前缀和包含匹配）与分词形式（按空格、短横线、下划线切分，存于 `nameTokens`，用于单词前缀匹配）；等级 2 的单词前缀匹配只作用于分词形式。
+
 拼音实现先验证 Foundation `StringTransform` 对当前系统名称的结果。如果结果不稳定或不支持需要的输入，再单独评估依赖，不在第一步手写完整拼音算法。
 
 ## 8. 匹配和排序
 
 ### 8.1 匹配层级
 
-使用固定匹配等级，避免使用历史把错误结果推到第一位：
+使用固定匹配等级，避免使用历史把错误结果推到第一位。每个等级直接对应 `ApplicationSearchDocument` 字段和匹配方式的组合，取该 App 命中的最高等级：
 
 ```text
-0  名称完全匹配
-1  名称前缀匹配
-2  单词前缀匹配
-3  本地化名称或 Bundle 名称匹配
-4  别名/首字母匹配
-5  拼音前缀匹配
-6  连续包含匹配
-7  模糊子序列匹配
+0  normalizedName 完全匹配
+1  normalizedName 前缀匹配
+2  normalizedName 单词前缀匹配（如 "code" 命中 "Visual Studio Code" 的单词 "Code"）
+3  normalizedBundleName / normalizedBundleIdentifier 前缀或包含匹配
+4  aliases 前缀或包含匹配；initials 前缀匹配
+5  pinyin 前缀匹配
+6  normalizedName 连续包含匹配
+7  normalizedName 模糊子序列匹配
 ```
 
 ### 8.2 评分组成
@@ -290,15 +299,21 @@ struct MatchScore: Comparable, Sendable {
 
 使用历史不能跨越匹配等级。例如，常用的 `Calendar` 不能因为启动次数多而压过名称完全匹配的 `Calculator`。
 
+使用记录通过查询参数传入，索引不持有 `AppUsageStore`，避免搜索层反向依赖存储；索引在返回前按 8.3 的结果上限截断：
+
+```swift
+func search(query: String, usage: [String: AppUsageRecord]) -> [AppDescriptor]
+```
+
 ### 8.3 空查询和边界
 
 - 空字符串：面板保持折叠，不返回可启动的选中项；
 - 纯空白：按空查询处理；
-- 超长 query：限制长度，避免模糊算法出现不可控开销；
+- 超长 query：标准化后超过 64 个字符时直接返回空结果，避免模糊算法出现不可控开销；
 - 无结果：返回空数组；
-- 结果上限：由 UI 可见行数决定，建议最多保留 7 条可见结果加少量缓冲；
+- 结果集上限固定为 50 条；`maximumVisibleRows`（7 行）只是面板可见高度约束，滚动和键盘导航作用于完整结果集；
 - 相同分数：按标准化名称和原始名称使用稳定排序；
-- 搜索结果中的 URL 必须在启动前再次确认存在或可打开。
+- 快照中的 App 可能已被删除：搜索路径不做存在性检查，依赖启动失败的错误路径处理（保留错误状态、不记录使用历史）。
 
 ## 9. 使用历史
 
@@ -311,14 +326,16 @@ struct AppUsageRecord: Codable, Sendable {
 }
 ```
 
+存储 key 使用 Bundle Identifier，读取不到时回退 `AppDescriptor.id`（标准化路径），App 重装或移动后启动历史不丢失；`search(query:usage:)` 传入的字典使用同一 key 规则。
+
 记录规则：
 
 1. 只有启动用例成功后才增加次数；
 2. 更新最近启动时间；
 3. 异步持久化，不能阻塞面板关闭或应用启动；
 4. 不记录用户输入的 query；
-5. 对次数使用上限或对数衰减；
-6. 删除 App 后清理记录，或保留有限时间，但必须固定一种策略；
+5. 对次数使用对数衰减；
+6. 删除 App 后记录保留至下一次扫描，由扫描结果惰性清理（固定此策略，不做限期保留）；
 7. 迁移和 key 变更必须保留兼容逻辑。
 
 ## 10. 刷新和快照
@@ -337,10 +354,10 @@ struct AppUsageRecord: Codable, Sendable {
 
 - 应用启动时后台扫描；
 - 面板显示时使用已有快照；
-- 快照为空或过期时触发刷新；
+- 快照为空，或距上次成功刷新超过 10 分钟时，在面板显示时触发后台刷新；
 - 启动器关闭时不强制等待刷新；
-- 后续可加入 FSEvents 或 `DispatchSource`，watcher 只负责设置 dirty 标记；
-- 下一次面板显示或空闲时再执行后台刷新。
+- 目录 watcher（FSEvents 或 `DispatchSource`）只负责设置 dirty 标记，不重建索引（阶段 5 接入）；
+- dirty 置位后，在下一次面板显示时执行后台刷新。
 
 不在每个文件事件到达时重建索引，也不在每个 query 改变时扫描磁盘。
 
@@ -401,7 +418,7 @@ query 改变
 
 - 抽取 Bundle 元数据读取逻辑；
 - 验证显示名称和 Bundle 文件名 fallback；
-- 读取 Bundle Identifier 作为搜索和使用历史辅助字段；
+- 读取 Bundle Identifier 并加入 `AppDescriptor`（`bundleIdentifier: String?`），作为搜索和使用历史辅助字段；
 - 完善应用目录和嵌套 App 过滤；
 - 保持 `AppDescriptor.id` 兼容。
 
@@ -414,7 +431,7 @@ query 改变
 - 新增 `ApplicationSearchDocument`；
 - 新增 `ApplicationSearchIndex`；
 - 实现统一标准化；
-- 实现完全、前缀、包含匹配；
+- 实现完全、前缀、单词前缀和包含匹配；
 - 增加 Bundle 名称、Bundle ID 和显式别名匹配；
 - 保证相同输入产生稳定顺序。
 
@@ -450,7 +467,7 @@ query 改变
 - 新增不可变应用快照；
 - 后台扫描并原子替换；
 - 添加过期和 dirty 标记；
-- 后续接入目录 watcher；
+- 接入目录 watcher（FSEvents 或 `DispatchSource`），只设置 dirty 标记，不重建索引；
 - 在刷新过程中保持旧快照可搜索。
 
 验收：刷新期间输入仍流畅；新安装、删除和移动的 App 在下一次刷新后正确出现或消失。
@@ -491,7 +508,8 @@ query 改变
 - 重音字符和大小写；
 - 模糊匹配间隔惩罚；
 - 超长 query；
-- 稳定 tie-break。
+- 稳定 tie-break；
+- 结果集上限与可见高度解耦：超过 7 条时结果仍完整，可滚动、可键盘到达。
 
 ### 14.3 使用历史
 
@@ -510,7 +528,12 @@ query 改变
 - 刷新期间旧快照仍可读取；
 - 扫描完成后快照一次性替换。
 
-### 14.5 手工验收
+### 14.5 性能与开销
+
+- 注入计数 Stub Catalog：加载完成后改变 query，断言扫描调用次数不增加；
+- 500 个应用的固定数据集：单次击键搜索（含排序）耗时低于 10ms。
+
+### 14.6 手工验收
 
 1. 打开面板，原生 placeholder 正常显示；
 2. 使用中文输入法输入拼音，组合文字不与 placeholder 重叠；
@@ -544,7 +567,7 @@ query 改变
 
 ### 使用历史隐私
 
-只保存实际启动的 App ID、次数和时间，不保存原始 query，不上传任何数据。
+只保存实际启动的应用标识（Bundle Identifier）、次数和时间，不保存原始 query，不上传任何数据。
 
 ## 16. 完成检查清单
 
@@ -552,6 +575,7 @@ query 改变
 - [ ] 搜索输入路径没有磁盘递归扫描；
 - [ ] 元数据 fallback 和去重规则固定；
 - [ ] 完全、前缀、别名和模糊匹配可测试；
+- [ ] 结果集上限与可见高度解耦，键盘导航可达完整结果集；
 - [ ] 中文名称和拼音匹配经过验证；
 - [ ] 使用历史不破坏匹配质量；
 - [ ] 快照刷新可取消且不阻塞 UI；

@@ -9,6 +9,8 @@ struct AppConfiguration: Sendable {
     }
 
     let applicationSearchDirectories: [URL]
+    /// Built-in alias overrides keyed by bundle identifier (search plan §7.1).
+    let applicationAliases: [String: [String]]
     let launcherShortcut: Shortcut
 
     static let live = AppConfiguration(
@@ -16,7 +18,15 @@ struct AppConfiguration: Sendable {
             URL(fileURLWithPath: "/Applications", isDirectory: true),
             FileManager.default.homeDirectoryForCurrentUser
                 .appendingPathComponent("Applications", isDirectory: true),
-            URL(fileURLWithPath: "/System/Applications", isDirectory: true)
+            URL(fileURLWithPath: "/System/Applications", isDirectory: true),
+            URL(fileURLWithPath: "/System/Library/CoreServices/Applications", isDirectory: true),
+            URL(
+                fileURLWithPath: "/System/Library/CoreServices/Finder.app/Contents/Applications",
+                isDirectory: true
+            ),
+        ],
+        applicationAliases: [
+            "com.microsoft.VSCode": ["vscode"],
         ],
         launcherShortcut: Shortcut(
             keyCode: UInt32(kVK_Space),

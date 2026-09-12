@@ -32,7 +32,13 @@
 		A100000100000017 /* LauncherResultsList.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000019 /* LauncherResultsList.swift */; };
 		A100000100000018 /* VisualEffectBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000001A /* VisualEffectBackground.swift */; };
 		A100000100000019 /* PanelAnimationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000001B /* PanelAnimationCoordinator.swift */; };
+		A10000010000001A /* ApplicationSearchDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000001C /* ApplicationSearchDocument.swift */; };
+		A10000010000001B /* ApplicationSearchIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000001D /* ApplicationSearchIndex.swift */; };
+		A10000010000001C /* AppUsageStoring.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000001E /* AppUsageStoring.swift */; };
+		A10000010000001D /* UserDefaultsAppUsageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000001F /* UserDefaultsAppUsageStore.swift */; };
+		A10000010000001E /* AppDirectoryWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000020 /* AppDirectoryWatcher.swift */; };
 		B100000100000001 /* LauncherModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000001 /* LauncherModelTests.swift */; };
+		B100000100000003 /* ApplicationSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000004 /* ApplicationSearchTests.swift */; };
 		B100000100000002 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B200000100000003 /* XCTest.framework */; };
 		C100000100000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C200000100000001 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
@@ -75,7 +81,13 @@
 		A200000100000019 /* LauncherResultsList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherResultsList.swift; sourceTree = "<group>"; };
 		A20000010000001A /* VisualEffectBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectBackground.swift; sourceTree = "<group>"; };
 		A20000010000001B /* PanelAnimationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelAnimationCoordinator.swift; sourceTree = "<group>"; };
+		A20000010000001C /* ApplicationSearchDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationSearchDocument.swift; sourceTree = "<group>"; };
+		A20000010000001D /* ApplicationSearchIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationSearchIndex.swift; sourceTree = "<group>"; };
+		A20000010000001E /* AppUsageStoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUsageStoring.swift; sourceTree = "<group>"; };
+		A20000010000001F /* UserDefaultsAppUsageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsAppUsageStore.swift; sourceTree = "<group>"; };
+		A200000100000020 /* AppDirectoryWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDirectoryWatcher.swift; sourceTree = "<group>"; };
 		B200000100000001 /* LauncherModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherModelTests.swift; sourceTree = "<group>"; };
+		B200000100000004 /* ApplicationSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationSearchTests.swift; sourceTree = "<group>"; };
 		B200000100000002 /* OITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B200000100000003 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
 		C200000100000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -151,6 +163,7 @@
 				A40000010000000C /* AppCatalog */,
 				A40000010000000D /* Launch */,
 				A40000010000000E /* Shortcut */,
+				A400000100000019 /* Usage */,
 			);
 			path = Infrastructure;
 			sourceTree = "<group>";
@@ -169,6 +182,7 @@
 			isa = PBXGroup;
 			children = (
 				B200000100000001 /* LauncherModelTests.swift */,
+				B200000100000004 /* ApplicationSearchTests.swift */,
 			);
 			path = OITests;
 			sourceTree = "<group>";
@@ -196,6 +210,7 @@
 				A200000100000006 /* AppCatalog.swift */,
 				A200000100000008 /* ApplicationLaunching.swift */,
 				A200000100000009 /* GlobalShortcutHandling.swift */,
+				A20000010000001E /* AppUsageStoring.swift */,
 			);
 			path = Ports;
 			sourceTree = "<group>";
@@ -215,6 +230,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000010000000A /* FileSystemAppCatalog.swift */,
+				A200000100000020 /* AppDirectoryWatcher.swift */,
 			);
 			path = AppCatalog;
 			sourceTree = "<group>";
@@ -268,6 +284,7 @@
 				A40000010000000A /* Ports */,
 				A400000100000015 /* UseCases */,
 				A400000100000016 /* Errors */,
+				A400000100000018 /* Search */,
 			);
 			path = Application;
 			sourceTree = "<group>";
@@ -287,6 +304,23 @@
 				A200000100000017 /* ApplicationError.swift */,
 			);
 			path = Errors;
+			sourceTree = "<group>";
+		};
+		A400000100000018 /* Search */ = {
+			isa = PBXGroup;
+			children = (
+				A20000010000001C /* ApplicationSearchDocument.swift */,
+				A20000010000001D /* ApplicationSearchIndex.swift */,
+			);
+			path = Search;
+			sourceTree = "<group>";
+		};
+		A400000100000019 /* Usage */ = {
+			isa = PBXGroup;
+			children = (
+				A20000010000001F /* UserDefaultsAppUsageStore.swift */,
+			);
+			path = Usage;
 			sourceTree = "<group>";
 		};
 		A400000100000017 /* Frameworks */ = {
@@ -412,6 +446,11 @@
 				A100000100000017 /* LauncherResultsList.swift in Sources */,
 				A100000100000018 /* VisualEffectBackground.swift in Sources */,
 				A100000100000019 /* PanelAnimationCoordinator.swift in Sources */,
+				A10000010000001A /* ApplicationSearchDocument.swift in Sources */,
+				A10000010000001B /* ApplicationSearchIndex.swift in Sources */,
+				A10000010000001C /* AppUsageStoring.swift in Sources */,
+				A10000010000001D /* UserDefaultsAppUsageStore.swift in Sources */,
+				A10000010000001E /* AppDirectoryWatcher.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -420,6 +459,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B100000100000001 /* LauncherModelTests.swift in Sources */,
+				B100000100000003 /* ApplicationSearchTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -446,7 +486,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = "";
-				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_TESTABILITY = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
