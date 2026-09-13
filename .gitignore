@@ -19,3 +19,8 @@ Package.resolved
 
 # 本地参考项目（不随仓库分发）
 ReferenceProjects/
+
+# Superpowers 目录
+superpowers/
+docs/superpowers/
+

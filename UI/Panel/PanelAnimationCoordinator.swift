@@ -12,9 +12,9 @@ final class PanelAnimationCoordinator: ObservableObject {
         /// Gap between the menu bar and the panel's top edge, matching Spotlight.
         static let topGap: CGFloat = 94
         /// Critically damped spring response; smaller reads snappier.
-        static let resizeResponse: TimeInterval = 0.22
-        static let fadeInDuration: TimeInterval = 0.18
-        static let fadeOutDuration: TimeInterval = 0.15
+        static let resizeResponse: TimeInterval = 0.20
+        static let fadeInDuration: TimeInterval = 0.08
+        static let fadeOutDuration: TimeInterval = 0.10
         /// Snap and finish once the remaining distance is imperceptible.
         static let settleDistance: CGFloat = 0.5
     }
@@ -30,8 +30,14 @@ final class PanelAnimationCoordinator: ObservableObject {
     private let panel: NSPanel
     private var clock: DisplayStepClock?
     private var resizeState: (
-        start: CGFloat, target: CGFloat, startRadius: CGFloat, targetRadius: CGFloat, startTime: CFTimeInterval
+        start: CGFloat,
+        target: CGFloat,
+        startRadius: CGFloat,
+        targetRadius: CGFloat,
+        startTime: CFTimeInterval,
+        initialVelocity: CGFloat
     )?
+    private var currentVelocity: CGFloat = 0
     private var alphaState: (
         from: CGFloat, to: CGFloat, startTime: CFTimeInterval, duration: TimeInterval, completion: (() -> Void)?
     )?
@@ -80,22 +86,24 @@ final class PanelAnimationCoordinator: ObservableObject {
     func prepareForPresentation(height: CGFloat) {
         stopAnimations()
         currentHeight = height
+        currentVelocity = 0
         let radius = Self.cornerRadius(forHeight: height)
         cornerRadius = radius
         updateLayerCornerRadius(radius)
     }
 
-    /// Grows/shrinks the window to `height`, retargeting from the current
-    /// interpolated position when a resize is already in flight.
+    /// Grows/shrinks the window to `height`, retargeting with initial velocity preserved.
     func resize(toHeight height: CGFloat) {
         guard height != currentHeight else { return }
 
+        let initialVelocity = (resizeState != nil) ? currentVelocity : 0
         resizeState = (
             start: currentHeight,
             target: height,
             startRadius: cornerRadius,
             targetRadius: Self.cornerRadius(forHeight: height),
-            startTime: CACurrentMediaTime()
+            startTime: CACurrentMediaTime(),
+            initialVelocity: initialVelocity
         )
         ensureClock()
     }
@@ -146,6 +154,7 @@ final class PanelAnimationCoordinator: ObservableObject {
         clock = nil
         resizeState = nil
         alphaState = nil
+        currentVelocity = 0
         isDismissing = false
     }
 
@@ -161,24 +170,38 @@ final class PanelAnimationCoordinator: ObservableObject {
         var isBusy = false
 
         if var resize = resizeState {
-            let settled = Self.springSettled(
-                elapsed: now - resize.startTime,
+            let elapsed = now - resize.startTime
+            let (height, velocity) = Self.evaluateSpring(
+                elapsed: elapsed,
+                start: resize.start,
+                target: resize.target,
+                initialVelocity: resize.initialVelocity,
                 response: Layout.resizeResponse
             )
-            let height = resize.start + (resize.target - resize.start) * settled
+            currentVelocity = velocity
+
+            let radiusSettled = Self.springSettledFraction(elapsed: elapsed, response: Layout.resizeResponse)
+            let radius = resize.startRadius + (resize.targetRadius - resize.startRadius) * radiusSettled
+
             if height != currentHeight { currentHeight = height }
-            let radius = resize.startRadius + (resize.targetRadius - resize.startRadius) * settled
             cornerRadius = radius
-            // `display: false` pipelines the commit instead of blocking per frame.
+
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
             panel.setFrame(Self.frame(for: screen, height: height), display: false)
             setLayerCornerRadius(radius)
+            CATransaction.commit()
 
-            if abs(resize.target - height) < Layout.settleDistance
-                || now - resize.startTime > Layout.resizeResponse * 3 {
+            if (abs(resize.target - height) < Layout.settleDistance && abs(velocity) < 15.0)
+                || elapsed > Layout.resizeResponse * 3 {
                 currentHeight = resize.target
                 cornerRadius = resize.targetRadius
+                currentVelocity = 0
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
                 panel.setFrame(Self.frame(for: screen, height: resize.target), display: false)
                 updateLayerCornerRadius(resize.targetRadius)
+                CATransaction.commit()
                 resizeState = nil
             } else {
                 isBusy = true
@@ -234,8 +257,30 @@ final class PanelAnimationCoordinator: ObservableObject {
         panel.invalidateShadow()
     }
 
-    /// Critically damped spring: s(t) = 1 - (1 + ω·t)·e^(-ω·t), ω = 6/response.
-    private static func springSettled(elapsed: TimeInterval, response: TimeInterval) -> CGFloat {
+    /// Critically damped spring with initial velocity:
+    /// Differential equation: x'' + 2*omega0*x' + omega0^2 * x = 0, where x(t) = y(t) - target.
+    /// Analytical solution:
+    /// x(t) = (x0 + c2 * t) * exp(-omega0 * t), with x0 = start - target, c2 = v0 + omega0 * x0.
+    /// y(t) = target + x(t)
+    /// v(t) = (v0 - omega0 * c2 * t) * exp(-omega0 * t)
+    static func evaluateSpring(
+        elapsed: TimeInterval,
+        start: CGFloat,
+        target: CGFloat,
+        initialVelocity: CGFloat,
+        response: TimeInterval
+    ) -> (position: CGFloat, velocity: CGFloat) {
+        guard elapsed > 0 else { return (start, initialVelocity) }
+        let omega0 = 6.0 / response
+        let x0 = start - target
+        let c2 = initialVelocity + omega0 * x0
+        let decay = exp(-omega0 * elapsed)
+        let position = target + (x0 + c2 * CGFloat(elapsed)) * CGFloat(decay)
+        let velocity = (initialVelocity - omega0 * c2 * CGFloat(elapsed)) * CGFloat(decay)
+        return (position, velocity)
+    }
+
+    private static func springSettledFraction(elapsed: TimeInterval, response: TimeInterval) -> CGFloat {
         let x = elapsed * 6.0 / response
         return CGFloat(1 - (1 + x) * exp(-x))
     }
