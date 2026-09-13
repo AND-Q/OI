@@ -59,7 +59,7 @@
 - **提交**
 - 仅在用户明确要求时创建提交
 - 格式：使用 `<type>: <中文描述>`。
-- 允许的类型：`feat`、`fix`、`refactor`、`chore`、`docs`、`test`、`perf`、`ci`、`style`、`revert`。
+- 允许的类型：`feat`、`fix`、`refactor`、`chore`、`docs`、`test`、`perf`、`build`、`ci`、`style`、`revert`。
 - 每个提交应只包含一项独立且完整的变更。
 - **注释**
 - 改动代码时候，代码注释要和附近的代码（或者同类代码）保持一致。
