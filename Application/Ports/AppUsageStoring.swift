@@ -1,20 +1,20 @@
 import Foundation
 
-/// Launch statistics persisted per application (search plan §9).
+/// 按应用持久化的启动统计（搜索计划 §9）。
 struct AppUsageRecord: Codable, Sendable, Equatable {
     var launchCount: Int
     var lastLaunchedAt: Date?
 }
 
-/// Persistence port for launch history. Keys are the application usage key
-/// (bundle identifier, falling back to the descriptor id).
+/// 启动历史的持久化端口。键是应用的 usage key
+/// （bundle identifier，缺失时回退到 descriptor id）。
 protocol AppUsageStoring: Sendable {
     func records() async -> [String: AppUsageRecord]
     func recordLaunch(key: String) async
     func prune(keeping keys: [String]) async
 }
 
-/// In-memory store used as the default and in tests; persists nothing.
+/// 用作默认实现和测试用的内存存储；不做任何持久化。
 actor MemoryAppUsageStore: AppUsageStoring {
     private var storedRecords: [String: AppUsageRecord] = [:]
     private let now: () -> Date

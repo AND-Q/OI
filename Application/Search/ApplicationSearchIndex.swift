@@ -1,7 +1,7 @@
 import Foundation
 
-/// Structured comparison key (search plan §8.2): match tier first, then text
-/// quality, then usage signals. Usage never crosses tiers.
+/// 结构化比较键（搜索计划 §8.2）：先比匹配层级，再比文本质量，
+/// 最后比使用信号。使用信号永远不会跨越层级生效。
 struct MatchScore: Comparable, Sendable {
     let tier: Int
     let textScore: Int
@@ -17,8 +17,8 @@ struct MatchScore: Comparable, Sendable {
     }
 }
 
-/// In-memory tiered matcher over an immutable application snapshot (search plan §8).
-/// Search never touches the disk; usage records are passed in per query.
+/// 基于不可变应用快照的内存分层匹配器（搜索计划 §8）。
+/// 搜索从不触碰磁盘；使用记录在每次查询时传入。
 struct ApplicationSearchIndex: Sendable {
     static let maximumQueryLength = 64
     static let resultLimit = 50
@@ -106,8 +106,8 @@ struct ApplicationSearchIndex: Sendable {
         )
     }
 
-    /// Prefix or contains position across bundle file name and bundle identifier;
-    /// prefix wins over a later contains via the smaller position.
+    /// 在 bundle 文件名与 bundle identifier 上计算前缀或包含位置；
+    /// 前缀命中凭借更小的位置值优先于更靠后的包含命中。
     private func secondaryFieldPosition(
         _ document: ApplicationSearchDocument,
         query: String
@@ -130,7 +130,7 @@ struct ApplicationSearchIndex: Sendable {
         return best
     }
 
-    /// Subsequence match cost: total characters skipped while walking the name.
+    /// 子序列匹配代价：沿名称行走时跳过的字符总数。
     private func fuzzyGapCount(_ name: String, query: String) -> Int? {
         let nameChars = Array(name)
         var nameIndex = 0
@@ -153,14 +153,14 @@ struct ApplicationSearchIndex: Sendable {
         return skipped
     }
 
-    /// Days since last launch capped at 30; never launched ranks last.
+    /// 距上次启动的天数，上限 30；从未启动过的排在最后。
     private func recencyScore(for record: AppUsageRecord?, now: Date) -> Int {
         guard let lastLaunchedAt = record?.lastLaunchedAt else { return 30 }
         let days = Int(now.timeIntervalSince(lastLaunchedAt) / 86_400)
         return min(30, max(0, days))
     }
 
-    /// Log-scaled launch count so raw counts cannot dominate within a tier.
+    /// 对启动次数取对数缩放，避免原始次数在同级内占主导。
     private func usageScore(for record: AppUsageRecord?) -> Int {
         guard let launchCount = record?.launchCount, launchCount > 0 else { return 0 }
         return Int(log2(Double(1 + launchCount)))

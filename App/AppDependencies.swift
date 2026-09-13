@@ -1,12 +1,12 @@
 import Foundation
 
-/// Concrete dependency graph. This is the only place that creates infrastructure adapters.
+/// 具体的依赖图。这里是唯一创建基础设施适配器的地方。
 @MainActor
 struct AppDependencies {
     let launcherViewModel: LauncherViewModel
     let applicationIconProvider: any ApplicationIconProviding
     let globalShortcutService: any GlobalShortcutHandling
-    /// Retained so directory events keep arriving for the app lifetime.
+    /// 持有引用以确保目录事件在整个应用生命周期内持续送达。
     private let appDirectoryWatcher: AppDirectoryWatcher
 
     static func live(configuration: AppConfiguration) -> AppDependencies {

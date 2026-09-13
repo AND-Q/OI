@@ -1,7 +1,7 @@
 import Carbon.HIToolbox
 import Foundation
 
-/// Values that can vary between app distributions or test environments.
+/// 可能因应用分发方式或测试环境而异的配置值。
 struct AppConfiguration: Sendable {
     struct Shortcut: Sendable {
         let keyCode: UInt32
@@ -9,7 +9,7 @@ struct AppConfiguration: Sendable {
     }
 
     let applicationSearchDirectories: [URL]
-    /// Built-in alias overrides keyed by bundle identifier (search plan §7.1).
+    /// 以 bundle identifier 为键的内置别名覆盖（搜索计划 §7.1）。
     let applicationAliases: [String: [String]]
     let launcherShortcut: Shortcut
 

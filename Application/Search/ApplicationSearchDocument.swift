@@ -1,8 +1,8 @@
 import Foundation
 
-/// Text normalization shared by the query and every indexed field (search plan §7.2):
-/// case-, diacritic- and width-insensitive, with separator-stripped and tokenized
-/// forms for the two match modes.
+/// 查询与所有索引字段共用的文本归一化（搜索计划 §7.2）：
+/// 不区分大小写、变音符号与全角/半角宽度，并提供去分隔符
+/// 与分词两种形式，对应两种匹配模式。
 enum SearchTextNormalizer {
     private static let separators = CharacterSet(charactersIn: " -_.")
         .union(.whitespacesAndNewlines)
@@ -17,9 +17,8 @@ enum SearchTextNormalizer {
             .filter { !$0.isEmpty }
     }
 
-    /// Toneless transliteration of CJK text ("微信" -> "wei xin"); Latin text
-    /// passes through unchanged. Pinyin only exists as a match field, the
-    /// original name is what gets displayed.
+    /// 将中日韩文本转写为无声调拼音（"微信" -> "wei xin"）；拉丁文本
+    /// 原样通过。拼音仅作为匹配字段存在，展示的仍是原始名称。
     static func pinyin(of text: String) -> String {
         guard text.unicodeScalars.contains(where: { $0.properties.isIdeographic == true }) else {
             return ""
@@ -28,8 +27,8 @@ enum SearchTextNormalizer {
         return syllables(of: text).joined().lowercased()
     }
 
-    /// First letter of every whitespace-separated transliteration piece, so
-    /// Latin names yield "vsc" and Chinese names yield initials like "wx".
+    /// 取每段以空白分隔的转写结果的首字母，因此拉丁名称得到 "vsc"，
+    /// 中文名称得到 "wx" 这样的首字母缩写。
     static func initials(of text: String) -> String {
         syllables(of: text)
             .compactMap(\.first)
@@ -39,7 +38,7 @@ enum SearchTextNormalizer {
 
     private static func syllables(of text: String) -> [String] {
         let mutable = NSMutableString(string: text)
-        // The range is rebuilt per transform: transliteration changes the length.
+        // 每次变换都重新传入 range：转写会改变字符串长度。
         mutable.applyTransform(
             .toLatin,
             reverse: false,
@@ -58,8 +57,8 @@ enum SearchTextNormalizer {
     }
 }
 
-/// Derived match fields for one application (search plan §7). Holds no state of
-/// its own; rebuilt whenever the application snapshot is replaced.
+/// 单个应用派生出的匹配字段（搜索计划 §7）。自身不持有状态；
+/// 应用快照被替换时即重建。
 struct ApplicationSearchDocument: Sendable {
     let app: AppDescriptor
     let normalizedName: String
