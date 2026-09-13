@@ -222,4 +222,30 @@ final class ApplicationSearchTests: XCTestCase {
         let emptied = await reloaded.records()
         XCTAssertTrue(emptied.isEmpty)
     }
+
+    func testChineseAppNameBidirectionalSearch() {
+        let app = AppDescriptor(
+            name: "微信",
+            url: URL(fileURLWithPath: "/Applications/WeChat.app"),
+            bundleIdentifier: "com.tencent.xinWeChat"
+        )
+        let index = ApplicationSearchIndex(applications: [app])
+        XCTAssertEqual(index.search(query: "微信").map(\.name), ["微信"])
+        XCTAssertEqual(index.search(query: "wx").map(\.name), ["微信"])
+        XCTAssertEqual(index.search(query: "weixin").map(\.name), ["微信"])
+        XCTAssertEqual(index.search(query: "wechat").map(\.name), ["微信"])
+    }
+
+    func testFinderAppNameBidirectionalSearch() {
+        let app = AppDescriptor(
+            name: "访达",
+            url: URL(fileURLWithPath: "/System/Library/CoreServices/Finder.app"),
+            bundleIdentifier: "com.apple.finder"
+        )
+        let index = ApplicationSearchIndex(applications: [app])
+        XCTAssertEqual(index.search(query: "访达").map(\.name), ["访达"])
+        XCTAssertEqual(index.search(query: "fd").map(\.name), ["访达"])
+        XCTAssertEqual(index.search(query: "fangda").map(\.name), ["访达"])
+        XCTAssertEqual(index.search(query: "finder").map(\.name), ["访达"])
+    }
 }

@@ -19,7 +19,9 @@ struct AppConfiguration: Sendable {
             FileManager.default.homeDirectoryForCurrentUser
                 .appendingPathComponent("Applications", isDirectory: true),
             URL(fileURLWithPath: "/System/Applications", isDirectory: true),
+            URL(fileURLWithPath: "/System/Cryptexes/App/System/Applications", isDirectory: true),
             URL(fileURLWithPath: "/System/Library/CoreServices/Applications", isDirectory: true),
+            URL(fileURLWithPath: "/System/Library/CoreServices/Finder.app", isDirectory: true),
             URL(
                 fileURLWithPath: "/System/Library/CoreServices/Finder.app/Contents/Applications",
                 isDirectory: true

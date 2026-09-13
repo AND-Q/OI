@@ -1,3 +1,4 @@
+import CoreServices
 import Foundation
 
 struct FileSystemAppCatalog: AppCatalog, Sendable {
@@ -27,6 +28,20 @@ struct FileSystemAppCatalog: AppCatalog, Sendable {
 
         for directory in searchDirectories {
             try Task.checkCancellation()
+
+            // When a configured path points directly to an application bundle
+            // (e.g. /System/Library/CoreServices/Finder.app), record it directly
+            // rather than enumerating inside its package.
+            if directory.pathExtension.caseInsensitiveCompare("app") == .orderedSame {
+                let resolvedURL = directory.resolvingSymlinksInPath().standardizedFileURL
+                guard seenPaths.insert(resolvedURL.path).inserted else {
+                    continue
+                }
+                if let descriptor = makeDescriptor(bundleURL: resolvedURL) {
+                    descriptors.append(descriptor)
+                }
+                continue
+            }
 
             guard let enumerator = fileManager.enumerator(
                 at: directory,
@@ -63,11 +78,7 @@ struct FileSystemAppCatalog: AppCatalog, Sendable {
 
     private static func makeDescriptor(bundleURL: URL) -> AppDescriptor? {
         let bundle = Bundle(url: bundleURL)
-        let displayName = (bundle?.localizedInfoDictionary?["CFBundleDisplayName"] as? String)
-            ?? (bundle?.localizedInfoDictionary?["CFBundleName"] as? String)
-            ?? (bundle?.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
-            ?? (bundle?.object(forInfoDictionaryKey: "CFBundleName") as? String)
-            ?? bundleURL.deletingPathExtension().lastPathComponent
+        let displayName = localizedDisplayName(bundleURL: bundleURL, bundle: bundle)
         let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return nil }
 
@@ -79,6 +90,49 @@ struct FileSystemAppCatalog: AppCatalog, Sendable {
             url: bundleURL,
             bundleIdentifier: bundleIdentifier?.isEmpty == false ? bundleIdentifier : nil
         )
+    }
+
+    /// Reads the user-facing localized display name using bundle localization resources,
+    /// Spotlight metadata, or standard bundle info keys.
+    private static func localizedDisplayName(bundleURL: URL, bundle: Bundle?) -> String {
+        let fsBaseName = bundleURL.deletingPathExtension().lastPathComponent
+
+        // 1. Read localized InfoPlist.strings matching the user's preferred languages.
+        // Third-party applications or newly unpacked bundles provide localized display
+        // names here (e.g. zh-Hans.lproj/InfoPlist.strings -> "微信").
+        let preferredLanguages = Locale.preferredLanguages
+        let localizations = bundle?.localizations ?? []
+        let matched = Bundle.preferredLocalizations(from: localizations, forPreferences: preferredLanguages)
+        if let bestLang = matched.first,
+           let path = bundle?.path(forResource: "InfoPlist", ofType: "strings", inDirectory: nil, forLocalization: bestLang),
+           let dict = NSDictionary(contentsOfFile: path) as? [String: Any] {
+            if let localizedName = (dict["CFBundleDisplayName"] as? String) ?? (dict["CFBundleName"] as? String) {
+                let trimmed = localizedName.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty { return trimmed }
+            }
+        }
+
+        // 2. Query Spotlight metadata directly: macOS indexes system applications
+        // (e.g. Notes -> "备忘录", Finder -> "访达") and applications whose display
+        // names are registered in the system LaunchServices database.
+        if let item = MDItemCreateWithURL(kCFAllocatorDefault, bundleURL as CFURL),
+           let rawName = MDItemCopyAttribute(item, kMDItemDisplayName) as? String {
+            let trimmed = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let stripped = trimmed.hasSuffix(".app") ? String(trimmed.dropLast(4)) : trimmed
+            let candidate = stripped.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !candidate.isEmpty {
+                return candidate
+            }
+        }
+
+        // 3. Fall back to standard bundle dictionary lookups or filesystem name.
+        let fallback = (bundle?.localizedInfoDictionary?["CFBundleDisplayName"] as? String)
+            ?? (bundle?.localizedInfoDictionary?["CFBundleName"] as? String)
+            ?? (bundle?.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
+            ?? (bundle?.object(forInfoDictionaryKey: "CFBundleName") as? String)
+            ?? fsBaseName
+
+        return fallback.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Keeps one entry per bundle identifier: the copy with the shallower path

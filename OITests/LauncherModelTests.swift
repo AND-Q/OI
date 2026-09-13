@@ -287,6 +287,54 @@ final class LauncherModelTests: XCTestCase {
         XCTAssertEqual(descriptors.map(\.name), ["Outer"])
     }
 
+    func testFileSystemAppCatalogSupportsDirectBundlePathInSearchDirectories() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let directAppURL = try makeApplicationBundle(
+            directoryName: "Direct.app",
+            displayName: "Direct",
+            in: root
+        )
+
+        let catalog = FileSystemAppCatalog(searchDirectories: [directAppURL])
+        let descriptors = try await catalog.scan()
+
+        XCTAssertEqual(descriptors.count, 1)
+        XCTAssertEqual(descriptors.first?.name, "Direct")
+        XCTAssertEqual(descriptors.first?.url, directAppURL.standardizedFileURL)
+    }
+
+    func testFileSystemAppCatalogReadsLocalizedInfoPlistStrings() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let bundleURL = root.appendingPathComponent("WeChat.app", isDirectory: true)
+        let contentsURL = bundleURL.appendingPathComponent("Contents", isDirectory: true)
+        let resourcesURL = contentsURL.appendingPathComponent("Resources/zh-Hans.lproj", isDirectory: true)
+        try FileManager.default.createDirectory(at: resourcesURL, withIntermediateDirectories: true)
+
+        let info: [String: Any] = [
+            "CFBundleDisplayName": "WeChat",
+            "CFBundleName": "WeChat",
+            "CFBundlePackageType": "APPL"
+        ]
+        let infoData = try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
+        try infoData.write(to: contentsURL.appendingPathComponent("Info.plist"))
+
+        let localizedStrings = "\"CFBundleDisplayName\" = \"微信\";\n\"CFBundleName\" = \"微信\";\n"
+        try localizedStrings.write(
+            to: resourcesURL.appendingPathComponent("InfoPlist.strings"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let catalog = FileSystemAppCatalog(searchDirectories: [root])
+        let descriptors = try await catalog.scan()
+
+        XCTAssertEqual(descriptors.first?.name, "微信")
+    }
+
     func testViewModelSearchesThroughIndexWithInitialsAndAliases() async {
         let vsCode = AppDescriptor(
             name: "Visual Studio Code",
