@@ -1,0 +1,30 @@
+# OI 待办事项 (TODO)
+
+## [ ] 1. Esc 键分级关闭交互
+
+- **需求描述**：
+  - 输入框有内容时：按 `Esc` 清空当前搜索输入；
+  - 输入框已为空时：按 `Esc` 立即关闭启动器面板。
+- **现状分析**：
+  - 当前在 [UI/Panel/LauncherPanelController.swift:184-186](UI/Panel/LauncherPanelController.swift#L184-L186) 中，只要不是输入法组字状态，按下 `Esc` 会无条件直接调用 `hide()` 关闭面板；只有重新呼出时才清空输入框。
+- **目标行为**：
+  1. **第一段（输入框有内容时）**：按 `Esc` 仅清空当前搜索文本（`viewModel.query = ""`），面板保持打开并平滑收折为单行胶囊形态；
+  2. **第二段（输入框已为空时）**：再次按 `Esc` 才真正淡出并隐藏启动器面板。
+- **涉及文件**：
+  - [UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)（键盘监听处理）
+  - [Features/Launcher/LauncherView.swift](Features/Launcher/LauncherView.swift)（`.onExitCommand` 兜底）
+
+## [ ] 2. 状态栏图标区分左右键交互（左键切换显隐、右键弹快捷菜单）
+
+- **需求描述**：
+  - 左键点击状态栏图标：直接切换启动器面板的显示与隐藏（Toggle）；
+  - 右键点击状态栏图标：弹出快捷菜单，包含“关于”与“退出”。
+- **现状分析**：
+  - 当前在 [UI/StatusBar/StatusBarController.swift:31](UI/StatusBar/StatusBarController.swift#L31) 中直接赋值了 `item.menu = menu`，导致无论左键还是右键点击均直接弹出系统菜单；
+  - 菜单项仅有“显示启动器”与“退出”，缺少“关于”，且“显示启动器”仅调用 `show()` 而非 `toggle()`。
+- **目标行为**：
+  1. **左键点击**：调用 `panelController.toggle()`，若面板可见则关闭，不可见则呼出；
+  2. **右键点击**：弹出独立菜单，包含“关于 OI”与“退出”。
+- **涉及文件**：
+  - [UI/StatusBar/StatusBarController.swift](UI/StatusBar/StatusBarController.swift)（监听按钮左右键点击并分别派发）
+  - [App/AppCoordinator.swift](App/AppCoordinator.swift)（将 `onShow` 扩展为 `onToggle` 并支持关于弹窗）
