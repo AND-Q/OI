@@ -71,9 +71,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - 每个提交应只包含一项独立且完整的变更。
 - **代码注释**
   - 改动代码时，代码注释要和附近的代码（或者同类代码）的语言、语气与密度保持一致。
-- **代码修改与任务执行（使用 Superpowers Skills）**
-  - 在执行任何代码修改、功能开发、缺陷修复或架构重构等工程任务时，必须严格通过 `Skill` 工具调用 `superpowers` 系列 Skills 推进工作。
-  - **强制规则**：只要存在适用或相关的技能（例如需求构思 `superpowers:brainstorming`、计划编写 `superpowers:writing-plans`、计划执行 `superpowers:executing-plans`、子智能体驱动开发 `superpowers:subagent-driven-development`、系统性排错 `superpowers:systematic-debugging`、分支收尾 `superpowers:finishing-a-development-branch` 等），必须在采取任何实质性编码或改动前优先调用对应技能，严格按照其标准流程逐步验证并执行，不得跳过或绕过技能规范。
 
 ---
 
