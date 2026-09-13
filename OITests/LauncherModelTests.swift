@@ -459,6 +459,41 @@ final class LauncherModelTests: XCTestCase {
         XCTAssertEqual(record?.launchCount, 1)
     }
 
+    func testPanelAnimationCoordinatorComputesExpectedSpotlightFrame() {
+        let screen = NSScreen.main
+        let frame = PanelAnimationCoordinator.frame(for: screen, height: LauncherLayout.searchHeight)
+        let visibleFrame = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+
+        XCTAssertEqual(frame.width, LauncherLayout.width)
+        XCTAssertEqual(frame.height, LauncherLayout.searchHeight)
+        XCTAssertEqual(frame.midX, visibleFrame.midX, accuracy: 1.0)
+        XCTAssertEqual(frame.maxY, (visibleFrame.maxY - 94).rounded(), accuracy: 1.0)
+        XCTAssertGreaterThanOrEqual(frame.minY, visibleFrame.minY)
+        XCTAssertLessThanOrEqual(frame.maxY, visibleFrame.maxY)
+    }
+
+    func testScreenClosedBoundaryCheckIncludesScreenMaxBoundaries() {
+        let screenRect = NSRect(x: 0, y: 0, width: 1470, height: 956)
+        let topEdgePoint = NSPoint(x: 500, y: 956)
+        let rightEdgePoint = NSPoint(x: 1470, y: 500)
+
+        // NSRect.contains fails on max boundaries due to half-open interval
+        XCTAssertFalse(screenRect.contains(topEdgePoint))
+        XCTAssertFalse(screenRect.contains(rightEdgePoint))
+
+        // Closed-boundary check correctly includes all 4 edges
+        let containsPoint: (NSRect, NSPoint) -> Bool = { frame, point in
+            point.x >= frame.minX && point.x <= frame.maxX
+                && point.y >= frame.minY && point.y <= frame.maxY
+        }
+        XCTAssertTrue(containsPoint(screenRect, topEdgePoint))
+        XCTAssertTrue(containsPoint(screenRect, rightEdgePoint))
+        XCTAssertTrue(containsPoint(screenRect, NSPoint(x: 0, y: 500)))
+        XCTAssertTrue(containsPoint(screenRect, NSPoint(x: 500, y: 0)))
+        XCTAssertFalse(containsPoint(screenRect, NSPoint(x: 500, y: 956.1)))
+        XCTAssertFalse(containsPoint(screenRect, NSPoint(x: 1470.1, y: 500)))
+    }
+
     private func pollUsageRecord(
         store: MemoryAppUsageStore,
         key: String,

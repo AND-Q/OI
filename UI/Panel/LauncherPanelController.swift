@@ -38,6 +38,8 @@ final class LauncherPanelController {
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
+        panel.isMovable = false
+        panel.isMovableByWindowBackground = false
 
         animationCoordinator = PanelAnimationCoordinator(
             panel: panel,
@@ -114,6 +116,13 @@ final class LauncherPanelController {
             // an in-flight fade-out first, or its completion would order the
             // panel out right after this wake.
             animationCoordinator.cancelDismissal()
+            activeScreen = targetScreen()
+            animationCoordinator.screen = activeScreen
+            let height = viewModel.panelHeight
+            panel.setFrame(
+                PanelAnimationCoordinator.frame(for: activeScreen, height: height),
+                display: true
+            )
             panel.makeKeyAndOrderFront(nil)
             viewModel.requestFocus()
             return
@@ -153,14 +162,26 @@ final class LauncherPanelController {
             for: animationCoordinator.screen,
             height: height
         )
-        guard target.size != panel.frame.size else { return }
+        guard target.size != panel.frame.size else {
+            if panel.frame.origin != target.origin {
+                panel.setFrameOrigin(target.origin)
+            }
+            return
+        }
 
         animationCoordinator.resize(toHeight: height)
     }
 
     private func targetScreen() -> NSScreen? {
         let mouseLocation = NSEvent.mouseLocation
-        return NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) ?? NSScreen.main
+        return NSScreen.screens.first(where: { screen in
+            let frame = screen.frame
+            return mouseLocation.x >= frame.minX && mouseLocation.x <= frame.maxX
+                && mouseLocation.y >= frame.minY && mouseLocation.y <= frame.maxY
+        })
+            ?? panel.screen
+            ?? NSScreen.main
+            ?? NSScreen.screens.first
     }
 
     /// Keeps the screen picked at show() so the panel never jumps to another display

@@ -65,11 +65,14 @@ final class PanelAnimationCoordinator: ObservableObject {
     static func frame(for screen: NSScreen?, height: CGFloat) -> NSRect {
         let visibleFrame = screen?.visibleFrame
             ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let x = visibleFrame.midX - LauncherLayout.width / 2
+        let y = visibleFrame.maxY - Layout.topGap - height
+        let clampedY = max(visibleFrame.minY, min(y, visibleFrame.maxY - height))
         return NSRect(
-            x: visibleFrame.midX - LauncherLayout.width / 2,
-            y: visibleFrame.maxY - Layout.topGap - height,
+            x: x.rounded(),
+            y: clampedY.rounded(),
             width: LauncherLayout.width,
-            height: height
+            height: height.rounded()
         )
     }
 
