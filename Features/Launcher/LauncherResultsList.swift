@@ -274,18 +274,14 @@ private final class LauncherResultCellView: NSTableCellView {
     }
 }
 
-/// Small keycap-styled badge containing the return glyph, shown on the selected row.
-private final class LauncherReturnBadge: NSView {
+/// Small keycap-styled glass badge containing the return glyph, shown on the selected row.
+private final class LauncherReturnBadge: NSGlassEffectView {
     private let glyphView = NSImageView()
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        wantsLayer = true
-        layer?.cornerRadius = 5
-        layer?.cornerCurve = .continuous
-        layer?.borderWidth = 0.5
-        layer?.masksToBounds = true
-        updateColors()
+        style = .regular
+        cornerRadius = 5
 
         let symbolConfiguration = NSImage.SymbolConfiguration(
             pointSize: 14,
@@ -297,8 +293,7 @@ private final class LauncherReturnBadge: NSView {
         )?.withSymbolConfiguration(symbolConfiguration)
         glyphView.contentTintColor = .secondaryLabelColor
         glyphView.imageScaling = .scaleProportionallyDown
-        glyphView.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(glyphView)
+        contentView = glyphView
     }
 
     @available(*, unavailable)
@@ -309,26 +304,6 @@ private final class LauncherReturnBadge: NSView {
     override func layout() {
         super.layout()
         glyphView.frame = bounds.insetBy(dx: 6, dy: 3.5)
-    }
-
-    override func updateLayer() {
-        super.updateLayer()
-        updateColors()
-    }
-
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        updateColors()
-    }
-
-    private func updateColors() {
-        let isDark = effectiveAppearance.isDarkMode
-        layer?.backgroundColor = (isDark
-            ? NSColor.white.withAlphaComponent(0.12)
-            : NSColor.white.withAlphaComponent(0.35)).cgColor
-        layer?.borderColor = (isDark
-            ? NSColor.white.withAlphaComponent(0.10)
-            : NSColor.black.withAlphaComponent(0.08)).cgColor
     }
 }
 

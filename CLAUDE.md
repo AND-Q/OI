@@ -92,7 +92,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **运行指定测试套件**:
   `xcodebuild -project OI.xcodeproj -scheme OI -configuration Debug test -destination 'platform=macOS' -only-testing:OITests/LauncherModelTests`
 
-项目 target 为 `OI`，测试 target 为 `OITests`。最低部署版本为 macOS 13.0。Debug、Release 和 Tests 均已开启完整严格并发检查（Complete Strict Concurrency Checking）。
+项目 target 为 `OI`，测试 target 为 `OITests`。最低部署版本为 macOS 26.0。Debug、Release 和 Tests 均已开启完整严格并发检查（Complete Strict Concurrency Checking）。
 
 ## 3. 架构定位与分层设计
 

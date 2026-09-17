@@ -1,9 +1,14 @@
 import AppKit
 import SwiftUI
 
-/// The launcher panel surface: native frosted vibrancy material (`NSVisualEffectView`)
-/// paired with an appearance-matched wash and subtle highlight stroke, mirroring
-/// native Spotlight across both light and dark backgrounds.
+/// The launcher panel surface, matching the native Spotlight capsule: a frosted
+/// system material that keeps the *system* appearance (light stays light over a
+/// dark window, with dark text) instead of adapting to the backdrop.
+///
+/// SwiftUI `glassEffect` is deliberately not used here: Liquid Glass flips its
+/// content to the dark appearance over dark backdrops (white text), lets most of
+/// the backdrop through, and draws its body above `.background`, so no platter
+/// can lift it. Buttons keep the `.glass` styles; only the surface is opted out.
 extension View {
     @ViewBuilder
     func launcherPanelSurface(cornerRadius: CGFloat) -> some View {
@@ -22,8 +27,10 @@ extension View {
     }
 }
 
-/// Base wash that prevents dark backdrops (e.g. Terminal) from washing out the
-/// panel in light mode, while providing rich graphite depth in dark mode.
+/// Wash over the material, tuned against native Spotlight screenshots: it drops
+/// backdrop transmission to roughly a fifth so a dark window still reads as a
+/// light grey capsule, while leaving enough through for the surroundings to
+/// tint it (native is ~195 grey over a dark window, ~237 over white).
 private struct PanelInnerWash: View {
     @Environment(\.colorScheme) private var colorScheme
 
@@ -31,14 +38,13 @@ private struct PanelInnerWash: View {
         if colorScheme == .dark {
             Color.black.opacity(0.35)
         } else {
-            // High-opacity white wash keeps the capsule clean and crisp even over dark windows
-            Color.white.opacity(0.85)
+            Color(white: 0.93).opacity(0.72)
         }
     }
 }
 
-/// Subtle hairline stroke: 0.5pt specular border in dark mode (matching native
-/// Spotlight), soft neutral stroke in light mode.
+/// Hairline stroke on the capsule edge, as in native Spotlight: soft neutral
+/// stroke in light mode, 0.5pt specular border in dark mode.
 private struct PanelBorder: View {
     @Environment(\.colorScheme) private var colorScheme
     let cornerRadius: CGFloat
@@ -54,7 +60,7 @@ private struct PanelBorder: View {
     }
 }
 
-/// AppKit `NSVisualEffectView` bridge for native macOS vibrancy.
+/// AppKit `NSVisualEffectView` bridge for the frosted behind-window material.
 struct VisualEffectBackground: NSViewRepresentable {
     let cornerRadius: CGFloat
 

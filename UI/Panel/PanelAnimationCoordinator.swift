@@ -286,17 +286,13 @@ final class PanelAnimationCoordinator: ObservableObject {
     }
 }
 
-/// Vsync-locked step clock: one `onTick` per display refresh. On macOS 14+ the
-/// link synchronizes with the panel window's own screen and delivers on the
-/// main thread — correct on ProMotion and mixed-refresh multi-display setups.
-/// macOS 13 falls back to CVDisplayLink with a main-queue hop.
+/// Vsync-locked step clock: one `onTick` per display refresh via `CADisplayLink`.
+/// Synchronizes with the panel window's own screen and delivers on the main thread,
+/// natively supporting ProMotion and mixed-refresh multi-display setups.
 private final class DisplayStepClock {
     private let onTick: () -> Void
     private weak var window: NSWindow?
-    /// `CADisplayLink` on macOS 14+, typed as `AnyObject` because the type is
-    /// unavailable on the macOS 13 deployment target.
-    private var cadence: AnyObject?
-    private var cvDisplayLink: CVDisplayLink?
+    private var displayLink: CADisplayLink?
 
     init(window: NSWindow, onTick: @escaping () -> Void) {
         self.window = window
@@ -308,48 +304,26 @@ private final class DisplayStepClock {
     }
 
     func start() {
-        guard cadence == nil, cvDisplayLink == nil else { return }
-        if #available(macOS 14.0, *), let window, window.isVisible {
-            let link = window.displayLink(target: self, selector: #selector(stepLink(_:)))
-            link.add(to: .main, forMode: .common)
-            cadence = link
-            return
-        }
-        var link: CVDisplayLink?
-        guard CVDisplayLinkCreateWithActiveCGDisplays(&link) == kCVReturnSuccess, let link else { return }
-        let context = Unmanaged.passUnretained(self).toOpaque()
-        CVDisplayLinkSetOutputCallback(link, { _, _, _, _, _, userData in
-            guard let userData else { return kCVReturnSuccess }
-            Unmanaged<DisplayStepClock>.fromOpaque(userData).takeUnretainedValue().fire()
-            return kCVReturnSuccess
-        }, context)
-        cvDisplayLink = link
-        CVDisplayLinkStart(link)
+        guard displayLink == nil, let window, window.isVisible else { return }
+        let link = window.displayLink(target: self, selector: #selector(stepLink(_:)))
+        link.add(to: .main, forMode: .common)
+        displayLink = link
     }
 
     func stop() {
-        if #available(macOS 14.0, *), let link = cadence as? CADisplayLink {
-            link.remove(from: .main, forMode: .common)
-            link.invalidate()
+        if let displayLink {
+            displayLink.remove(from: .main, forMode: .common)
+            displayLink.invalidate()
+            self.displayLink = nil
         }
-        cadence = nil
-        if let cvDisplayLink {
-            CVDisplayLinkStop(cvDisplayLink)
-        }
-        cvDisplayLink = nil
     }
 
     /// CADisplayLink callback: invoked in-sync with the panel's display.
-    @objc private func stepLink(_ sender: Any) {
+    @objc private func stepLink(_ sender: CADisplayLink) {
         if Thread.isMainThread {
             onTick()
         } else {
             DispatchQueue.main.async { [weak self] in self?.onTick() }
         }
-    }
-
-    /// Runs on the display link's background thread; hop to main.
-    private func fire() {
-        DispatchQueue.main.async { [weak self] in self?.onTick() }
     }
 }

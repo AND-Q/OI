@@ -106,11 +106,12 @@ struct LauncherView: View {
                     viewModel.query = ""
                     isSearchFocused = true
                 } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(.tertiary)
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.glass)
+                .controlSize(.small)
                 .help("清除搜索")
             }
         }
@@ -136,7 +137,7 @@ struct LauncherView: View {
                     Button("重试") {
                         viewModel.loadApps()
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.glassProminent)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if viewModel.isLoading && viewModel.apps.isEmpty {
