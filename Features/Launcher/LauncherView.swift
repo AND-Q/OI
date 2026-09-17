@@ -89,19 +89,11 @@ struct LauncherView: View {
             if viewModel.isLoading {
                 ProgressView()
                     .controlSize(.small)
-            } else if !viewModel.query.isEmpty {
-                Button {
-                    viewModel.query = ""
-                    viewModel.requestFocus()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.glass)
-                .controlSize(.small)
-                .help("清除搜索")
-                .accessibilityLabel("清除搜索")
+            } else if let app = viewModel.selectedApp {
+                Image(nsImage: iconProvider.icon(for: app.url))
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 28, height: 28)
             }
         }
         .padding(.horizontal, 20)
