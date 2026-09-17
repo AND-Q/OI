@@ -3,9 +3,9 @@ import SwiftUI
 /// Layout metrics calibrated against the macOS 27 Spotlight reference images.
 enum LauncherLayout {
     static let width: CGFloat = 640
-    static let searchHeight: CGFloat = 58
-    static let rowHeight: CGFloat = 58
-    static let listVerticalPadding: CGFloat = 7
+    static let searchHeight: CGFloat = 57
+    static let rowHeight: CGFloat = 56
+    static let listVerticalPadding: CGFloat = 8
     static let statusHeight: CGFloat = 205
     static let maximumVisibleRows = 7
 
@@ -153,6 +153,7 @@ struct LauncherView: View {
                     iconProvider: iconProvider,
                     onLaunch: onLaunch
                 )
+                .padding(.vertical, LauncherLayout.listVerticalPadding)
             }
         }
     }

@@ -41,12 +41,6 @@ struct LauncherResultsList: NSViewRepresentable {
         scrollView.autohidesScrollers = true
         scrollView.scrollerStyle = .overlay
         scrollView.automaticallyAdjustsContentInsets = false
-        scrollView.contentInsets = NSEdgeInsets(
-            top: LauncherLayout.listVerticalPadding,
-            left: 0,
-            bottom: LauncherLayout.listVerticalPadding,
-            right: 0
-        )
         scrollView.documentView = tableView
         return scrollView
     }
