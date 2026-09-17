@@ -282,6 +282,7 @@ private final class LauncherReturnBadge: NSGlassEffectView {
         super.init(frame: frameRect)
         style = .regular
         cornerRadius = 5
+        effectIsInteractive = true
 
         let symbolConfiguration = NSImage.SymbolConfiguration(
             pointSize: 14,

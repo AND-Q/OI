@@ -69,7 +69,7 @@ App -> UI -> Features / Application / Domain
 
 ## 构建与测试
 
-使用完整 Xcode 打开 `OI.xcodeproj`，选择共享的 `OI` scheme。最低部署版本为 macOS 26.0，测试 target 为 `OITests`。Debug、Release 和测试 target 都开启了完整严格并发检查；Release 启用 Hardened Runtime。
+使用完整 Xcode 打开 `OI.xcodeproj`，选择共享的 `OI` scheme。最低部署版本为 macOS 27.0，测试 target 为 `OITests`。Debug、Release 和测试 target 都开启了完整严格并发检查；Release 启用 Hardened Runtime。
 
 命令行构建：
 
