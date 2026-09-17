@@ -85,7 +85,7 @@ final class LauncherPanelController {
             .store(in: &cancellables)
     }
 
-    deinit {
+    isolated deinit {
         if let keyMonitor {
             NSEvent.removeMonitor(keyMonitor)
         }

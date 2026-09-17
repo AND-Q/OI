@@ -45,7 +45,7 @@ final class PanelAnimationCoordinator: ObservableObject {
 
     /// Breaks the clock ⇄ CADisplayLink target retain cycle if the owner is
     /// released while an animation is still running.
-    deinit {
+    isolated deinit {
         clock?.stop()
     }
 
@@ -169,7 +169,7 @@ final class PanelAnimationCoordinator: ObservableObject {
         let now = CACurrentMediaTime()
         var isBusy = false
 
-        if var resize = resizeState {
+        if let resize = resizeState {
             let elapsed = now - resize.startTime
             let (height, velocity) = Self.evaluateSpring(
                 elapsed: elapsed,
@@ -289,17 +289,18 @@ final class PanelAnimationCoordinator: ObservableObject {
 /// Vsync-locked step clock: one `onTick` per display refresh via `CADisplayLink`.
 /// Synchronizes with the panel window's own screen and delivers on the main thread,
 /// natively supporting ProMotion and mixed-refresh multi-display setups.
+@MainActor
 private final class DisplayStepClock {
-    private let onTick: () -> Void
+    private let onTick: @MainActor () -> Void
     private weak var window: NSWindow?
     private var displayLink: CADisplayLink?
 
-    init(window: NSWindow, onTick: @escaping () -> Void) {
+    init(window: NSWindow, onTick: @escaping @MainActor () -> Void) {
         self.window = window
         self.onTick = onTick
     }
 
-    deinit {
+    isolated deinit {
         stop()
     }
 
@@ -320,10 +321,6 @@ private final class DisplayStepClock {
 
     /// CADisplayLink callback: invoked in-sync with the panel's display.
     @objc private func stepLink(_ sender: CADisplayLink) {
-        if Thread.isMainThread {
-            onTick()
-        } else {
-            DispatchQueue.main.async { [weak self] in self?.onTick() }
-        }
+        onTick()
     }
 }

@@ -78,12 +78,7 @@ final class CarbonGlobalShortcutService: GlobalShortcutHandling {
         handler = nil
     }
 
-    deinit {
-        if let hotKeyRef {
-            UnregisterEventHotKey(hotKeyRef)
-        }
-        if let eventHandlerRef {
-            RemoveEventHandler(eventHandlerRef)
-        }
+    isolated deinit {
+        unregister()
     }
 }

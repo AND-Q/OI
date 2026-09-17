@@ -26,9 +26,8 @@ struct LauncherResultsList: NSViewRepresentable {
         tableView.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
         tableView.dataSource = context.coordinator
         tableView.delegate = context.coordinator
-        tableView.onClickRow = { [weak coordinator = context.coordinator] row in
-            coordinator?.launch(row: row)
-        }
+        tableView.target = context.coordinator
+        tableView.action = #selector(Coordinator.tableViewClicked(_:))
 
         let column = NSTableColumn(identifier: Coordinator.columnIdentifier)
         column.resizingMask = .autoresizingMask
@@ -138,7 +137,13 @@ struct LauncherResultsList: NSViewRepresentable {
         }
 
         func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
-            false
+            true
+        }
+
+        @objc func tableViewClicked(_ sender: NSTableView) {
+            let clickedRow = sender.clickedRow
+            guard clickedRow >= 0 else { return }
+            launch(row: clickedRow)
         }
 
         func launch(row: Int) {
@@ -162,19 +167,7 @@ struct LauncherResultsList: NSViewRepresentable {
 }
 
 private final class LauncherTableView: NSTableView {
-    var onClickRow: ((Int) -> Void)?
-
     override var acceptsFirstResponder: Bool { false }
-
-    override func mouseDown(with event: NSEvent) {
-        let clickedRow = row(at: convert(event.locationInWindow, from: nil))
-        guard clickedRow >= 0 else {
-            super.mouseDown(with: event)
-            return
-        }
-
-        onClickRow?(clickedRow)
-    }
 }
 
 /// Neutral gray rounded selection matching Spotlight (never the system accent blue).
