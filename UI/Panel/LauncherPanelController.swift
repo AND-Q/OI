@@ -38,6 +38,7 @@ final class LauncherPanelController {
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
+        panel.becomesKeyOnlyIfNeeded = false
         panel.isMovable = false
         panel.isMovableByWindowBackground = false
 
@@ -59,18 +60,10 @@ final class LauncherPanelController {
         )
         let hostingView = NSHostingView(rootView: launcherView)
         hostingView.autoresizingMask = [.width, .height]
-        hostingView.wantsLayer = true
-        hostingView.layer?.cornerRadius = LauncherLayout.compactCornerRadius
-        hostingView.layer?.cornerCurve = .continuous
-        hostingView.layer?.masksToBounds = true
-        panel.contentView = hostingView
-
-        if let frameView = panel.contentView?.superview {
-            frameView.wantsLayer = true
-            frameView.layer?.cornerRadius = LauncherLayout.compactCornerRadius
-            frameView.layer?.cornerCurve = .continuous
-            frameView.layer?.masksToBounds = true
-        }
+        panel.contentView = LauncherPanelSurface(
+            contentView: hostingView,
+            cornerRadius: LauncherLayout.compactCornerRadius
+        )
 
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
@@ -118,7 +111,7 @@ final class LauncherPanelController {
             animationCoordinator.cancelDismissal()
             activeScreen = targetScreen()
             animationCoordinator.screen = activeScreen
-            let height = viewModel.panelHeight
+            let height = animationCoordinator.currentHeight
             panel.setFrame(
                 PanelAnimationCoordinator.frame(for: activeScreen, height: height),
                 display: true
@@ -138,7 +131,6 @@ final class LauncherPanelController {
             display: true
         )
         animationCoordinator.prepareForPresentation(height: height)
-        NSApp.activate(ignoringOtherApps: true)
         // The panel keeps alpha 1 after a completed fade-out; ordering it front
         // at full opacity would flash one frame before fadeIn reaches 0.
         panel.alphaValue = 0
@@ -151,7 +143,6 @@ final class LauncherPanelController {
     func hide() {
         guard panel.isVisible, !animationCoordinator.isDismissalInProgress else { return }
         animationCoordinator.fadeOutAndOrderOut()
-        NSApp.deactivate()
     }
 
     private func resizePanel(to height: CGFloat) {
@@ -162,7 +153,7 @@ final class LauncherPanelController {
             for: animationCoordinator.screen,
             height: height
         )
-        guard target.size != panel.frame.size else {
+        guard target.size != panel.frame.size || height != animationCoordinator.targetHeight else {
             if panel.frame.origin != target.origin {
                 panel.setFrameOrigin(target.origin)
             }
@@ -245,7 +236,7 @@ final class LauncherPanel: NSPanel {
     var onResignKey: (() -> Void)?
 
     override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { true }
+    override var canBecomeMain: Bool { false }
 
     override func resignKey() {
         super.resignKey()

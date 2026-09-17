@@ -9,8 +9,8 @@ import QuartzCore
 @MainActor
 final class PanelAnimationCoordinator: ObservableObject {
     private enum Layout {
-        /// Gap between the menu bar and the panel's top edge, matching Spotlight.
-        static let topGap: CGFloat = 94
+        /// Gap below the menu bar, calibrated against the reference display.
+        static let topGap: CGFloat = 156
         /// Critically damped spring response; smaller reads snappier.
         static let resizeResponse: TimeInterval = 0.20
         static let fadeInDuration: TimeInterval = 0.08
@@ -21,13 +21,14 @@ final class PanelAnimationCoordinator: ObservableObject {
 
     /// Geometry the SwiftUI content renders with; republished every frame.
     @Published private(set) var currentHeight: CGFloat
-    @Published private(set) var cornerRadius: CGFloat
+    private(set) var cornerRadius: CGFloat
 
     /// Display the panel lives on; set by the owner whenever the panel is shown
     /// or its screen is re-resolved, so resizes never jump across displays.
     var screen: NSScreen?
 
     private let panel: NSPanel
+    private let reduceMotion: @MainActor () -> Bool
     private var clock: DisplayStepClock?
     private var resizeState: (
         start: CGFloat,
@@ -49,8 +50,15 @@ final class PanelAnimationCoordinator: ObservableObject {
         clock?.stop()
     }
 
-    init(panel: NSPanel, initialHeight: CGFloat) {
+    init(
+        panel: NSPanel,
+        initialHeight: CGFloat,
+        reduceMotion: @escaping @MainActor () -> Bool = {
+            NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        }
+    ) {
         self.panel = panel
+        self.reduceMotion = reduceMotion
         self.currentHeight = initialHeight
         let radius = Self.cornerRadius(forHeight: initialHeight)
         self.cornerRadius = radius
@@ -58,6 +66,7 @@ final class PanelAnimationCoordinator: ObservableObject {
     }
 
     var isDismissalInProgress: Bool { isDismissing }
+    var targetHeight: CGFloat { resizeState?.target ?? currentHeight }
 
     /// Capsule radius while collapsed, expanding radius otherwise.
     static func cornerRadius(forHeight height: CGFloat) -> CGFloat {
@@ -94,7 +103,15 @@ final class PanelAnimationCoordinator: ObservableObject {
 
     /// Grows/shrinks the window to `height`, retargeting with initial velocity preserved.
     func resize(toHeight height: CGFloat) {
-        guard height != currentHeight else { return }
+        guard height != targetHeight else { return }
+
+        // A query can be cleared before the first display tick. Cancel the
+        // pending expansion even when the window is still at compact height.
+        if reduceMotion() || height == currentHeight {
+            resizeState = nil
+            applyGeometry(height: height, radius: Self.cornerRadius(forHeight: height))
+            return
+        }
 
         let initialVelocity = (resizeState != nil) ? currentVelocity : 0
         resizeState = (
@@ -110,6 +127,11 @@ final class PanelAnimationCoordinator: ObservableObject {
 
     /// Fades the panel in after it has been ordered front.
     func fadeIn() {
+        if reduceMotion() {
+            alphaState = nil
+            panel.alphaValue = 1
+            return
+        }
         panel.alphaValue = 0
         alphaState = (from: 0, to: 1, startTime: CACurrentMediaTime(), duration: Layout.fadeInDuration, completion: nil)
         ensureClock()
@@ -117,6 +139,12 @@ final class PanelAnimationCoordinator: ObservableObject {
 
     /// Fades the panel out and orders it out once fully transparent.
     func fadeOutAndOrderOut() {
+        if reduceMotion() {
+            stopAnimations()
+            panel.orderOut(nil)
+            panel.alphaValue = 1
+            return
+        }
         isDismissing = true
         alphaState = (
             from: panel.alphaValue,
@@ -137,7 +165,12 @@ final class PanelAnimationCoordinator: ObservableObject {
     /// instead of restarting from transparent.
     func cancelDismissal() {
         guard isDismissing else { return }
-        stopAnimations()
+        isDismissing = false
+        if reduceMotion() {
+            alphaState = nil
+            panel.alphaValue = 1
+            return
+        }
         alphaState = (
             from: panel.alphaValue,
             to: 1,
@@ -166,6 +199,22 @@ final class PanelAnimationCoordinator: ObservableObject {
     }
 
     private func step() {
+        // Honor changes to the preference even during an in-flight animation.
+        if reduceMotion() {
+            if let resize = resizeState {
+                resizeState = nil
+                applyGeometry(height: resize.target, radius: resize.targetRadius)
+            }
+            if let alpha = alphaState {
+                alphaState = nil
+                panel.alphaValue = alpha.to
+                alpha.completion?()
+            }
+            clock?.stop()
+            clock = nil
+            return
+        }
+
         let now = CACurrentMediaTime()
         var isBusy = false
 
@@ -194,14 +243,7 @@ final class PanelAnimationCoordinator: ObservableObject {
 
             if (abs(resize.target - height) < Layout.settleDistance && abs(velocity) < 15.0)
                 || elapsed > Layout.resizeResponse * 3 {
-                currentHeight = resize.target
-                cornerRadius = resize.targetRadius
-                currentVelocity = 0
-                CATransaction.begin()
-                CATransaction.setDisableActions(true)
-                panel.setFrame(Self.frame(for: screen, height: resize.target), display: false)
-                updateLayerCornerRadius(resize.targetRadius)
-                CATransaction.commit()
+                applyGeometry(height: resize.target, radius: resize.targetRadius)
                 resizeState = nil
             } else {
                 isBusy = true
@@ -226,34 +268,29 @@ final class PanelAnimationCoordinator: ObservableObject {
         }
     }
 
+    private func applyGeometry(height: CGFloat, radius: CGFloat) {
+        currentHeight = height
+        cornerRadius = radius
+        currentVelocity = 0
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        panel.setFrame(Self.frame(for: screen, height: height), display: false)
+        updateLayerCornerRadius(radius)
+        CATransaction.commit()
+    }
+
     /// Per-frame corner radius update only. Shadow recompute is deliberately
     /// kept off the animation loop: `invalidateShadow` makes WindowServer
     /// rebuild the shadow from the window's alpha, too costly at display rate.
     private func setLayerCornerRadius(_ radius: CGFloat) {
-        for view in [panel.contentView?.superview, panel.contentView].compactMap({ $0 }) {
-            if view.layer?.cornerRadius != radius {
-                view.layer?.cornerRadius = radius
-            }
-        }
+        guard let surface = panel.contentView as? LauncherPanelSurface else { return }
+        if surface.cornerRadius != radius { surface.updateCornerRadius(radius) }
     }
 
-    /// Updates the AppKit host layers' corner radii and masks so macOS WindowServer
-    /// derives the window shadow from the exact capsule/rounded shape rather than
-    /// falling back to a rectangular bounds shadow. Runs on init and whenever a
-    /// geometry transition settles — never per animation frame.
+    /// Let the native glass surface define the outline. Recompute the window
+    /// shadow only when a geometry transition settles, never per frame.
     private func updateLayerCornerRadius(_ radius: CGFloat) {
-        for view in [panel.contentView?.superview, panel.contentView].compactMap({ $0 }) {
-            view.wantsLayer = true
-            if view.layer?.cornerRadius != radius {
-                view.layer?.cornerRadius = radius
-            }
-            if view.layer?.cornerCurve != .continuous {
-                view.layer?.cornerCurve = .continuous
-            }
-            if view.layer?.masksToBounds != true {
-                view.layer?.masksToBounds = true
-            }
-        }
+        setLayerCornerRadius(radius)
         panel.invalidateShadow()
     }
 

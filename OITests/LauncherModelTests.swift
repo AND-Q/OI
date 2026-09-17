@@ -459,6 +459,60 @@ final class LauncherModelTests: XCTestCase {
         XCTAssertEqual(record?.launchCount, 1)
     }
 
+    func testNativeSearchInputSynchronizesEditingAndProgrammaticClear() {
+        let input = LauncherSearchInputView()
+        var changes: [String] = []
+        input.onQueryChange = { changes.append($0) }
+        input.update(query: "we", focusRequest: 0)
+        XCTAssertEqual(input.textField.stringValue, "we")
+        XCTAssertTrue(changes.isEmpty)
+
+        input.textField.stringValue = "微信"
+        input.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification, object: input.textField))
+        XCTAssertEqual(changes, ["微信"])
+
+        input.update(query: "", focusRequest: 1)
+        XCTAssertEqual(input.textField.stringValue, "")
+        XCTAssertEqual(changes, ["微信"])
+    }
+
+    func testNativeSearchInputSubmitsThroughItsAction() throws {
+        let input = LauncherSearchInputView()
+        var submissions = 0
+        input.onSubmit = { submissions += 1 }
+        let action = try XCTUnwrap(input.textField.action)
+        XCTAssertTrue(input.textField.sendAction(action, to: input.textField.target))
+        XCTAssertEqual(submissions, 1)
+        XCTAssertFalse(try XCTUnwrap(input.textField.cell).sendsActionOnEndEditing)
+    }
+
+    func testNativeSearchInputPreservesMarkedTextDuringUpdates() throws {
+        let panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: 58),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        let input = LauncherSearchInputView()
+        panel.contentView = input
+        panel.contentView?.layoutSubtreeIfNeeded()
+        XCTAssertTrue(panel.makeFirstResponder(input.textField))
+        let editor = try XCTUnwrap(input.textField.currentEditor() as? NSTextView)
+        defer { panel.makeFirstResponder(nil) }
+        editor.setMarkedText("wei", selectedRange: NSRange(location: 3, length: 0), replacementRange: NSRange(location: NSNotFound, length: 0))
+        XCTAssertTrue(editor.hasMarkedText())
+
+        input.update(query: "", focusRequest: 0)
+        XCTAssertTrue(editor.hasMarkedText())
+        XCTAssertEqual(editor.string, "wei")
+
+        var submissions = 0
+        input.onSubmit = { submissions += 1 }
+        let action = try XCTUnwrap(input.textField.action)
+        input.textField.sendAction(action, to: input.textField.target)
+        XCTAssertEqual(submissions, 0)
+    }
+
     func testPanelAnimationCoordinatorComputesExpectedSpotlightFrame() {
         let screen = NSScreen.main
         let frame = PanelAnimationCoordinator.frame(for: screen, height: LauncherLayout.searchHeight)
@@ -467,9 +521,72 @@ final class LauncherModelTests: XCTestCase {
         XCTAssertEqual(frame.width, LauncherLayout.width)
         XCTAssertEqual(frame.height, LauncherLayout.searchHeight)
         XCTAssertEqual(frame.midX, visibleFrame.midX, accuracy: 1.0)
-        XCTAssertEqual(frame.maxY, (visibleFrame.maxY - 94).rounded(), accuracy: 1.0)
+        XCTAssertEqual(frame.maxY, (visibleFrame.maxY - 156).rounded(), accuracy: 1.0)
         XCTAssertGreaterThanOrEqual(frame.minY, visibleFrame.minY)
         XCTAssertLessThanOrEqual(frame.maxY, visibleFrame.maxY)
+    }
+
+    func testClearingQueryBeforeFirstAnimationFrameCancelsExpansion() {
+        let panel = LauncherPanel(
+            contentRect: NSRect(x: 0, y: 0, width: LauncherLayout.width, height: LauncherLayout.searchHeight),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        let animation = PanelAnimationCoordinator(
+            panel: panel,
+            initialHeight: LauncherLayout.searchHeight,
+            reduceMotion: { false }
+        )
+        defer { animation.stopAnimations() }
+
+        let expandedHeight = LauncherLayout.totalHeight(isExpanded: true, content: .results(rowCount: 7))
+        animation.resize(toHeight: expandedHeight)
+        XCTAssertEqual(animation.targetHeight, expandedHeight)
+        XCTAssertEqual(animation.currentHeight, LauncherLayout.searchHeight)
+
+        animation.resize(toHeight: LauncherLayout.searchHeight)
+        XCTAssertEqual(animation.targetHeight, LauncherLayout.searchHeight)
+        XCTAssertEqual(panel.frame.height, LauncherLayout.searchHeight)
+    }
+
+    func testReducedMotionResizesPanelAndGlassImmediately() {
+        let panel = LauncherPanel(
+            contentRect: NSRect(x: 0, y: 0, width: LauncherLayout.width, height: LauncherLayout.searchHeight),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        let surface = LauncherPanelSurface(
+            contentView: NSView(frame: NSRect(origin: .zero, size: panel.frame.size)),
+            cornerRadius: LauncherLayout.compactCornerRadius
+        )
+        panel.contentView = surface
+        let animation = PanelAnimationCoordinator(
+            panel: panel,
+            initialHeight: LauncherLayout.searchHeight,
+            reduceMotion: { true }
+        )
+
+        let expandedHeight = LauncherLayout.totalHeight(isExpanded: true, content: .results(rowCount: 7))
+        animation.resize(toHeight: expandedHeight)
+        XCTAssertEqual(panel.frame.height, expandedHeight)
+        XCTAssertEqual(animation.currentHeight, expandedHeight)
+        XCTAssertEqual(surface.cornerRadius, LauncherLayout.expandedCornerRadius)
+
+        let topEdge = panel.frame.maxY
+        animation.resize(toHeight: LauncherLayout.searchHeight)
+        XCTAssertEqual(panel.frame.height, LauncherLayout.searchHeight)
+        XCTAssertEqual(animation.currentHeight, LauncherLayout.searchHeight)
+        XCTAssertEqual(surface.cornerRadius, LauncherLayout.compactCornerRadius)
+        XCTAssertEqual(panel.frame.maxY, topEdge)
+
+        animation.fadeIn()
+        XCTAssertEqual(panel.alphaValue, 1)
+        animation.fadeOutAndOrderOut()
+        XCTAssertFalse(panel.isVisible)
+        XCTAssertFalse(animation.isDismissalInProgress)
+        XCTAssertEqual(panel.alphaValue, 1)
     }
 
     func testScreenClosedBoundaryCheckIncludesScreenMaxBoundaries() {
@@ -533,6 +650,7 @@ final class LauncherModelTests: XCTestCase {
         return directory
     }
 
+    @discardableResult
     private func makeApplicationBundle(
         directoryName: String,
         displayName: String,
@@ -586,10 +704,11 @@ private final class SequencedAppCatalog: AppCatalog, @unchecked Sendable {
     }
 
     func scan() async throws -> [AppDescriptor] {
-        lock.lock()
-        let index = scans
-        scans += 1
-        lock.unlock()
+        let index = lock.withLock {
+            let index = scans
+            scans += 1
+            return index
+        }
         try? await Task.sleep(nanoseconds: 200_000_000)
         guard index < results.count else { return results.last ?? [] }
         return results[index]

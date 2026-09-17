@@ -180,11 +180,14 @@ private final class LauncherResultRowView: NSTableRowView {
     override func drawSelection(in dirtyRect: NSRect) {
         guard selectionHighlightStyle != .none else { return }
 
-        LauncherResultRowView.selectionFill.setFill()
+        let fill = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+            ? NSColor.unemphasizedSelectedContentBackgroundColor
+            : LauncherResultRowView.selectionFill
+        fill.setFill()
         NSBezierPath(
-            roundedRect: bounds.insetBy(dx: 12, dy: 1.5),
-            xRadius: 8,
-            yRadius: 8
+            roundedRect: bounds.insetBy(dx: 10, dy: 1.5),
+            xRadius: 18,
+            yRadius: 18
         ).fill()
     }
 
@@ -196,9 +199,9 @@ private final class LauncherResultRowView: NSTableRowView {
 
 private final class LauncherResultCellView: NSTableCellView {
     private enum Metrics {
-        static let horizontalInset: CGFloat = 20
-        static let iconSize: CGFloat = 32
-        static let iconTextSpacing: CGFloat = 18
+        static let horizontalInset: CGFloat = 12
+        static let iconSize: CGFloat = 44
+        static let iconTextSpacing: CGFloat = 10
         static let badgeWidth: CGFloat = 28
         static let badgeHeight: CGFloat = 18
         static let badgeSpacing: CGFloat = 12
@@ -275,7 +278,6 @@ private final class LauncherReturnBadge: NSGlassEffectView {
         super.init(frame: frameRect)
         style = .regular
         cornerRadius = 5
-        effectIsInteractive = true
 
         let symbolConfiguration = NSImage.SymbolConfiguration(
             pointSize: 14,

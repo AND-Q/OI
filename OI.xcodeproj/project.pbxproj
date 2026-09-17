@@ -37,6 +37,7 @@
 		A10000010000001C /* AppUsageStoring.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000001E /* AppUsageStoring.swift */; };
 		A10000010000001D /* UserDefaultsAppUsageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000001F /* UserDefaultsAppUsageStore.swift */; };
 		A10000010000001E /* AppDirectoryWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000020 /* AppDirectoryWatcher.swift */; };
+		A10000010000001F /* LauncherSearchInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000021 /* LauncherSearchInput.swift */; };
 		B100000100000001 /* LauncherModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000001 /* LauncherModelTests.swift */; };
 		B100000100000003 /* ApplicationSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000004 /* ApplicationSearchTests.swift */; };
 		B100000100000002 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B200000100000003 /* XCTest.framework */; };
@@ -86,6 +87,7 @@
 		A20000010000001E /* AppUsageStoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUsageStoring.swift; sourceTree = "<group>"; };
 		A20000010000001F /* UserDefaultsAppUsageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsAppUsageStore.swift; sourceTree = "<group>"; };
 		A200000100000020 /* AppDirectoryWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDirectoryWatcher.swift; sourceTree = "<group>"; };
+		A200000100000021 /* LauncherSearchInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherSearchInput.swift; sourceTree = "<group>"; };
 		B200000100000001 /* LauncherModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherModelTests.swift; sourceTree = "<group>"; };
 		B200000100000004 /* ApplicationSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationSearchTests.swift; sourceTree = "<group>"; };
 		B200000100000002 /* OITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -256,6 +258,7 @@
 			children = (
 				A20000010000000F /* LauncherPanelController.swift */,
 				A20000010000001A /* VisualEffectBackground.swift */,
+				A200000100000021 /* LauncherSearchInput.swift */,
 				A20000010000001B /* PanelAnimationCoordinator.swift */,
 			);
 			path = Panel;
@@ -451,6 +454,7 @@
 				A10000010000001C /* AppUsageStoring.swift in Sources */,
 				A10000010000001D /* UserDefaultsAppUsageStore.swift in Sources */,
 				A10000010000001E /* AppDirectoryWatcher.swift in Sources */,
+				A10000010000001F /* LauncherSearchInput.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -545,6 +549,7 @@
 		A700000100000005 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
@@ -562,6 +567,7 @@
 		A700000100000006 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;

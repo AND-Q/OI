@@ -208,13 +208,12 @@ final class ApplicationSearchTests: XCTestCase {
 
     func testUserDefaultsUsageStorePersistsAndPrunes() async {
         let suiteName = "OITests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defer { UserDefaults(suiteName: suiteName)!.removePersistentDomain(forName: suiteName) }
 
-        let store = UserDefaultsAppUsageStore(defaults: defaults)
+        let store = UserDefaultsAppUsageStore(defaults: UserDefaults(suiteName: suiteName)!)
         await store.recordLaunch(key: "com.example.a")
 
-        let reloaded = UserDefaultsAppUsageStore(defaults: defaults)
+        let reloaded = UserDefaultsAppUsageStore(defaults: UserDefaults(suiteName: suiteName)!)
         let records = await reloaded.records()
         XCTAssertEqual(records["com.example.a"]?.launchCount, 1)
 
