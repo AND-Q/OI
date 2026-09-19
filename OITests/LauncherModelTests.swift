@@ -526,6 +526,35 @@ final class LauncherModelTests: XCTestCase {
         XCTAssertLessThanOrEqual(frame.maxY, visibleFrame.maxY)
     }
 
+    func testCompactSurfaceUsesTopViewportOfExpandedGlass() {
+        let hostedContent = NSView(frame: .zero)
+        let surface = LauncherPanelSurface(
+            contentView: hostedContent,
+            cornerRadius: LauncherLayout.compactCornerRadius
+        )
+        surface.frame = NSRect(
+            x: 0,
+            y: 0,
+            width: LauncherLayout.width,
+            height: LauncherLayout.searchHeight
+        )
+        surface.layoutSubtreeIfNeeded()
+
+        guard let glassView = surface.subviews.first as? NSGlassEffectView,
+              let contentContainer = glassView.contentView else {
+            return XCTFail("Expected the launcher surface to contain a glass viewport")
+        }
+
+        let expandedHeight = LauncherLayout.totalHeight(
+            isExpanded: true,
+            content: .results(rowCount: LauncherLayout.maximumVisibleRows)
+        )
+        XCTAssertEqual(glassView.frame.height, expandedHeight)
+        XCTAssertEqual(glassView.frame.maxY, surface.bounds.maxY)
+        XCTAssertEqual(hostedContent.frame.size, surface.bounds.size)
+        XCTAssertEqual(hostedContent.frame.maxY, contentContainer.bounds.maxY)
+    }
+
     func testClearingQueryBeforeFirstAnimationFrameCancelsExpansion() {
         let panel = LauncherPanel(
             contentRect: NSRect(x: 0, y: 0, width: LauncherLayout.width, height: LauncherLayout.searchHeight),
