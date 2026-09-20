@@ -14,7 +14,7 @@
   - [UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)（键盘监听处理）
   - [Features/Launcher/LauncherView.swift](Features/Launcher/LauncherView.swift)（`.onExitCommand` 兜底）
 
-## [ ] 2. 状态栏图标区分左右键交互（左键切换显隐、右键弹快捷菜单）
+## [x] 2. 状态栏图标区分左右键交互（左键切换显隐、右键弹快捷菜单）
 
 - **需求描述**：
   - 左键点击状态栏图标：直接切换启动器面板的显示与隐藏（Toggle）；

@@ -10,7 +10,8 @@ final class AppCoordinator {
     private let shortcutService: any GlobalShortcutHandling
     private let panelController: LauncherPanelController
     private lazy var statusBarController = StatusBarController(
-        onShow: { [weak self] in self?.panelController.show() },
+        onToggle: { [weak self] in self?.panelController.toggle() },
+        onAbout: { [weak self] in self?.showAbout() },
         onQuit: { NSApp.terminate(nil) }
     )
     private var didStart = false
@@ -72,5 +73,10 @@ final class AppCoordinator {
         } catch {
             logger.error("Global shortcut registration failed: \(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    private func showAbout() {
+        NSApp.activate()
+        NSApp.orderFrontStandardAboutPanel(nil)
     }
 }

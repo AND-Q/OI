@@ -1,35 +1,51 @@
 import AppKit
 
 @MainActor
-final class StatusBarController {
-    private var statusItem: NSStatusItem?
-    private let onShow: () -> Void
+final class StatusBarController: NSObject, NSMenuDelegate {
+    private(set) var statusItem: NSStatusItem?
+    private(set) var contextMenu: NSMenu?
+    private let onToggle: () -> Void
+    private let onAbout: () -> Void
     private let onQuit: () -> Void
 
-    init(onShow: @escaping () -> Void, onQuit: @escaping () -> Void) {
-        self.onShow = onShow
+    init(
+        onToggle: @escaping () -> Void,
+        onAbout: @escaping () -> Void,
+        onQuit: @escaping () -> Void
+    ) {
+        self.onToggle = onToggle
+        self.onAbout = onAbout
         self.onQuit = onQuit
+        super.init()
     }
 
     func start() {
         guard statusItem == nil else { return }
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = NSImage(
-            systemSymbolName: "command",
-            accessibilityDescription: "App Launcher"
-        )
+        if let button = item.button {
+            button.image = NSImage(
+                systemSymbolName: "command",
+                accessibilityDescription: "App Launcher"
+            )
+            button.target = self
+            button.action = #selector(handleStatusItemClick(_:))
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        }
 
         let menu = NSMenu()
-        let showItem = NSMenuItem(title: "显示启动器", action: #selector(showLauncher), keyEquivalent: "")
+        menu.delegate = self
+
+        let aboutItem = NSMenuItem(title: "关于 OI", action: #selector(about), keyEquivalent: "")
         let quitItem = NSMenuItem(title: "退出", action: #selector(quit), keyEquivalent: "q")
-        showItem.target = self
+        aboutItem.target = self
         quitItem.target = self
-        menu.addItem(showItem)
+
+        menu.addItem(aboutItem)
         menu.addItem(.separator())
         menu.addItem(quitItem)
 
-        item.menu = menu
-        statusItem = item
+        self.contextMenu = menu
+        self.statusItem = item
     }
 
     func stop() {
@@ -37,13 +53,36 @@ final class StatusBarController {
             NSStatusBar.system.removeStatusItem(statusItem)
             self.statusItem = nil
         }
+        self.contextMenu = nil
     }
 
-    @objc private func showLauncher() {
-        onShow()
+    @objc func handleStatusItemClick(_ sender: NSStatusBarButton) {
+        handleStatusItemClick(with: NSApp.currentEvent)
     }
 
-    @objc private func quit() {
+    func handleStatusItemClick(with event: NSEvent?) {
+        let isRightClick = event?.type == .rightMouseUp ||
+            (event?.type == .leftMouseUp && event?.modifierFlags.contains(.control) == true)
+
+        if isRightClick, let contextMenu {
+            statusItem?.menu = contextMenu
+            statusItem?.button?.performClick(nil)
+        } else {
+            onToggle()
+        }
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        DispatchQueue.main.async { [weak self] in
+            self?.statusItem?.menu = nil
+        }
+    }
+
+    @objc func about() {
+        onAbout()
+    }
+
+    @objc func quit() {
         onQuit()
     }
 }
