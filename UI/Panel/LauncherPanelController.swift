@@ -85,6 +85,7 @@ final class LauncherPanelController {
     }
 
     var isVisible: Bool { panel.isVisible }
+    var isDismissalInProgress: Bool { animationCoordinator.isDismissalInProgress }
 
     func stop() {
         if let keyMonitor {
@@ -185,7 +186,7 @@ final class LauncherPanelController {
         return activeScreen
     }
 
-    private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
+    func handleKeyDown(_ event: NSEvent) -> NSEvent? {
         guard panel.isVisible else { return event }
 
         // When the focused field editor has marked text (e.g. active Pinyin/IME composition),
@@ -197,7 +198,7 @@ final class LauncherPanelController {
 
         switch event.keyCode {
         case UInt16(kVK_Escape):
-            hide()
+            handleEscape()
             return nil
         case UInt16(kVK_Return), UInt16(kVK_ANSI_KeypadEnter):
             if let app = viewModel.selectedApp {
@@ -212,6 +213,14 @@ final class LauncherPanelController {
             return nil
         default:
             return event
+        }
+    }
+
+    func handleEscape() {
+        if !viewModel.query.isEmpty {
+            viewModel.query = ""
+        } else {
+            hide()
         }
     }
 

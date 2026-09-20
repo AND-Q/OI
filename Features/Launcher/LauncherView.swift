@@ -63,7 +63,13 @@ struct LauncherView: View {
         }
         .frame(width: LauncherLayout.width, height: animation.currentHeight)
         .onAppear { viewModel.requestFocus() }
-        .onExitCommand(perform: onDismiss)
+        .onExitCommand {
+            if !viewModel.query.isEmpty {
+                viewModel.query = ""
+            } else {
+                onDismiss()
+            }
+        }
         .onMoveCommand { direction in
             switch direction {
             case .up: viewModel.moveSelection(by: -1)

@@ -513,6 +513,97 @@ final class LauncherModelTests: XCTestCase {
         XCTAssertEqual(submissions, 0)
     }
 
+    func testNativeSearchInputClearsActiveEditorWhenNotComposing() throws {
+        let panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: 58),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        let input = LauncherSearchInputView()
+        panel.contentView = input
+        panel.contentView?.layoutSubtreeIfNeeded()
+        XCTAssertTrue(panel.makeFirstResponder(input.textField))
+        let editor = try XCTUnwrap(input.textField.currentEditor() as? NSTextView)
+        defer { panel.makeFirstResponder(nil) }
+        editor.string = "safari"
+        input.textField.stringValue = "safari"
+
+        input.update(query: "", focusRequest: 0)
+        XCTAssertEqual(input.textField.stringValue, "")
+        XCTAssertEqual(editor.string, "")
+    }
+
+    func testLauncherPanelControllerEscapeClearsQueryWhenNotEmpty() throws {
+        let viewModel = makeViewModel(with: [])
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+
+        controller.show()
+        XCTAssertTrue(controller.isVisible)
+
+        viewModel.query = "Safari"
+        XCTAssertEqual(viewModel.query, "Safari")
+        XCTAssertTrue(viewModel.isExpanded)
+
+        let escapeEvent = try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [],
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                characters: "\u{1b}",
+                charactersIgnoringModifiers: "\u{1b}",
+                isARepeat: false,
+                keyCode: 53
+            )
+        )
+
+        let handled = controller.handleKeyDown(escapeEvent)
+        XCTAssertNil(handled)
+        XCTAssertEqual(viewModel.query, "")
+        XCTAssertFalse(viewModel.isExpanded)
+        XCTAssertTrue(controller.isVisible)
+        XCTAssertFalse(controller.isDismissalInProgress)
+    }
+
+    func testLauncherPanelControllerEscapeDismissesWhenQueryIsEmpty() throws {
+        let viewModel = makeViewModel(with: [])
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+
+        controller.show()
+        XCTAssertTrue(controller.isVisible)
+        XCTAssertEqual(viewModel.query, "")
+
+        let escapeEvent = try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [],
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                characters: "\u{1b}",
+                charactersIgnoringModifiers: "\u{1b}",
+                isARepeat: false,
+                keyCode: 53
+            )
+        )
+
+        let handled = controller.handleKeyDown(escapeEvent)
+        XCTAssertNil(handled)
+        XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
+    }
+
     func testPanelAnimationCoordinatorComputesExpectedSpotlightFrame() {
         let screen = NSScreen.main
         let frame = PanelAnimationCoordinator.frame(for: screen, height: LauncherLayout.searchHeight)
