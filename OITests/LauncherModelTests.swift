@@ -604,6 +604,73 @@ final class LauncherModelTests: XCTestCase {
         XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
     }
 
+    func testLauncherPanelControllerOpenSucceedsAndDismisses() async throws {
+        let app = AppDescriptor(name: "Demo", url: URL(fileURLWithPath: "/Applications/Demo.app"))
+        let viewModel = makeViewModel(with: [app])
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+
+        controller.show()
+        XCTAssertTrue(controller.isVisible)
+
+        await controller.open(.application(app))?.value
+        XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
+    }
+
+    func testLauncherPanelControllerOpenFailsAndPreservesPanelWithError() async throws {
+        let app = AppDescriptor(name: "Faulty", url: URL(fileURLWithPath: "/Applications/Faulty.app"))
+        let viewModel = LauncherViewModel(
+            discoverApplications: DiscoverApplications(catalog: StubAppCatalog(descriptors: [app])),
+            launchApplication: LaunchApplication(launcher: ThrowingApplicationLauncher())
+        )
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+
+        controller.show()
+        XCTAssertTrue(controller.isVisible)
+
+        await controller.open(.application(app))?.value
+
+        XCTAssertTrue(controller.isVisible)
+        XCTAssertFalse(controller.isDismissalInProgress)
+        XCTAssertEqual(viewModel.launchErrorMessage, "无法启动 Faulty：启动失败")
+
+        viewModel.query = "new"
+        XCTAssertNil(viewModel.launchErrorMessage)
+    }
+
+    func testLauncherPanelControllerRevealFailsWhenFileDoesNotExist() throws {
+        let viewModel = makeViewModel(with: [])
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+
+        controller.show()
+        XCTAssertTrue(controller.isVisible)
+
+        let nonexistent = SearchResult.file(
+            FileDescriptor(
+                name: "missing.txt",
+                url: URL(fileURLWithPath: "/tmp/nonexistent_missing_\(UUID().uuidString).txt"),
+                isDirectory: false
+            )
+        )
+
+        controller.reveal(nonexistent)
+
+        XCTAssertTrue(controller.isVisible)
+        XCTAssertFalse(controller.isDismissalInProgress)
+        XCTAssertEqual(viewModel.launchErrorMessage, "无法打开 missing.txt：文件已被移动或删除")
+    }
+
     func testPanelAnimationCoordinatorComputesExpectedSpotlightFrame() {
         let screen = NSScreen.main
         let frame = PanelAnimationCoordinator.frame(for: screen, height: LauncherLayout.searchHeight)
@@ -938,7 +1005,7 @@ final class LauncherModelTests: XCTestCase {
     }
 }
 
-private struct StubAppCatalog: AppCatalog {
+struct StubAppCatalog: AppCatalog {
     let descriptors: [AppDescriptor]
 
     func scan() async throws -> [AppDescriptor] {
@@ -1012,7 +1079,7 @@ private struct ThrowingAppCatalog: AppCatalog {
 }
 
 @MainActor
-private final class StubApplicationLauncher: ApplicationLaunching {
+final class StubApplicationLauncher: ApplicationLaunching {
     private(set) var launchedApplications: [AppDescriptor] = []
 
     func launch(_ application: AppDescriptor) async throws {

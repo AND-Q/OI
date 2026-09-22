@@ -6,31 +6,48 @@ import Foundation
 final class LauncherViewModel: ObservableObject {
     /// How long a snapshot stays fresh before a panel show triggers a rescan.
     static let refreshInterval: TimeInterval = 600
+    /// Section title shown above file and folder results.
+    static let fileSectionTitle = "文件与文件夹"
 
     @Published var query = "" {
         didSet {
+            if case .failed = launchState {
+                launchState = .idle
+            }
+            scheduleFileSearch()
             updateFilteredApps()
             requestListReset()
         }
     }
     @Published private(set) var apps: [AppDescriptor] = []
     @Published private(set) var filteredApps: [AppDescriptor] = []
+    @Published private(set) var fileResults: [FileDescriptor] = [] {
+        // 文件结果异步到达时列表可能变短：光标仍在范围内则不动，越界则贴到最后一条，空列表归零。
+        didSet { selectedIndex = min(selectedIndex, max(results.count - 1, 0)) }
+    }
     @Published private(set) var selectedIndex = 0
     @Published private(set) var listResetRequest = 0
     @Published private(set) var focusRequest = 0
     @Published private(set) var loadState: LauncherLoadState = .idle
     @Published private(set) var launchState: LauncherLaunchState = .idle
+    @Published private(set) var fileSearchState: LauncherFileSearchState = .idle
     @Published private(set) var panelHeight = LauncherLayout.searchHeight
 
     private let discoverApplications: DiscoverApplications
     private let launchApplication: LaunchApplication
+    private let searchFiles: SearchFiles?
+    private let openFile: OpenFile?
     private let usageStore: any AppUsageStoring
     private let aliases: [String: [String]]
+    private let fileSearchMinimumQueryLength: Int
+    private let fileSearchDebounce: Duration
     private let now: () -> Date
 
     private var loadTask: Task<Void, Never>?
     private var launchTask: Task<Void, Never>?
+    private var fileSearchTask: Task<Void, Never>?
     private var refreshGeneration = 0
+    private var fileSearchGeneration = 0
     private var searchIndex = ApplicationSearchIndex()
     private var usageRecords: [String: AppUsageRecord] = [:]
     private var lastRefreshedAt: Date?
@@ -39,25 +56,59 @@ final class LauncherViewModel: ObservableObject {
     init(
         discoverApplications: DiscoverApplications,
         launchApplication: LaunchApplication,
+        searchFiles: SearchFiles? = nil,
+        openFile: OpenFile? = nil,
         usageStore: any AppUsageStoring = MemoryAppUsageStore(),
         aliases: [String: [String]] = [:],
+        fileSearchMinimumQueryLength: Int = 2,
+        fileSearchDebounce: Duration = .milliseconds(120),
         now: @escaping () -> Date = { Date() }
     ) {
         self.discoverApplications = discoverApplications
         self.launchApplication = launchApplication
+        self.searchFiles = searchFiles
+        self.openFile = openFile
         self.usageStore = usageStore
         self.aliases = aliases
+        self.fileSearchMinimumQueryLength = fileSearchMinimumQueryLength
+        self.fileSearchDebounce = fileSearchDebounce
         self.now = now
     }
 
     deinit {
         loadTask?.cancel()
         launchTask?.cancel()
+        fileSearchTask?.cancel()
+    }
+
+    /// Applications first, then files; the selection index runs over this list.
+    var results: [SearchResult] {
+        filteredApps.map(SearchResult.application) + fileResults.map(SearchResult.file)
+    }
+
+    /// Display rows: the file section gets a header, the application section does not.
+    var rows: [LauncherRow] {
+        var rows = filteredApps.map { LauncherRow.result(.application($0)) }
+        if !fileResults.isEmpty {
+            rows.append(.sectionHeader(Self.fileSectionTitle))
+            rows += fileResults.map { .result(.file($0)) }
+        }
+        return rows
+    }
+
+    var selectedResult: SearchResult? {
+        guard isExpanded, results.indices.contains(selectedIndex) else { return nil }
+        return results[selectedIndex]
     }
 
     var selectedApp: AppDescriptor? {
-        guard isExpanded, filteredApps.indices.contains(selectedIndex) else { return nil }
-        return filteredApps[selectedIndex]
+        guard case .application(let app)? = selectedResult else { return nil }
+        return app
+    }
+
+    /// Index of the selected result within `rows` (accounts for the file section header).
+    var selectedRowIndex: Int {
+        selectedIndex < filteredApps.count ? selectedIndex : selectedIndex + 1
     }
 
     var isLoading: Bool {
@@ -65,19 +116,27 @@ final class LauncherViewModel: ObservableObject {
         return false
     }
 
+    var isSearchingFiles: Bool {
+        if case .searching = fileSearchState { return true }
+        return false
+    }
+
     /// Whether the panel is expanded (Spotlight collapses to a capsule with an empty query).
     /// 纯空白输入按空查询处理（搜索计划 §8.3）。
     var isExpanded: Bool {
-        !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !normalizedQuery.isEmpty
     }
     /// What the expanded area shows; kept here so view and window share one source of truth.
     var expandedContent: LauncherLayout.ExpandedContent {
         if (errorMessage != nil && apps.isEmpty)
             || (isLoading && apps.isEmpty)
-            || filteredApps.isEmpty {
+            || (filteredApps.isEmpty && fileResults.isEmpty) {
             return .status
         }
-        return .results(rowCount: filteredApps.count)
+        return .results(
+            rowCount: results.count,
+            sectionHeaderCount: fileResults.isEmpty ? 0 : 1
+        )
     }
 
     var errorMessage: String? {
@@ -162,6 +221,29 @@ final class LauncherViewModel: ObservableObject {
         return task
     }
 
+    /// Opens a result: applications launch through the catalog, files through the default app.
+    @discardableResult
+    func open(_ result: SearchResult) -> Task<Void, Never>? {
+        switch result {
+        case .application(let application):
+            return launch(application)
+        case .file(let file):
+            return open(file)
+        }
+    }
+
+    /// Reveals the selected item in Finder (`Cmd+Enter`).
+    func reveal(_ result: SearchResult) {
+        openFile?.reveal(url: result.url)
+    }
+
+    /// Publishes a failure directly when an item cannot be opened or located.
+    func publishFileOpenError(fileName: String, reason: String) {
+        launchState = .failed(LauncherErrorMessage.message(
+            for: ApplicationError.fileOpenFailed(fileName: fileName, reason: reason)
+        ))
+    }
+
     @discardableResult
     func launch(_ application: AppDescriptor) -> Task<Void, Never>? {
         guard launchTask == nil else { return launchTask }
@@ -189,8 +271,10 @@ final class LauncherViewModel: ObservableObject {
     func cancelOperations() {
         loadTask?.cancel()
         launchTask?.cancel()
+        fileSearchTask?.cancel()
         if isLoading { loadState = .idle }
         if isLaunching { launchState = .idle }
+        if isSearchingFiles { fileSearchState = .idle }
     }
 
     func prepareForPresentation() {
@@ -208,14 +292,41 @@ final class LauncherViewModel: ObservableObject {
     }
 
     func moveSelection(by offset: Int) {
-        guard !filteredApps.isEmpty else { return }
-        let newIndex = min(max(selectedIndex + offset, 0), filteredApps.count - 1)
+        let count = results.count
+        guard count > 0 else { return }
+        let newIndex = min(max(selectedIndex + offset, 0), count - 1)
         guard newIndex != selectedIndex else { return }
         selectedIndex = newIndex
     }
 
+    @discardableResult
+    private func open(_ file: FileDescriptor) -> Task<Void, Never>? {
+        guard launchTask == nil else { return launchTask }
+        guard let openFile else { return nil }
+
+        launchState = .launching
+        launchTask = Task { [weak self] in
+            do {
+                try await openFile.execute(file)
+                self?.launchState = .idle
+            } catch is CancellationError {
+                self?.launchState = .idle
+            } catch {
+                self?.launchState = .failed(LauncherErrorMessage.message(for: error))
+            }
+
+            self?.finishLaunching()
+        }
+
+        return launchTask
+    }
+
     private func finishLaunching() {
         launchTask = nil
+    }
+
+    private var normalizedQuery: String {
+        query.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var shouldRefreshAutomatically: Bool {
@@ -243,12 +354,60 @@ final class LauncherViewModel: ObservableObject {
     }
 
     private func updateFilteredApps() {
-        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedQuery = self.normalizedQuery
         filteredApps = normalizedQuery.isEmpty
             ? apps
             : searchIndex.search(query: normalizedQuery, usage: usageRecords, now: now())
 
         selectedIndex = 0
+        updatePanelHeight()
+    }
+
+    /// Debounced file lookup; stale results are dropped by generation so the
+    /// newest query always wins. Failures leave the file section empty.
+    /// 检索期间保留上一批文件结果（与原生 Spotlight 一致），否则每敲一个字
+    /// 面板都会先塌成状态页再弹回列表，快速输入时剧烈抖动。
+    private func scheduleFileSearch() {
+        fileSearchTask?.cancel()
+        fileSearchTask = nil
+        fileSearchGeneration += 1
+        let generation = fileSearchGeneration
+
+        let normalizedQuery = self.normalizedQuery
+        guard let searchFiles, normalizedQuery.count >= fileSearchMinimumQueryLength else {
+            if !fileResults.isEmpty { fileResults = [] }
+            fileSearchState = .idle
+            return
+        }
+
+        fileSearchState = .searching
+        let debounce = fileSearchDebounce
+        fileSearchTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: debounce)
+                let files = try await searchFiles.execute(query: normalizedQuery)
+                guard let self, self.fileSearchGeneration == generation else { return }
+                self.fileResults = files
+                self.fileSearchState = .loaded
+                self.updatePanelHeight()
+            } catch is CancellationError {
+                // 仅 cancelOperations() 会在不递增 generation 的情况下取消，此时保持 idle。
+                guard let self, self.fileSearchGeneration == generation else { return }
+                self.fileSearchState = .idle
+            } catch {
+                guard let self, self.fileSearchGeneration == generation else { return }
+                self.fileResults = []
+                self.fileSearchState = .loaded
+                self.updatePanelHeight()
+            }
+
+            if let self, self.fileSearchGeneration == generation {
+                self.fileSearchTask = nil
+            }
+        }
+    }
+
+    private func updatePanelHeight() {
         panelHeight = LauncherLayout.totalHeight(
             isExpanded: isExpanded,
             content: isExpanded ? expandedContent : nil
@@ -276,6 +435,10 @@ private enum LauncherErrorMessage {
             return "无法加载应用列表：\(reason)"
         case .launchFailed(let applicationName, let reason):
             return "无法启动 \(applicationName)：\(reason)"
+        case .fileSearchFailed(let reason):
+            return "无法搜索文件：\(reason)"
+        case .fileOpenFailed(let fileName, let reason):
+            return "无法打开 \(fileName)：\(reason)"
         }
     }
 }

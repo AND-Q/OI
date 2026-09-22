@@ -55,7 +55,7 @@ final class LauncherPanelController {
             viewModel: viewModel,
             animation: animationCoordinator,
             iconProvider: iconProvider,
-            onLaunch: { [weak self] app in self?.launch(app) },
+            onOpen: { [weak self] result in self?.open(result) },
             onDismiss: { [weak self] in self?.hide() }
         )
         let hostingView = NSHostingView(rootView: launcherView)
@@ -201,8 +201,13 @@ final class LauncherPanelController {
             handleEscape()
             return nil
         case UInt16(kVK_Return), UInt16(kVK_ANSI_KeypadEnter):
-            if let app = viewModel.selectedApp {
-                launch(app)
+            if let result = viewModel.selectedResult {
+                // Cmd+Return reveals the item in Finder instead of opening it.
+                if event.modifierFlags.contains(.command) {
+                    reveal(result)
+                } else {
+                    open(result)
+                }
             }
             return nil
         case UInt16(kVK_UpArrow):
@@ -224,8 +229,28 @@ final class LauncherPanelController {
         }
     }
 
-    private func launch(_ app: AppDescriptor) {
-        viewModel.launch(app)
+    @discardableResult
+    func open(_ result: SearchResult) -> Task<Void, Never>? {
+        guard let task = viewModel.open(result) else { return nil }
+        return Task { [weak self] in
+            await task.value
+            guard let self else { return }
+            if case .failed = self.viewModel.launchState {
+                return
+            }
+            self.hide()
+        }
+    }
+
+    func reveal(_ result: SearchResult) {
+        guard FileManager.default.fileExists(atPath: result.url.path) else {
+            viewModel.publishFileOpenError(
+                fileName: result.name,
+                reason: "文件已被移动或删除"
+            )
+            return
+        }
+        viewModel.reveal(result)
         hide()
     }
 

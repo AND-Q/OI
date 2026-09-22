@@ -42,6 +42,15 @@
 		B100000100000003 /* ApplicationSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000004 /* ApplicationSearchTests.swift */; };
 		B100000100000002 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B200000100000003 /* XCTest.framework */; };
 		C100000100000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C200000100000001 /* Assets.xcassets */; };
+		A100000100000030 /* FileDescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000030 /* FileDescriptor.swift */; };
+		A100000100000031 /* SearchResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000031 /* SearchResult.swift */; };
+		A100000100000032 /* FileSearching.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000032 /* FileSearching.swift */; };
+		A100000100000033 /* FileOpening.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000033 /* FileOpening.swift */; };
+		A100000100000034 /* SearchFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000034 /* SearchFiles.swift */; };
+		A100000100000035 /* OpenFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000035 /* OpenFile.swift */; };
+		A100000100000036 /* SpotlightFileSearcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000036 /* SpotlightFileSearcher.swift */; };
+		A100000100000037 /* WorkspaceFileOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000037 /* WorkspaceFileOpener.swift */; };
+		B100000100000004 /* FileSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000005 /* FileSearchTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -93,6 +102,15 @@
 		B200000100000002 /* OITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B200000100000003 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
 		C200000100000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A200000100000030 /* FileDescriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDescriptor.swift; sourceTree = "<group>"; };
+		A200000100000031 /* SearchResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResult.swift; sourceTree = "<group>"; };
+		A200000100000032 /* FileSearching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileSearching.swift; sourceTree = "<group>"; };
+		A200000100000033 /* FileOpening.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOpening.swift; sourceTree = "<group>"; };
+		A200000100000034 /* SearchFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchFiles.swift; sourceTree = "<group>"; };
+		A200000100000035 /* OpenFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenFile.swift; sourceTree = "<group>"; };
+		A200000100000036 /* SpotlightFileSearcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightFileSearcher.swift; sourceTree = "<group>"; };
+		A200000100000037 /* WorkspaceFileOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceFileOpener.swift; sourceTree = "<group>"; };
+		B200000100000005 /* FileSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileSearchTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -164,6 +182,7 @@
 			children = (
 				A40000010000000C /* AppCatalog */,
 				A40000010000000D /* Launch */,
+				A40000010000001A /* FileSearch */,
 				A40000010000000E /* Shortcut */,
 				A400000100000019 /* Usage */,
 			);
@@ -185,6 +204,7 @@
 			children = (
 				B200000100000001 /* LauncherModelTests.swift */,
 				B200000100000004 /* ApplicationSearchTests.swift */,
+				B200000100000005 /* FileSearchTests.swift */,
 			);
 			path = OITests;
 			sourceTree = "<group>";
@@ -202,6 +222,8 @@
 			isa = PBXGroup;
 			children = (
 				A200000100000004 /* AppDescriptor.swift */,
+				A200000100000030 /* FileDescriptor.swift */,
+				A200000100000031 /* SearchResult.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -213,6 +235,8 @@
 				A200000100000008 /* ApplicationLaunching.swift */,
 				A200000100000009 /* GlobalShortcutHandling.swift */,
 				A20000010000001E /* AppUsageStoring.swift */,
+				A200000100000032 /* FileSearching.swift */,
+				A200000100000033 /* FileOpening.swift */,
 			);
 			path = Ports;
 			sourceTree = "<group>";
@@ -241,8 +265,17 @@
 			isa = PBXGroup;
 			children = (
 				A20000010000000B /* WorkspaceApplicationLauncher.swift */,
+				A200000100000037 /* WorkspaceFileOpener.swift */,
 			);
 			path = Launch;
+			sourceTree = "<group>";
+		};
+		A40000010000001A /* FileSearch */ = {
+			isa = PBXGroup;
+			children = (
+				A200000100000036 /* SpotlightFileSearcher.swift */,
+			);
+			path = FileSearch;
 			sourceTree = "<group>";
 		};
 		A40000010000000E /* Shortcut */ = {
@@ -297,6 +330,8 @@
 			children = (
 				A200000100000013 /* DiscoverApplications.swift */,
 				A200000100000014 /* LaunchApplication.swift */,
+				A200000100000034 /* SearchFiles.swift */,
+				A200000100000035 /* OpenFile.swift */,
 			);
 			path = UseCases;
 			sourceTree = "<group>";
@@ -455,6 +490,14 @@
 				A10000010000001D /* UserDefaultsAppUsageStore.swift in Sources */,
 				A10000010000001E /* AppDirectoryWatcher.swift in Sources */,
 				A10000010000001F /* LauncherSearchInput.swift in Sources */,
+				A100000100000030 /* FileDescriptor.swift in Sources */,
+				A100000100000031 /* SearchResult.swift in Sources */,
+				A100000100000032 /* FileSearching.swift in Sources */,
+				A100000100000033 /* FileOpening.swift in Sources */,
+				A100000100000034 /* SearchFiles.swift in Sources */,
+				A100000100000035 /* OpenFile.swift in Sources */,
+				A100000100000036 /* SpotlightFileSearcher.swift in Sources */,
+				A100000100000037 /* WorkspaceFileOpener.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -464,6 +507,7 @@
 			files = (
 				B100000100000001 /* LauncherModelTests.swift in Sources */,
 				B100000100000003 /* ApplicationSearchTests.swift in Sources */,
+				B100000100000004 /* FileSearchTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

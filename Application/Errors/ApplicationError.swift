@@ -4,4 +4,6 @@ import Foundation
 enum ApplicationError: Error, Equatable, Sendable {
     case discoveryFailed(reason: String)
     case launchFailed(applicationName: String, reason: String)
+    case fileSearchFailed(reason: String)
+    case fileOpenFailed(fileName: String, reason: String)
 }

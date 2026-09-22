@@ -5,6 +5,7 @@ enum LauncherLayout {
     static let width: CGFloat = 640
     static let searchHeight: CGFloat = 57
     static let rowHeight: CGFloat = 56
+    static let sectionHeaderHeight: CGFloat = 24
     static let listVerticalPadding: CGFloat = 8
     static let statusHeight: CGFloat = 205
     static let maximumVisibleRows = 7
@@ -14,15 +15,16 @@ enum LauncherLayout {
 
     /// What the expanded area below the search field shows.
     enum ExpandedContent: Equatable {
-        case results(rowCount: Int)
+        case results(rowCount: Int, sectionHeaderCount: Int = 0)
         case status
 
         var height: CGFloat {
             switch self {
-            case .results(let rowCount):
-                let visibleRows = min(max(rowCount, 0), LauncherLayout.maximumVisibleRows)
-                return LauncherLayout.listVerticalPadding * 2
-                    + CGFloat(visibleRows) * LauncherLayout.rowHeight
+            case .results(let rowCount, let sectionHeaderCount):
+                let contentHeight = CGFloat(max(rowCount, 0)) * LauncherLayout.rowHeight
+                    + CGFloat(max(sectionHeaderCount, 0)) * LauncherLayout.sectionHeaderHeight
+                let maximumHeight = CGFloat(LauncherLayout.maximumVisibleRows) * LauncherLayout.rowHeight
+                return LauncherLayout.listVerticalPadding * 2 + min(contentHeight, maximumHeight)
             case .status:
                 return LauncherLayout.statusHeight
             }
@@ -40,7 +42,7 @@ struct LauncherView: View {
     @ObservedObject var viewModel: LauncherViewModel
     @ObservedObject var animation: PanelAnimationCoordinator
     let iconProvider: any ApplicationIconProviding
-    let onLaunch: (AppDescriptor) -> Void
+    let onOpen: (SearchResult) -> Void
     let onDismiss: () -> Void
 
     var body: some View {
@@ -85,8 +87,8 @@ struct LauncherView: View {
                 query: $viewModel.query,
                 focusRequest: viewModel.focusRequest,
                 onSubmit: {
-                    guard let app = viewModel.selectedApp else { return }
-                    onLaunch(app)
+                    guard let result = viewModel.selectedResult else { return }
+                    onOpen(result)
                 }
             )
             .frame(maxWidth: .infinity)
@@ -95,8 +97,8 @@ struct LauncherView: View {
             if viewModel.isLoading {
                 ProgressView()
                     .controlSize(.small)
-            } else if let app = viewModel.selectedApp {
-                Image(nsImage: iconProvider.icon(for: app.url))
+            } else if let result = viewModel.selectedResult {
+                Image(nsImage: iconProvider.icon(for: result.url))
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 28, height: 28)
@@ -134,24 +136,49 @@ struct LauncherView: View {
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if viewModel.filteredApps.isEmpty {
+            } else if viewModel.results.isEmpty {
                 VStack(spacing: 8) {
-                    Image(systemName: "app.dashed")
-                        .font(.system(size: 28))
-                        .foregroundStyle(.secondary)
-                    Text("没有找到匹配的 App")
-                        .foregroundStyle(.secondary)
+                    // 应用无匹配但文件查询仍在进行时，先不判定"无结果"。
+                    if viewModel.isSearchingFiles {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 28))
+                            .foregroundStyle(.secondary)
+                        Text("没有找到匹配的结果")
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                LauncherResultsList(
-                    apps: viewModel.filteredApps,
-                    selectedIndex: viewModel.selectedIndex,
-                    resetRequest: viewModel.listResetRequest,
-                    iconProvider: iconProvider,
-                    onLaunch: onLaunch
-                )
-                .padding(.vertical, LauncherLayout.listVerticalPadding)
+                VStack(spacing: 0) {
+                    if let launchError = viewModel.launchErrorMessage {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .foregroundStyle(.red)
+                            Text(launchError)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background(Color.red.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .padding(.horizontal, 12)
+                        .padding(.top, 4)
+                    }
+
+                    LauncherResultsList(
+                        rows: viewModel.rows,
+                        selectedRowIndex: viewModel.selectedRowIndex,
+                        resetRequest: viewModel.listResetRequest,
+                        iconProvider: iconProvider,
+                        onOpen: onOpen
+                    )
+                    .padding(.vertical, LauncherLayout.listVerticalPadding)
+                }
             }
         }
     }

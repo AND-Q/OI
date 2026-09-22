@@ -20,6 +20,12 @@
 	<string>public.app-category.utilities</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>OI 需要访问桌面，才能在搜索结果中包含桌面上的文件与文件夹。</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>OI 需要访问文稿，才能在搜索结果中包含文稿中的文件与文件夹。</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>OI 需要访问下载，才能在搜索结果中包含下载中的文件与文件夹。</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 </dict>

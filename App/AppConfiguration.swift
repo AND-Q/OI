@@ -11,6 +11,10 @@ struct AppConfiguration: Sendable {
     let applicationSearchDirectories: [URL]
     /// 以 bundle identifier 为键的内置别名覆盖（搜索计划 §7.1）。
     let applicationAliases: [String: [String]]
+    /// 文件分组最多展示的条数。
+    let fileSearchResultLimit: Int
+    /// 触发文件搜索所需的最少查询字符数，过短的查询只会返回噪音。
+    let fileSearchMinimumQueryLength: Int
     let launcherShortcut: Shortcut
 
     static let live = AppConfiguration(
@@ -30,6 +34,8 @@ struct AppConfiguration: Sendable {
         applicationAliases: [
             "com.microsoft.VSCode": ["vscode"],
         ],
+        fileSearchResultLimit: 100,
+        fileSearchMinimumQueryLength: 2,
         launcherShortcut: Shortcut(
             keyCode: UInt32(kVK_Space),
             modifiers: UInt32(optionKey)

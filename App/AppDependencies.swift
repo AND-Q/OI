@@ -14,12 +14,22 @@ struct AppDependencies {
             searchDirectories: configuration.applicationSearchDirectories
         )
         let applicationLauncher = WorkspaceApplicationLauncher()
+        let fileSearcher = SpotlightFileSearcher()
+        // 首次启动即触发目录授权，否则文件搜索会缺少桌面、文稿、下载下的结果。
+        fileSearcher.requestProtectedFolderAccess()
+        let fileOpener = WorkspaceFileOpener()
         let usageStore = UserDefaultsAppUsageStore()
         let launcherViewModel = LauncherViewModel(
             discoverApplications: DiscoverApplications(catalog: catalog),
             launchApplication: LaunchApplication(launcher: applicationLauncher),
+            searchFiles: SearchFiles(
+                searcher: fileSearcher,
+                limit: configuration.fileSearchResultLimit
+            ),
+            openFile: OpenFile(opener: fileOpener),
             usageStore: usageStore,
-            aliases: configuration.applicationAliases
+            aliases: configuration.applicationAliases,
+            fileSearchMinimumQueryLength: configuration.fileSearchMinimumQueryLength
         )
 
         return AppDependencies(

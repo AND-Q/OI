@@ -3,11 +3,11 @@ import SwiftUI
 
 @MainActor
 struct LauncherResultsList: NSViewRepresentable {
-    let apps: [AppDescriptor]
-    let selectedIndex: Int
+    let rows: [LauncherRow]
+    let selectedRowIndex: Int
     let resetRequest: Int
     let iconProvider: any ApplicationIconProviding
-    let onLaunch: (AppDescriptor) -> Void
+    let onOpen: (SearchResult) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
@@ -23,6 +23,7 @@ struct LauncherResultsList: NSViewRepresentable {
         tableView.selectionHighlightStyle = .regular
         tableView.allowsEmptySelection = false
         tableView.allowsMultipleSelection = false
+        tableView.floatsGroupRows = false
         tableView.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
         tableView.dataSource = context.coordinator
         tableView.delegate = context.coordinator
@@ -49,35 +50,37 @@ struct LauncherResultsList: NSViewRepresentable {
         guard let tableView = scrollView.documentView as? NSTableView else { return }
 
         let coordinator = context.coordinator
-        let appsChanged = coordinator.apps != apps
-        let selectionChanged = coordinator.selectedIndex != selectedIndex
+        let rowsChanged = coordinator.rows != rows
+        let selectionChanged = coordinator.selectedRowIndex != selectedRowIndex
         let shouldResetScroll = coordinator.resetRequest != resetRequest
 
         // The parent re-renders on every animation frame (it observes the panel
         // geometry), so skip all AppKit work when nothing actually changed.
-        guard appsChanged || selectionChanged || shouldResetScroll else { return }
+        guard rowsChanged || selectionChanged || shouldResetScroll else { return }
 
         coordinator.parent = self
-        coordinator.apps = apps
-        coordinator.selectedIndex = selectedIndex
+        coordinator.rows = rows
+        coordinator.selectedRowIndex = selectedRowIndex
         coordinator.resetRequest = resetRequest
 
-        if appsChanged {
+        if rowsChanged {
             tableView.reloadData()
         }
 
-        guard apps.indices.contains(selectedIndex) else {
+        guard rows.indices.contains(selectedRowIndex) else {
             tableView.deselectAll(nil)
             return
         }
 
-        tableView.selectRowIndexes(IndexSet(integer: selectedIndex), byExtendingSelection: false)
+        tableView.selectRowIndexes(IndexSet(integer: selectedRowIndex), byExtendingSelection: false)
         coordinator.refreshSelectionIndicators(in: tableView)
 
-        if shouldResetScroll || appsChanged {
+        // Query changes come with a reset request; file results arriving later
+        // must not yank the list away from the row the user has moved to.
+        if shouldResetScroll {
             tableView.scrollRowToVisible(0)
-        } else if selectionChanged {
-            tableView.scrollRowToVisible(selectedIndex)
+        } else {
+            tableView.scrollRowToVisible(selectedRowIndex)
         }
     }
 
@@ -85,10 +88,11 @@ struct LauncherResultsList: NSViewRepresentable {
     final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         static let columnIdentifier = NSUserInterfaceItemIdentifier("LauncherResultsColumn")
         static let cellIdentifier = NSUserInterfaceItemIdentifier("LauncherResultCell")
+        static let headerIdentifier = NSUserInterfaceItemIdentifier("LauncherSectionHeaderCell")
 
         var parent: LauncherResultsList
-        var apps: [AppDescriptor] = []
-        var selectedIndex = -1
+        var rows: [LauncherRow] = []
+        var selectedRowIndex = -1
         var resetRequest = -1
 
         init(parent: LauncherResultsList) {
@@ -96,7 +100,7 @@ struct LauncherResultsList: NSViewRepresentable {
         }
 
         func numberOfRows(in tableView: NSTableView) -> Int {
-            apps.count
+            rows.count
         }
 
         func tableView(
@@ -104,45 +108,75 @@ struct LauncherResultsList: NSViewRepresentable {
             viewFor tableColumn: NSTableColumn?,
             row: Int
         ) -> NSView? {
-            guard apps.indices.contains(row) else { return nil }
+            guard rows.indices.contains(row) else { return nil }
 
-            let cell: LauncherResultCellView
-            if let reusedCell = tableView.makeView(
-                withIdentifier: Self.cellIdentifier,
-                owner: nil
-            ) as? LauncherResultCellView {
-                cell = reusedCell
-            } else {
-                cell = LauncherResultCellView()
-                cell.identifier = Self.cellIdentifier
+            switch rows[row] {
+            case .sectionHeader(let title):
+                let cell: LauncherSectionHeaderView
+                if let reusedCell = tableView.makeView(
+                    withIdentifier: Self.headerIdentifier,
+                    owner: nil
+                ) as? LauncherSectionHeaderView {
+                    cell = reusedCell
+                } else {
+                    cell = LauncherSectionHeaderView()
+                    cell.identifier = Self.headerIdentifier
+                }
+                cell.configure(title: title)
+                return cell
+
+            case .result(let result):
+                let cell: LauncherResultCellView
+                if let reusedCell = tableView.makeView(
+                    withIdentifier: Self.cellIdentifier,
+                    owner: nil
+                ) as? LauncherResultCellView {
+                    cell = reusedCell
+                } else {
+                    cell = LauncherResultCellView()
+                    cell.identifier = Self.cellIdentifier
+                }
+
+                cell.configure(
+                    name: result.name,
+                    subtitle: Self.subtitle(for: result),
+                    icon: parent.iconProvider.icon(for: result.url),
+                    isSelected: row == selectedRowIndex
+                )
+                return cell
             }
-
-            let app = apps[row]
-            cell.configure(
-                name: app.name,
-                icon: parent.iconProvider.icon(for: app.url),
-                isSelected: row == selectedIndex
-            )
-            return cell
         }
 
         func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
             LauncherResultRowView()
         }
 
+        func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
+            guard rows.indices.contains(row), case .sectionHeader = rows[row] else {
+                return LauncherLayout.rowHeight
+            }
+            return LauncherLayout.sectionHeaderHeight
+        }
+
+        func tableView(_ tableView: NSTableView, isGroupRow row: Int) -> Bool {
+            guard rows.indices.contains(row), case .sectionHeader = rows[row] else { return false }
+            return true
+        }
+
         func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
-            true
+            guard rows.indices.contains(row), case .result = rows[row] else { return false }
+            return true
         }
 
         @objc func tableViewClicked(_ sender: NSTableView) {
             let clickedRow = sender.clickedRow
             guard clickedRow >= 0 else { return }
-            launch(row: clickedRow)
+            open(row: clickedRow)
         }
 
-        func launch(row: Int) {
-            guard apps.indices.contains(row) else { return }
-            parent.onLaunch(apps[row])
+        func open(row: Int) {
+            guard rows.indices.contains(row), case .result(let result) = rows[row] else { return }
+            parent.onOpen(result)
         }
 
         func refreshSelectionIndicators(in tableView: NSTableView) {
@@ -154,8 +188,14 @@ struct LauncherResultsList: NSViewRepresentable {
                     as? LauncherResultCellView else {
                     continue
                 }
-                cell.setSelected(row == selectedIndex)
+                cell.setSelected(row == selectedRowIndex)
             }
+        }
+
+        /// Files show their parent folder with `~` abbreviation; applications show nothing.
+        static func subtitle(for result: SearchResult) -> String? {
+            guard case .file(let file) = result else { return nil }
+            return (file.url.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath
         }
     }
 }
@@ -203,6 +243,7 @@ private final class LauncherResultCellView: NSTableCellView {
 
     private let appIconView = NSImageView()
     private let nameLabel = NSTextField(labelWithString: "")
+    private let subtitleLabel = NSTextField(labelWithString: "")
     private let returnBadge = LauncherReturnBadge()
 
     override init(frame frameRect: NSRect) {
@@ -216,8 +257,14 @@ private final class LauncherResultCellView: NSTableCellView {
         nameLabel.lineBreakMode = .byTruncatingTail
         nameLabel.maximumNumberOfLines = 1
 
+        subtitleLabel.font = .systemFont(ofSize: 12, weight: .regular)
+        subtitleLabel.textColor = .secondaryLabelColor
+        subtitleLabel.lineBreakMode = .byTruncatingMiddle
+        subtitleLabel.maximumNumberOfLines = 1
+
         addSubview(appIconView)
         addSubview(nameLabel)
+        addSubview(subtitleLabel)
         addSubview(returnBadge)
     }
 
@@ -245,22 +292,61 @@ private final class LauncherResultCellView: NSTableCellView {
 
         let labelX = appIconView.frame.maxX + m.iconTextSpacing
         let labelRight = returnBadge.frame.minX - m.badgeSpacing
-        nameLabel.frame = NSRect(
-            x: labelX,
-            y: (bounds.height - 22) / 2,
-            width: max(0, labelRight - labelX),
-            height: 22
-        )
+        let labelWidth = max(0, labelRight - labelX)
+        if subtitleLabel.isHidden {
+            nameLabel.frame = NSRect(x: labelX, y: (bounds.height - 22) / 2, width: labelWidth, height: 22)
+        } else {
+            // Two lines stacked and centred as a block (flipped-off coordinates: y grows upward).
+            let blockHeight: CGFloat = 22 + 16
+            let blockY = (bounds.height - blockHeight) / 2
+            subtitleLabel.frame = NSRect(x: labelX, y: blockY, width: labelWidth, height: 16)
+            nameLabel.frame = NSRect(x: labelX, y: blockY + 16, width: labelWidth, height: 22)
+        }
     }
 
-    func configure(name: String, icon: NSImage, isSelected: Bool) {
+    func configure(name: String, subtitle: String?, icon: NSImage, isSelected: Bool) {
         nameLabel.stringValue = name
+        subtitleLabel.stringValue = subtitle ?? ""
+        subtitleLabel.isHidden = subtitle == nil
         appIconView.image = icon
         setSelected(isSelected)
+        needsLayout = true
     }
 
     func setSelected(_ isSelected: Bool) {
         returnBadge.alphaValue = isSelected ? 1 : 0
+    }
+}
+
+/// Non-selectable group row separating the file section from the applications.
+private final class LauncherSectionHeaderView: NSTableCellView {
+    private let titleLabel = NSTextField(labelWithString: "")
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        titleLabel.font = .systemFont(ofSize: 11, weight: .semibold)
+        titleLabel.textColor = .secondaryLabelColor
+        titleLabel.maximumNumberOfLines = 1
+        addSubview(titleLabel)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layout() {
+        super.layout()
+        titleLabel.frame = NSRect(
+            x: 22,
+            y: (bounds.height - 14) / 2,
+            width: max(0, bounds.width - 44),
+            height: 14
+        )
+    }
+
+    func configure(title: String) {
+        titleLabel.stringValue = title
     }
 }
 
