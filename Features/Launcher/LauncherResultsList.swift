@@ -140,8 +140,9 @@ struct LauncherResultsList: NSViewRepresentable {
                 cell.configure(
                     name: result.name,
                     subtitle: Self.subtitle(for: result),
-                    icon: parent.iconProvider.icon(for: result.url),
-                    isSelected: row == selectedRowIndex
+                    icon: Self.icon(for: result, provider: parent.iconProvider),
+                    isSelected: row == selectedRowIndex,
+                    isQuickQuery: result.isQuickQuery
                 )
                 return cell
             }
@@ -194,8 +195,24 @@ struct LauncherResultsList: NSViewRepresentable {
 
         /// Files show their parent folder with `~` abbreviation; applications show nothing.
         static func subtitle(for result: SearchResult) -> String? {
-            guard case .file(let file) = result else { return nil }
-            return (file.url.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath
+            switch result {
+            case .file(let file):
+                return (file.url.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath
+            case .quickQuery(let quickQuery):
+                return quickQuery.subtitle
+            case .application:
+                return nil
+            }
+        }
+
+        static func icon(
+            for result: SearchResult,
+            provider: any ApplicationIconProviding
+        ) -> NSImage {
+            if let url = result.url { return provider.icon(for: url) }
+            guard case .quickQuery(let quickQuery) = result else { return NSImage() }
+            return NSImage(systemSymbolName: quickQuery.symbolName, accessibilityDescription: nil)
+                ?? NSImage()
         }
     }
 }
@@ -245,6 +262,7 @@ private final class LauncherResultCellView: NSTableCellView {
     private let nameLabel = NSTextField(labelWithString: "")
     private let subtitleLabel = NSTextField(labelWithString: "")
     private let returnBadge = LauncherReturnBadge()
+    private var isQuickQuery = false
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -293,21 +311,37 @@ private final class LauncherResultCellView: NSTableCellView {
         let labelX = appIconView.frame.maxX + m.iconTextSpacing
         let labelRight = returnBadge.frame.minX - m.badgeSpacing
         let labelWidth = max(0, labelRight - labelX)
+        let nameHeight: CGFloat = isQuickQuery ? 28 : 22
         if subtitleLabel.isHidden {
-            nameLabel.frame = NSRect(x: labelX, y: (bounds.height - 22) / 2, width: labelWidth, height: 22)
+            nameLabel.frame = NSRect(
+                x: labelX,
+                y: (bounds.height - nameHeight) / 2,
+                width: labelWidth,
+                height: nameHeight
+            )
         } else {
             // Two lines stacked and centred as a block (flipped-off coordinates: y grows upward).
-            let blockHeight: CGFloat = 22 + 16
+            let blockHeight = nameHeight + 16
             let blockY = (bounds.height - blockHeight) / 2
             subtitleLabel.frame = NSRect(x: labelX, y: blockY, width: labelWidth, height: 16)
-            nameLabel.frame = NSRect(x: labelX, y: blockY + 16, width: labelWidth, height: 22)
+            nameLabel.frame = NSRect(x: labelX, y: blockY + 16, width: labelWidth, height: nameHeight)
         }
     }
 
-    func configure(name: String, subtitle: String?, icon: NSImage, isSelected: Bool) {
+    func configure(
+        name: String,
+        subtitle: String?,
+        icon: NSImage,
+        isSelected: Bool,
+        isQuickQuery: Bool = false
+    ) {
         nameLabel.stringValue = name
         subtitleLabel.stringValue = subtitle ?? ""
         subtitleLabel.isHidden = subtitle == nil
+        self.isQuickQuery = isQuickQuery
+        nameLabel.font = isQuickQuery
+            ? .systemFont(ofSize: 23, weight: .medium)
+            : .systemFont(ofSize: 17, weight: .regular)
         appIconView.image = icon
         setSelected(isSelected)
         needsLayout = true

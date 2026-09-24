@@ -14,6 +14,7 @@ final class LauncherViewModel: ObservableObject {
             if case .failed = launchState {
                 launchState = .idle
             }
+            quickQueryResult = QuickQueryResolver.resolve(query)
             scheduleFileSearch()
             updateFilteredApps()
             requestListReset()
@@ -25,6 +26,7 @@ final class LauncherViewModel: ObservableObject {
         // 文件结果异步到达时列表可能变短：光标仍在范围内则不动，越界则贴到最后一条，空列表归零。
         didSet { selectedIndex = min(selectedIndex, max(results.count - 1, 0)) }
     }
+    @Published private(set) var quickQueryResult: QuickQueryResult?
     @Published private(set) var selectedIndex = 0
     @Published private(set) var listResetRequest = 0
     @Published private(set) var focusRequest = 0
@@ -81,14 +83,17 @@ final class LauncherViewModel: ObservableObject {
         fileSearchTask?.cancel()
     }
 
-    /// Applications first, then files; the selection index runs over this list.
+    /// Quick queries first, followed by applications and then files.
     var results: [SearchResult] {
-        filteredApps.map(SearchResult.application) + fileResults.map(SearchResult.file)
+        (quickQueryResult.map { [.quickQuery($0)] } ?? [])
+            + filteredApps.map(SearchResult.application)
+            + fileResults.map(SearchResult.file)
     }
 
     /// Display rows: the file section gets a header, the application section does not.
     var rows: [LauncherRow] {
-        var rows = filteredApps.map { LauncherRow.result(.application($0)) }
+        var rows = quickQueryResult.map { [LauncherRow.result(.quickQuery($0))] } ?? []
+        rows += filteredApps.map { LauncherRow.result(.application($0)) }
         if !fileResults.isEmpty {
             rows.append(.sectionHeader(Self.fileSectionTitle))
             rows += fileResults.map { .result(.file($0)) }
@@ -108,7 +113,10 @@ final class LauncherViewModel: ObservableObject {
 
     /// Index of the selected result within `rows` (accounts for the file section header).
     var selectedRowIndex: Int {
-        selectedIndex < filteredApps.count ? selectedIndex : selectedIndex + 1
+        let quickQueryCount = quickQueryResult == nil ? 0 : 1
+        return selectedIndex < quickQueryCount + filteredApps.count
+            ? selectedIndex
+            : selectedIndex + 1
     }
 
     var isLoading: Bool {
@@ -128,9 +136,11 @@ final class LauncherViewModel: ObservableObject {
     }
     /// What the expanded area shows; kept here so view and window share one source of truth.
     var expandedContent: LauncherLayout.ExpandedContent {
-        if (errorMessage != nil && apps.isEmpty)
-            || (isLoading && apps.isEmpty)
-            || (filteredApps.isEmpty && fileResults.isEmpty) {
+        if quickQueryResult == nil && (
+            (errorMessage != nil && apps.isEmpty)
+                || (isLoading && apps.isEmpty)
+                || (filteredApps.isEmpty && fileResults.isEmpty)
+        ) {
             return .status
         }
         return .results(
@@ -229,12 +239,15 @@ final class LauncherViewModel: ObservableObject {
             return launch(application)
         case .file(let file):
             return open(file)
+        case .quickQuery:
+            return nil
         }
     }
 
     /// Reveals the selected item in Finder (`Cmd+Enter`).
     func reveal(_ result: SearchResult) {
-        openFile?.reveal(url: result.url)
+        guard let url = result.url else { return }
+        openFile?.reveal(url: url)
     }
 
     /// Publishes a failure directly when an item cannot be opened or located.
@@ -374,7 +387,8 @@ final class LauncherViewModel: ObservableObject {
         let generation = fileSearchGeneration
 
         let normalizedQuery = self.normalizedQuery
-        guard let searchFiles, normalizedQuery.count >= fileSearchMinimumQueryLength else {
+        guard let searchFiles,
+              normalizedQuery.count >= fileSearchMinimumQueryLength else {
             if !fileResults.isEmpty { fileResults = [] }
             fileSearchState = .idle
             return

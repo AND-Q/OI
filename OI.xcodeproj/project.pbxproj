@@ -50,6 +50,8 @@
 		A100000100000035 /* OpenFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000035 /* OpenFile.swift */; };
 		A100000100000036 /* SpotlightFileSearcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000036 /* SpotlightFileSearcher.swift */; };
 		A100000100000037 /* WorkspaceFileOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000037 /* WorkspaceFileOpener.swift */; };
+		A100000100000038 /* QuickQueryResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000038 /* QuickQueryResult.swift */; };
+		A100000100000039 /* QuickQueryResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000039 /* QuickQueryResolver.swift */; };
 		B100000100000004 /* FileSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000005 /* FileSearchTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -111,6 +113,8 @@
 		A200000100000036 /* SpotlightFileSearcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightFileSearcher.swift; sourceTree = "<group>"; };
 		A200000100000037 /* WorkspaceFileOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceFileOpener.swift; sourceTree = "<group>"; };
 		B200000100000005 /* FileSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileSearchTests.swift; sourceTree = "<group>"; };
+		A200000100000038 /* QuickQueryResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickQueryResult.swift; sourceTree = "<group>"; };
+		A200000100000039 /* QuickQueryResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickQueryResolver.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -224,6 +228,7 @@
 				A200000100000004 /* AppDescriptor.swift */,
 				A200000100000030 /* FileDescriptor.swift */,
 				A200000100000031 /* SearchResult.swift */,
+				A200000100000038 /* QuickQueryResult.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -248,6 +253,7 @@
 				A200000100000019 /* LauncherResultsList.swift */,
 				A20000010000000E /* LauncherViewModel.swift */,
 				A200000100000018 /* LauncherState.swift */,
+				A200000100000039 /* QuickQueryResolver.swift */,
 			);
 			path = Launcher;
 			sourceTree = "<group>";
@@ -498,6 +504,8 @@
 				A100000100000035 /* OpenFile.swift in Sources */,
 				A100000100000036 /* SpotlightFileSearcher.swift in Sources */,
 				A100000100000037 /* WorkspaceFileOpener.swift in Sources */,
+				A100000100000038 /* QuickQueryResult.swift in Sources */,
+				A100000100000039 /* QuickQueryResolver.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -231,6 +231,10 @@ final class LauncherPanelController {
 
     @discardableResult
     func open(_ result: SearchResult) -> Task<Void, Never>? {
+        if case .quickQuery(let quickQuery) = result {
+            copy(quickQuery)
+            return nil
+        }
         guard let task = viewModel.open(result) else { return nil }
         return Task { [weak self] in
             await task.value
@@ -243,7 +247,12 @@ final class LauncherPanelController {
     }
 
     func reveal(_ result: SearchResult) {
-        guard FileManager.default.fileExists(atPath: result.url.path) else {
+        if case .quickQuery(let quickQuery) = result {
+            copy(quickQuery)
+            return
+        }
+        guard let url = result.url,
+              FileManager.default.fileExists(atPath: url.path) else {
             viewModel.publishFileOpenError(
                 fileName: result.name,
                 reason: "文件已被移动或删除"
@@ -251,6 +260,13 @@ final class LauncherPanelController {
             return
         }
         viewModel.reveal(result)
+        hide()
+    }
+
+    private func copy(_ result: QuickQueryResult) {
+        guard let value = result.copyValue else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(value, forType: .string)
         hide()
     }
 

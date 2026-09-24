@@ -98,10 +98,17 @@ struct LauncherView: View {
                 ProgressView()
                     .controlSize(.small)
             } else if let result = viewModel.selectedResult {
-                Image(nsImage: iconProvider.icon(for: result.url))
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 28, height: 28)
+                if let url = result.url {
+                    Image(nsImage: iconProvider.icon(for: url))
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 28, height: 28)
+                } else if case .quickQuery(let quickQuery) = result {
+                    Image(systemName: quickQuery.symbolName)
+                        .font(.system(size: 22))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                }
             }
         }
         .padding(.horizontal, 20)
@@ -115,7 +122,9 @@ struct LauncherView: View {
 
     private var results: some View {
         Group {
-            if let errorMessage = viewModel.errorMessage, viewModel.apps.isEmpty {
+            if viewModel.quickQueryResult == nil,
+               let errorMessage = viewModel.errorMessage,
+               viewModel.apps.isEmpty {
                 VStack(spacing: 10) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.system(size: 28))
@@ -129,7 +138,9 @@ struct LauncherView: View {
                     .buttonStyle(.glassProminent)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if viewModel.isLoading && viewModel.apps.isEmpty {
+            } else if viewModel.quickQueryResult == nil,
+                      viewModel.isLoading,
+                      viewModel.apps.isEmpty {
                 VStack(spacing: 10) {
                     ProgressView()
                     Text("正在加载应用…")

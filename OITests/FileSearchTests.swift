@@ -5,6 +5,84 @@ import XCTest
 
 @MainActor
 final class FileSearchTests: XCTestCase {
+    // MARK: - Quick queries
+
+    func testQuickQueryResolverEvaluatesArithmeticAndRejectsInvalidExpressions() {
+        XCTAssertEqual(
+            QuickQueryResolver.resolve("2 + 3 * (4 - 1)"),
+            .calculation(expression: "2 + 3 * (4 - 1)", value: "11")
+        )
+        XCTAssertEqual(
+            QuickQueryResolver.resolve("2^3^2"),
+            .calculation(expression: "2^3^2", value: "512")
+        )
+        XCTAssertEqual(
+            QuickQueryResolver.resolve("-2^2"),
+            .calculation(expression: "-2^2", value: "-4")
+        )
+        XCTAssertEqual(
+            QuickQueryResolver.resolve("2＋3"),
+            .calculation(expression: "2＋3", value: "5")
+        )
+        XCTAssertEqual(
+            QuickQueryResolver.resolve("（2+3）"),
+            .calculation(expression: "（2+3）", value: "5")
+        )
+        XCTAssertNil(QuickQueryResolver.resolve("-1"))
+        XCTAssertNil(QuickQueryResolver.resolve("+86"))
+        XCTAssertNil(QuickQueryResolver.resolve("2026-09-24"))
+        XCTAssertNil(QuickQueryResolver.resolve("2024-05"))
+        XCTAssertNil(QuickQueryResolver.resolve("09-24"))
+        XCTAssertNil(QuickQueryResolver.resolve("3-1"))
+        XCTAssertNil(QuickQueryResolver.resolve("1-2"))
+        XCTAssertNil(QuickQueryResolver.resolve("1 / 0"))
+        XCTAssertNil(QuickQueryResolver.resolve("notes"))
+    }
+
+    func testQuickQueryResolverRecognizesLocalIPAliases() {
+        guard case .localIPAddress = QuickQueryResolver.resolve("本机 IP") else {
+            return XCTFail("Expected the local IP quick query")
+        }
+        guard case .localIPAddress = QuickQueryResolver.resolve("ip") else {
+            return XCTFail("Expected the short IP alias")
+        }
+        guard case .localIPAddress = QuickQueryResolver.resolve("IP 查询") else {
+            return XCTFail("Expected the IP query alias")
+        }
+    }
+
+    func testViewModelKeepsApplicationAndFileResultsBelowQuickQuery() async {
+        let app = AppDescriptor(name: "2+2", url: URL(fileURLWithPath: "/Applications/2+2.app"))
+        let searcher = StubFileSearcher(results: [file("2+2.txt")])
+        let viewModel = makeViewModel(apps: [app], searcher: searcher)
+        await viewModel.loadApps()?.value
+
+        viewModel.query = "2+2"
+        await viewModel.waitForFileSearch()
+
+        XCTAssertEqual(viewModel.results, [
+            .quickQuery(.calculation(expression: "2+2", value: "4")),
+            .application(app),
+            .file(file("2+2.txt"))
+        ])
+        XCTAssertEqual(viewModel.rows, [
+            .result(.quickQuery(.calculation(expression: "2+2", value: "4"))),
+            .result(.application(app)),
+            .sectionHeader(LauncherViewModel.fileSectionTitle),
+            .result(.file(file("2+2.txt")))
+        ])
+        XCTAssertEqual(viewModel.selectedResult, .quickQuery(.calculation(expression: "2+2", value: "4")))
+        XCTAssertEqual(viewModel.expandedContent, .results(rowCount: 3, sectionHeaderCount: 1))
+        XCTAssertEqual(searcher.queries, ["2+2"])
+
+        viewModel.moveSelection(by: 1)
+        XCTAssertEqual(viewModel.selectedResult, .application(app))
+        XCTAssertEqual(viewModel.selectedRowIndex, 1)
+        viewModel.moveSelection(by: 1)
+        XCTAssertEqual(viewModel.selectedResult, .file(file("2+2.txt")))
+        XCTAssertEqual(viewModel.selectedRowIndex, 3)
+    }
+
     // MARK: - FileResultRanker
 
     func testRankerPutsExactNameFirstThenPrefixThenOthers() {
