@@ -201,13 +201,16 @@ final class LauncherPanelController {
             handleEscape()
             return nil
         case UInt16(kVK_Return), UInt16(kVK_ANSI_KeypadEnter):
+            // Cmd+Return is reserved for web search; plain Return opens the selection.
+            if !event.modifierFlags.contains(.command), let result = viewModel.selectedResult {
+                open(result)
+            }
+            return nil
+        case UInt16(kVK_ANSI_F):
+            guard event.modifierFlags.contains(.command) else { return event }
             if let result = viewModel.selectedResult {
-                // Cmd+Return reveals the item in Finder instead of opening it.
-                if event.modifierFlags.contains(.command) {
-                    reveal(result)
-                } else {
-                    open(result)
-                }
+                // Cmd+F reveals the item in Finder; quick queries copy their value instead.
+                reveal(result)
             }
             return nil
         case UInt16(kVK_UpArrow):

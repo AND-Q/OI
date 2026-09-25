@@ -671,6 +671,128 @@ final class LauncherModelTests: XCTestCase {
         XCTAssertEqual(viewModel.launchErrorMessage, "无法打开 missing.txt：文件已被移动或删除")
     }
 
+    func testLauncherPanelControllerCommandFRevealsSelectedResultAndDismisses() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let bundleURL = try makeApplicationBundle(
+            directoryName: "RevealDemo.app",
+            displayName: "RevealDemo",
+            in: root
+        )
+        let app = AppDescriptor(name: "RevealDemo", url: bundleURL)
+        let viewModel = makeViewModel(with: [app])
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+
+        controller.show()
+        XCTAssertTrue(controller.isVisible)
+        await viewModel.loadApps()?.value
+
+        viewModel.query = "RevealDemo"
+        XCTAssertNotNil(viewModel.selectedResult)
+
+        let commandFEvent = try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [.command],
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                characters: "f",
+                charactersIgnoringModifiers: "f",
+                isARepeat: false,
+                keyCode: 3
+            )
+        )
+
+        let handled = controller.handleKeyDown(commandFEvent)
+        XCTAssertNil(handled)
+        XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
+    }
+
+    func testLauncherPanelControllerCommandReturnIsReservedAndDoesNothing() async throws {
+        let app = AppDescriptor(name: "Demo", url: URL(fileURLWithPath: "/Applications/Demo.app"))
+        let viewModel = makeViewModel(with: [app])
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+
+        controller.show()
+        XCTAssertTrue(controller.isVisible)
+        await viewModel.loadApps()?.value
+
+        viewModel.query = "Demo"
+        XCTAssertNotNil(viewModel.selectedResult)
+
+        let commandReturnEvent = try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [.command],
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                characters: "\r",
+                charactersIgnoringModifiers: "\r",
+                isARepeat: false,
+                keyCode: 36
+            )
+        )
+
+        let handled = controller.handleKeyDown(commandReturnEvent)
+        XCTAssertNil(handled)
+        XCTAssertTrue(controller.isVisible)
+        XCTAssertFalse(controller.isDismissalInProgress)
+        XCTAssertFalse(viewModel.isLaunching)
+    }
+
+    func testLauncherPanelControllerReturnOpensSelectedResultAndDismisses() async throws {
+        let app = AppDescriptor(name: "Demo", url: URL(fileURLWithPath: "/Applications/Demo.app"))
+        let viewModel = makeViewModel(with: [app])
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+
+        controller.show()
+        XCTAssertTrue(controller.isVisible)
+        await viewModel.loadApps()?.value
+
+        viewModel.query = "Demo"
+        XCTAssertNotNil(viewModel.selectedResult)
+
+        let returnEvent = try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [],
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                characters: "\r",
+                charactersIgnoringModifiers: "\r",
+                isARepeat: false,
+                keyCode: 36
+            )
+        )
+
+        let handled = controller.handleKeyDown(returnEvent)
+        XCTAssertNil(handled)
+
+        // Launch completes asynchronously; wait for the panel to start dismissing.
+        for _ in 0..<100 where controller.isVisible && !controller.isDismissalInProgress {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
+    }
+
     func testPanelAnimationCoordinatorComputesExpectedSpotlightFrame() {
         let screen = NSScreen.main
         let frame = PanelAnimationCoordinator.frame(for: screen, height: LauncherLayout.searchHeight)
