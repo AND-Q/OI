@@ -18,6 +18,7 @@ struct AppDependencies {
         // 首次启动即触发目录授权，否则文件搜索会缺少桌面、文稿、下载下的结果。
         fileSearcher.requestProtectedFolderAccess()
         let fileOpener = WorkspaceFileOpener()
+        let urlOpener = WorkspaceURLOpener()
         let usageStore = UserDefaultsAppUsageStore()
         let launcherViewModel = LauncherViewModel(
             discoverApplications: DiscoverApplications(catalog: catalog),
@@ -27,6 +28,7 @@ struct AppDependencies {
                 limit: configuration.fileSearchResultLimit
             ),
             openFile: OpenFile(opener: fileOpener),
+            openURL: OpenURL(opener: urlOpener),
             usageStore: usageStore,
             aliases: configuration.applicationAliases,
             fileSearchMinimumQueryLength: configuration.fileSearchMinimumQueryLength

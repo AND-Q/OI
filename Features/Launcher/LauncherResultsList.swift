@@ -200,6 +200,8 @@ struct LauncherResultsList: NSViewRepresentable {
                 return (file.url.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath
             case .quickQuery(let quickQuery):
                 return quickQuery.subtitle
+            case .webURL:
+                return "按回车在浏览器中打开"
             case .application:
                 return nil
             }
@@ -209,10 +211,12 @@ struct LauncherResultsList: NSViewRepresentable {
             for result: SearchResult,
             provider: any ApplicationIconProviding
         ) -> NSImage {
+            if let symbolName = result.symbolName {
+                return NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)
+                    ?? NSImage()
+            }
             if let url = result.url { return provider.icon(for: url) }
-            guard case .quickQuery(let quickQuery) = result else { return NSImage() }
-            return NSImage(systemSymbolName: quickQuery.symbolName, accessibilityDescription: nil)
-                ?? NSImage()
+            return NSImage()
         }
     }
 }

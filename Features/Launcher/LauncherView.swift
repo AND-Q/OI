@@ -98,15 +98,15 @@ struct LauncherView: View {
                 ProgressView()
                     .controlSize(.small)
             } else if let result = viewModel.selectedResult {
-                if let url = result.url {
+                if let symbolName = result.symbolName {
+                    Image(systemName: symbolName)
+                        .font(.system(size: 22))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                } else if let url = result.url {
                     Image(nsImage: iconProvider.icon(for: url))
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 28, height: 28)
-                } else if case .quickQuery(let quickQuery) = result {
-                    Image(systemName: quickQuery.symbolName)
-                        .font(.system(size: 22))
-                        .foregroundStyle(.secondary)
                         .frame(width: 28, height: 28)
                 }
             }
@@ -123,6 +123,7 @@ struct LauncherView: View {
     private var results: some View {
         Group {
             if viewModel.quickQueryResult == nil,
+               viewModel.webURLResult == nil,
                let errorMessage = viewModel.errorMessage,
                viewModel.apps.isEmpty {
                 VStack(spacing: 10) {
@@ -139,6 +140,7 @@ struct LauncherView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if viewModel.quickQueryResult == nil,
+                      viewModel.webURLResult == nil,
                       viewModel.isLoading,
                       viewModel.apps.isEmpty {
                 VStack(spacing: 10) {
@@ -148,37 +150,30 @@ struct LauncherView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if viewModel.results.isEmpty {
-                VStack(spacing: 8) {
-                    // 应用无匹配但文件查询仍在进行时，先不判定"无结果"。
-                    if viewModel.isSearchingFiles {
-                        ProgressView()
-                    } else {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 28))
-                            .foregroundStyle(.secondary)
-                        Text("没有找到匹配的结果")
-                            .foregroundStyle(.secondary)
+                VStack(spacing: 0) {
+                    if let launchError = viewModel.launchErrorMessage {
+                        launchErrorBanner(launchError)
                     }
+
+                    VStack(spacing: 8) {
+                        // 应用无匹配但文件查询仍在进行时，先不判定"无结果"。
+                        if viewModel.isSearchingFiles {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 28))
+                                .foregroundStyle(.secondary)
+                            Text("没有找到匹配的结果")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 VStack(spacing: 0) {
                     if let launchError = viewModel.launchErrorMessage {
-                        HStack(spacing: 6) {
-                            Image(systemName: "exclamationmark.circle.fill")
-                                .foregroundStyle(.red)
-                            Text(launchError)
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                            Spacer()
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 6)
-                        .background(Color.red.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .padding(.horizontal, 12)
-                        .padding(.top, 4)
+                        launchErrorBanner(launchError)
                     }
 
                     LauncherResultsList(
@@ -192,5 +187,23 @@ struct LauncherView: View {
                 }
             }
         }
+    }
+
+    private func launchErrorBanner(_ message: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundStyle(.red)
+            Text(message)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
+        .background(Color.red.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .padding(.horizontal, 12)
+        .padding(.top, 4)
     }
 }

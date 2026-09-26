@@ -201,8 +201,10 @@ final class LauncherPanelController {
             handleEscape()
             return nil
         case UInt16(kVK_Return), UInt16(kVK_ANSI_KeypadEnter):
-            // Cmd+Return is reserved for web search; plain Return opens the selection.
-            if !event.modifierFlags.contains(.command), let result = viewModel.selectedResult {
+            // Cmd+Return searches the web via the default browser; plain Return opens the selection.
+            if event.modifierFlags.contains(.command) {
+                searchWebAndDismiss()
+            } else if let result = viewModel.selectedResult {
                 open(result)
             }
             return nil
@@ -249,9 +251,28 @@ final class LauncherPanelController {
         }
     }
 
+    /// Searches the current query in the default browser and dismisses the panel.
+    @discardableResult
+    func searchWebAndDismiss() -> Task<Void, Never>? {
+        guard let task = viewModel.searchWeb() else { return nil }
+        return Task { [weak self] in
+            await task.value
+            guard let self else { return }
+            if case .failed = self.viewModel.launchState {
+                return
+            }
+            self.hide()
+        }
+    }
+
     func reveal(_ result: SearchResult) {
         if case .quickQuery(let quickQuery) = result {
             copy(quickQuery)
+            return
+        }
+        // Web URLs have no file-system location; reveal copies the link instead.
+        if case .webURL(let url) = result {
+            copyText(url.absoluteString)
             return
         }
         guard let url = result.url,
@@ -268,6 +289,10 @@ final class LauncherPanelController {
 
     private func copy(_ result: QuickQueryResult) {
         guard let value = result.copyValue else { return }
+        copyText(value)
+    }
+
+    private func copyText(_ value: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(value, forType: .string)
         hide()

@@ -15,6 +15,7 @@ final class LauncherViewModel: ObservableObject {
                 launchState = .idle
             }
             quickQueryResult = QuickQueryResolver.resolve(query)
+            webURLResult = WebURLResolver.recognize(query)
             scheduleFileSearch()
             updateFilteredApps()
             requestListReset()
@@ -27,6 +28,7 @@ final class LauncherViewModel: ObservableObject {
         didSet { selectedIndex = min(selectedIndex, max(results.count - 1, 0)) }
     }
     @Published private(set) var quickQueryResult: QuickQueryResult?
+    @Published private(set) var webURLResult: URL?
     @Published private(set) var selectedIndex = 0
     @Published private(set) var listResetRequest = 0
     @Published private(set) var focusRequest = 0
@@ -39,6 +41,7 @@ final class LauncherViewModel: ObservableObject {
     private let launchApplication: LaunchApplication
     private let searchFiles: SearchFiles?
     private let openFile: OpenFile?
+    private let openURL: OpenURL?
     private let usageStore: any AppUsageStoring
     private let aliases: [String: [String]]
     private let fileSearchMinimumQueryLength: Int
@@ -60,6 +63,7 @@ final class LauncherViewModel: ObservableObject {
         launchApplication: LaunchApplication,
         searchFiles: SearchFiles? = nil,
         openFile: OpenFile? = nil,
+        openURL: OpenURL? = nil,
         usageStore: any AppUsageStoring = MemoryAppUsageStore(),
         aliases: [String: [String]] = [:],
         fileSearchMinimumQueryLength: Int = 2,
@@ -70,6 +74,7 @@ final class LauncherViewModel: ObservableObject {
         self.launchApplication = launchApplication
         self.searchFiles = searchFiles
         self.openFile = openFile
+        self.openURL = openURL
         self.usageStore = usageStore
         self.aliases = aliases
         self.fileSearchMinimumQueryLength = fileSearchMinimumQueryLength
@@ -83,16 +88,18 @@ final class LauncherViewModel: ObservableObject {
         fileSearchTask?.cancel()
     }
 
-    /// Quick queries first, followed by applications and then files.
+    /// Web URLs first (直达), then quick queries, applications and files.
     var results: [SearchResult] {
-        (quickQueryResult.map { [.quickQuery($0)] } ?? [])
+        (webURLResult.map { [.webURL($0)] } ?? [])
+            + (quickQueryResult.map { [.quickQuery($0)] } ?? [])
             + filteredApps.map(SearchResult.application)
             + fileResults.map(SearchResult.file)
     }
 
     /// Display rows: the file section gets a header, the application section does not.
     var rows: [LauncherRow] {
-        var rows = quickQueryResult.map { [LauncherRow.result(.quickQuery($0))] } ?? []
+        var rows = webURLResult.map { [LauncherRow.result(.webURL($0))] } ?? []
+        rows += quickQueryResult.map { [LauncherRow.result(.quickQuery($0))] } ?? []
         rows += filteredApps.map { LauncherRow.result(.application($0)) }
         if !fileResults.isEmpty {
             rows.append(.sectionHeader(Self.fileSectionTitle))
@@ -113,8 +120,8 @@ final class LauncherViewModel: ObservableObject {
 
     /// Index of the selected result within `rows` (accounts for the file section header).
     var selectedRowIndex: Int {
-        let quickQueryCount = quickQueryResult == nil ? 0 : 1
-        return selectedIndex < quickQueryCount + filteredApps.count
+        let frontCount = (webURLResult == nil ? 0 : 1) + (quickQueryResult == nil ? 0 : 1)
+        return selectedIndex < frontCount + filteredApps.count
             ? selectedIndex
             : selectedIndex + 1
     }
@@ -136,7 +143,7 @@ final class LauncherViewModel: ObservableObject {
     }
     /// What the expanded area shows; kept here so view and window share one source of truth.
     var expandedContent: LauncherLayout.ExpandedContent {
-        if quickQueryResult == nil && (
+        if quickQueryResult == nil && webURLResult == nil && (
             (errorMessage != nil && apps.isEmpty)
                 || (isLoading && apps.isEmpty)
                 || (filteredApps.isEmpty && fileResults.isEmpty)
@@ -231,7 +238,8 @@ final class LauncherViewModel: ObservableObject {
         return task
     }
 
-    /// Opens a result: applications launch through the catalog, files through the default app.
+    /// Opens a result: web URLs through the default browser, applications launch
+    /// through the catalog, files through the default app.
     @discardableResult
     func open(_ result: SearchResult) -> Task<Void, Never>? {
         switch result {
@@ -239,14 +247,24 @@ final class LauncherViewModel: ObservableObject {
             return launch(application)
         case .file(let file):
             return open(file)
+        case .webURL(let url):
+            return openExternalURL(url)
         case .quickQuery:
             return nil
         }
     }
 
+    /// Searches the current query with the default browser (`Cmd+Enter`).
+    @discardableResult
+    func searchWeb() -> Task<Void, Never>? {
+        let text = normalizedQuery
+        guard !text.isEmpty, let searchURL = WebURLResolver.searchURL(for: text) else { return nil }
+        return openExternalURL(searchURL)
+    }
+
     /// Reveals the selected item in Finder (`Cmd+F`).
     func reveal(_ result: SearchResult) {
-        guard let url = result.url else { return }
+        guard let url = result.url, url.isFileURL else { return }
         openFile?.reveal(url: url)
     }
 
@@ -321,6 +339,30 @@ final class LauncherViewModel: ObservableObject {
         launchTask = Task { [weak self] in
             do {
                 try await openFile.execute(file)
+                self?.launchState = .idle
+            } catch is CancellationError {
+                self?.launchState = .idle
+            } catch {
+                self?.launchState = .failed(LauncherErrorMessage.message(for: error))
+            }
+
+            self?.finishLaunching()
+        }
+
+        return launchTask
+    }
+
+    /// Opens a web URL in the default browser, sharing the launch pipeline so
+    /// concurrent triggers are guarded and failures surface as launch errors.
+    @discardableResult
+    private func openExternalURL(_ url: URL) -> Task<Void, Never>? {
+        guard launchTask == nil else { return launchTask }
+        guard let openURL else { return nil }
+
+        launchState = .launching
+        launchTask = Task { [weak self] in
+            do {
+                try await openURL.execute(url)
                 self?.launchState = .idle
             } catch is CancellationError {
                 self?.launchState = .idle
@@ -453,6 +495,8 @@ private enum LauncherErrorMessage {
             return "无法搜索文件：\(reason)"
         case .fileOpenFailed(let fileName, let reason):
             return "无法打开 \(fileName)：\(reason)"
+        case .urlOpenFailed(let reason):
+            return "无法打开链接：\(reason)"
         }
     }
 }

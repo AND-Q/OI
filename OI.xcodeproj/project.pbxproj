@@ -52,6 +52,10 @@
 		A100000100000037 /* WorkspaceFileOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000037 /* WorkspaceFileOpener.swift */; };
 		A100000100000038 /* QuickQueryResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000038 /* QuickQueryResult.swift */; };
 		A100000100000039 /* QuickQueryResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000039 /* QuickQueryResolver.swift */; };
+		A10000010000003A /* URLOpening.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000003A /* URLOpening.swift */; };
+		A10000010000003B /* OpenURL.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000003B /* OpenURL.swift */; };
+		A10000010000003C /* WorkspaceURLOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000003C /* WorkspaceURLOpener.swift */; };
+		A10000010000003D /* WebURLResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000003D /* WebURLResolver.swift */; };
 		B100000100000004 /* FileSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000005 /* FileSearchTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -115,6 +119,10 @@
 		B200000100000005 /* FileSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileSearchTests.swift; sourceTree = "<group>"; };
 		A200000100000038 /* QuickQueryResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickQueryResult.swift; sourceTree = "<group>"; };
 		A200000100000039 /* QuickQueryResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickQueryResolver.swift; sourceTree = "<group>"; };
+		A20000010000003A /* URLOpening.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLOpening.swift; sourceTree = "<group>"; };
+		A20000010000003B /* OpenURL.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenURL.swift; sourceTree = "<group>"; };
+		A20000010000003C /* WorkspaceURLOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceURLOpener.swift; sourceTree = "<group>"; };
+		A20000010000003D /* WebURLResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebURLResolver.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -242,6 +250,7 @@
 				A20000010000001E /* AppUsageStoring.swift */,
 				A200000100000032 /* FileSearching.swift */,
 				A200000100000033 /* FileOpening.swift */,
+				A20000010000003A /* URLOpening.swift */,
 			);
 			path = Ports;
 			sourceTree = "<group>";
@@ -254,6 +263,7 @@
 				A20000010000000E /* LauncherViewModel.swift */,
 				A200000100000018 /* LauncherState.swift */,
 				A200000100000039 /* QuickQueryResolver.swift */,
+				A20000010000003D /* WebURLResolver.swift */,
 			);
 			path = Launcher;
 			sourceTree = "<group>";
@@ -272,6 +282,7 @@
 			children = (
 				A20000010000000B /* WorkspaceApplicationLauncher.swift */,
 				A200000100000037 /* WorkspaceFileOpener.swift */,
+				A20000010000003C /* WorkspaceURLOpener.swift */,
 			);
 			path = Launch;
 			sourceTree = "<group>";
@@ -338,6 +349,7 @@
 				A200000100000014 /* LaunchApplication.swift */,
 				A200000100000034 /* SearchFiles.swift */,
 				A200000100000035 /* OpenFile.swift */,
+				A20000010000003B /* OpenURL.swift */,
 			);
 			path = UseCases;
 			sourceTree = "<group>";
@@ -506,6 +518,10 @@
 				A100000100000037 /* WorkspaceFileOpener.swift in Sources */,
 				A100000100000038 /* QuickQueryResult.swift in Sources */,
 				A100000100000039 /* QuickQueryResolver.swift in Sources */,
+				A10000010000003A /* URLOpening.swift in Sources */,
+				A10000010000003B /* OpenURL.swift in Sources */,
+				A10000010000003C /* WorkspaceURLOpener.swift in Sources */,
+				A10000010000003D /* WebURLResolver.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

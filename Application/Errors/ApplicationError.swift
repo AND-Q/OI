@@ -6,4 +6,5 @@ enum ApplicationError: Error, Equatable, Sendable {
     case launchFailed(applicationName: String, reason: String)
     case fileSearchFailed(reason: String)
     case fileOpenFailed(fileName: String, reason: String)
+    case urlOpenFailed(reason: String)
 }
