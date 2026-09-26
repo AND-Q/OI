@@ -244,7 +244,7 @@ final class LauncherViewModel: ObservableObject {
         }
     }
 
-    /// Reveals the selected item in Finder (`Cmd+Enter`).
+    /// Reveals the selected item in Finder (`Cmd+F`).
     func reveal(_ result: SearchResult) {
         guard let url = result.url else { return }
         openFile?.reveal(url: url)
