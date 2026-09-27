@@ -1356,6 +1356,354 @@ final class LauncherModelTests: XCTestCase {
         XCTAssertTrue(controller.statusItem?.menu === controller.contextMenu)
     }
 
+    // MARK: - Cmd+K 动作菜单与“在终端打开”
+
+    func testSearchResultTerminalDirectoryFollowsResultKind() {
+        let app = SearchResult.application(
+            AppDescriptor(name: "Safari", url: URL(fileURLWithPath: "/Applications/Safari.app"))
+        )
+        XCTAssertEqual(app.terminalDirectory?.path, "/Applications")
+
+        let folder = SearchResult.file(
+            FileDescriptor(name: "工具", url: URL(fileURLWithPath: "/Users/demo/工具"), isDirectory: true)
+        )
+        XCTAssertEqual(folder.terminalDirectory?.path, "/Users/demo/工具")
+
+        let file = SearchResult.file(
+            FileDescriptor(name: "notes.txt", url: URL(fileURLWithPath: "/Users/demo/notes.txt"), isDirectory: false)
+        )
+        XCTAssertEqual(file.terminalDirectory?.path, "/Users/demo")
+
+        let quickQuery = SearchResult.quickQuery(.calculation(expression: "1+1", value: "2"))
+        XCTAssertNil(quickQuery.terminalDirectory)
+
+        let webURL = SearchResult.webURL(URL(string: "https://example.com")!)
+        XCTAssertNil(webURL.terminalDirectory)
+    }
+
+    func testAvailableActionsMatchResultCapabilities() {
+        let app = SearchResult.application(
+            AppDescriptor(
+                name: "Safari",
+                url: URL(fileURLWithPath: "/Applications/Safari.app"),
+                bundleIdentifier: "com.apple.Safari"
+            )
+        )
+        XCTAssertEqual(
+            LauncherActionMenu.availableActions(for: app),
+            [.revealInFinder, .copyPath, .copyBundleID, .openInTerminal]
+        )
+
+        let appWithoutBundleID = SearchResult.application(
+            AppDescriptor(name: "Unknown", url: URL(fileURLWithPath: "/Applications/Unknown.app"))
+        )
+        XCTAssertEqual(
+            LauncherActionMenu.availableActions(for: appWithoutBundleID),
+            [.revealInFinder, .copyPath, .openInTerminal]
+        )
+
+        let file = SearchResult.file(
+            FileDescriptor(name: "notes.txt", url: URL(fileURLWithPath: "/Users/demo/notes.txt"), isDirectory: false)
+        )
+        XCTAssertEqual(
+            LauncherActionMenu.availableActions(for: file),
+            [.revealInFinder, .copyPath, .openInTerminal]
+        )
+
+        let quickQuery = SearchResult.quickQuery(.calculation(expression: "1+1", value: "2"))
+        XCTAssertTrue(LauncherActionMenu.availableActions(for: quickQuery).isEmpty)
+
+        let webURL = SearchResult.webURL(URL(string: "https://example.com")!)
+        XCTAssertTrue(LauncherActionMenu.availableActions(for: webURL).isEmpty)
+    }
+
+    func testPerformMenuActionOpenInTerminalFailsWhenDirectoryDoesNotExist() throws {
+        let viewModel = makeViewModel(with: [])
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+        controller.show()
+
+        let nonExistentResult = SearchResult.file(
+            FileDescriptor(
+                name: "missing.txt",
+                url: URL(fileURLWithPath: "/tmp/non-existent-\(UUID().uuidString)/missing.txt"),
+                isDirectory: false
+            )
+        )
+
+        controller.performMenuAction(.openInTerminal, for: nonExistentResult)
+
+        guard case .failed(let message) = viewModel.launchState else {
+            XCTFail("Expected launchState to be failed")
+            return
+        }
+        XCTAssertTrue(message.contains("文件已被移动或删除"))
+        XCTAssertTrue(controller.isVisible)
+        XCTAssertFalse(controller.isDismissalInProgress)
+    }
+
+    func testPerformMenuActionOpenInTerminalSucceedsWhenDirectoryExists() throws {
+        let tempDir = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let viewModel = makeViewModel(with: [])
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+        controller.show()
+
+        let validResult = SearchResult.file(
+            FileDescriptor(name: "folder", url: tempDir, isDirectory: true)
+        )
+
+        controller.performMenuAction(.openInTerminal, for: validResult)
+
+        XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
+    }
+
+    // MARK: - Quick Look 预览
+
+    func testQuickLookPresenterReloadUpdatesPreviewURLWhenActive() {
+        let presenter = QuickLookPresenter()
+        let url1 = URL(fileURLWithPath: "/tmp/test1.txt")
+        let url2 = URL(fileURLWithPath: "/tmp/test2.txt")
+
+        presenter.show(url: url1)
+        XCTAssertTrue(presenter.isActive)
+        XCTAssertEqual(presenter.currentPreviewURL, url1)
+
+        presenter.reloadPreviewItem(with: url2)
+        XCTAssertEqual(presenter.currentPreviewURL, url2)
+
+        presenter.reloadPreviewItem(with: nil)
+        XCTAssertNil(presenter.currentPreviewURL)
+
+        presenter.close()
+        XCTAssertFalse(presenter.isActive)
+        XCTAssertNil(presenter.currentPreviewURL)
+    }
+
+    func testQuickLookPresenterReloadIgnoredWhenInactive() {
+        let presenter = QuickLookPresenter()
+        let url = URL(fileURLWithPath: "/tmp/test.txt")
+
+        presenter.reloadPreviewItem(with: url)
+        XCTAssertFalse(presenter.isActive)
+        XCTAssertNil(presenter.currentPreviewURL)
+    }
+
+    func testQuickLookPresenterEndControlDoesNotDeactivateSession() {
+        let presenter = QuickLookPresenter()
+        let url = URL(fileURLWithPath: "/tmp/test.txt")
+        presenter.show(url: url)
+        XCTAssertTrue(presenter.isActive)
+
+        presenter.endControl()
+        XCTAssertTrue(presenter.isActive)
+        XCTAssertEqual(presenter.currentPreviewURL, url)
+
+        presenter.close()
+        XCTAssertFalse(presenter.isActive)
+        XCTAssertNil(presenter.currentPreviewURL)
+    }
+
+    func testQuickLookPresenterForwardsEventsViaDelegate() {
+        let presenter = QuickLookPresenter()
+        var receivedKeyCode: UInt16?
+        presenter.onHandleEvent = { event in
+            receivedKeyCode = event.keyCode
+            return true
+        }
+
+        let event = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "",
+            charactersIgnoringModifiers: "",
+            isARepeat: false,
+            keyCode: 125
+        )!
+
+        let handled = presenter.previewPanel(nil, handle: event)
+        XCTAssertTrue(handled)
+        XCTAssertEqual(receivedKeyCode, 125)
+    }
+
+    func testQuickLookPresenterWindowWillCloseEndsSession() {
+        let presenter = QuickLookPresenter()
+        let url = URL(fileURLWithPath: "/tmp/test.txt")
+        presenter.show(url: url)
+        XCTAssertTrue(presenter.isActive)
+
+        presenter.windowWillClose(Notification(name: NSWindow.willCloseNotification))
+        XCTAssertFalse(presenter.isActive)
+        XCTAssertNil(presenter.currentPreviewURL)
+    }
+
+    func testLauncherPanelControllerHandlesQuickLookDelegateEvents() async throws {
+        let tempDir = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let file1 = tempDir.appendingPathComponent("App1.app")
+        let file2 = tempDir.appendingPathComponent("App2.app")
+        FileManager.default.createFile(atPath: file1.path, contents: Data("1".utf8))
+        FileManager.default.createFile(atPath: file2.path, contents: Data("2".utf8))
+
+        let app1 = AppDescriptor(name: "App1", url: file1)
+        let app2 = AppDescriptor(name: "App2", url: file2)
+        let viewModel = makeViewModel(with: [app1, app2])
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+        controller.show()
+        await viewModel.loadApps()?.value
+        viewModel.query = "App"
+
+        let cmdYEvent = try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [.command],
+                timestamp: 1,
+                windowNumber: 0,
+                context: nil,
+                characters: "y",
+                charactersIgnoringModifiers: "y",
+                isARepeat: false,
+                keyCode: 16
+            )
+        )
+        _ = controller.handleKeyDown(cmdYEvent)
+        XCTAssertTrue(controller.quickLook.isActive)
+        XCTAssertEqual(controller.quickLook.currentPreviewURL, file1)
+
+        let downArrowEvent = try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [],
+                timestamp: 2,
+                windowNumber: 0,
+                context: nil,
+                characters: "",
+                charactersIgnoringModifiers: "",
+                isARepeat: false,
+                keyCode: 125
+            )
+        )
+        let handled = controller.quickLook.previewPanel(nil, handle: downArrowEvent)
+        XCTAssertTrue(handled)
+        XCTAssertEqual(viewModel.selectedIndex, 1)
+        XCTAssertEqual(controller.quickLook.currentPreviewURL, file2)
+    }
+
+    func testLauncherPanelResignKeyHidesWhenFocusLeavesAppEvenIfQuickLookIsActive() throws {
+        let viewModel = makeViewModel(with: [])
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+        controller.show()
+        XCTAssertTrue(controller.isVisible)
+
+        controller.quickLook.show(url: URL(fileURLWithPath: "/tmp/test.txt"))
+        XCTAssertTrue(controller.quickLook.isActive)
+
+        controller.panel.resignKey()
+
+        XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
+    }
+
+    func testQuickLookPanelDismissesWhenApplicationResignsActive() throws {
+        let viewModel = makeViewModel(with: [])
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+        controller.show()
+        XCTAssertTrue(controller.isVisible)
+
+        controller.quickLook.show(url: URL(fileURLWithPath: "/tmp/test.txt"))
+        XCTAssertTrue(controller.quickLook.isActive)
+
+        NotificationCenter.default.post(name: NSApplication.didResignActiveNotification, object: NSApp)
+
+        XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
+    }
+
+    func testLauncherPanelControllerArrowNavigationUpdatesQuickLookPreview() async throws {
+        let tempDir = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let file1 = tempDir.appendingPathComponent("App1.app")
+        let file2 = tempDir.appendingPathComponent("App2.app")
+        FileManager.default.createFile(atPath: file1.path, contents: Data("1".utf8))
+        FileManager.default.createFile(atPath: file2.path, contents: Data("2".utf8))
+
+        let app1 = AppDescriptor(name: "App1", url: file1)
+        let app2 = AppDescriptor(name: "App2", url: file2)
+        let viewModel = makeViewModel(with: [app1, app2])
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+        controller.show()
+        await viewModel.loadApps()?.value
+        viewModel.query = "App"
+        XCTAssertEqual(viewModel.results.count, 2)
+        XCTAssertEqual(viewModel.selectedIndex, 0)
+
+        let cmdYEvent = try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [.command],
+                timestamp: 10,
+                windowNumber: 0,
+                context: nil,
+                characters: "y",
+                charactersIgnoringModifiers: "y",
+                isARepeat: false,
+                keyCode: 16
+            )
+        )
+        _ = controller.handleKeyDown(cmdYEvent)
+        XCTAssertTrue(controller.quickLook.isActive)
+        XCTAssertEqual(controller.quickLook.currentPreviewURL, file1)
+
+        let downArrowEvent = try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [],
+                timestamp: 11,
+                windowNumber: 0,
+                context: nil,
+                characters: "",
+                charactersIgnoringModifiers: "",
+                isARepeat: false,
+                keyCode: 125
+            )
+        )
+        _ = controller.handleKeyDown(downArrowEvent)
+        XCTAssertEqual(viewModel.selectedIndex, 1)
+        XCTAssertEqual(controller.quickLook.currentPreviewURL, file2)
+    }
+
     private func pollUsageRecord(
         store: MemoryAppUsageStore,
         key: String,

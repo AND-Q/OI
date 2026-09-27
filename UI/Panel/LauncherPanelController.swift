@@ -1,17 +1,24 @@
 import AppKit
 import Carbon.HIToolbox
 import Combine
+import Quartz
 import SwiftUI
 
 @MainActor
 final class LauncherPanelController {
     private let viewModel: LauncherViewModel
     private let iconProvider: any ApplicationIconProviding
-    private let panel: LauncherPanel
+    let quickLook = QuickLookPresenter()
+    private let menuActionTarget = ResultMenuTarget()
+    let panel: LauncherPanel
     private let animationCoordinator: PanelAnimationCoordinator
     private var keyMonitor: Any?
     private var cancellables = Set<AnyCancellable>()
     private var activeScreen: NSScreen?
+    /// 动作菜单弹出期间按键由菜单自己处理，键盘监听不得拦截。
+    private var isActionMenuShowing = false
+    private var lastHandledEventTimestamp: TimeInterval = 0
+    private var lastHandledKeyCode: UInt16 = 0
 
     init(
         viewModel: LauncherViewModel,
@@ -41,6 +48,8 @@ final class LauncherPanelController {
         panel.becomesKeyOnlyIfNeeded = false
         panel.isMovable = false
         panel.isMovableByWindowBackground = false
+        // Quick Look 经由响应链寻找接管者，接管点挂在窗口自身。
+        panel.quickLookPresenter = quickLook
 
         animationCoordinator = PanelAnimationCoordinator(
             panel: panel,
@@ -49,7 +58,26 @@ final class LauncherPanelController {
 
         // Dismiss when the panel loses key focus (clicking the desktop or another
         // app), matching native Spotlight's default behavior.
-        panel.onResignKey = { [weak self] in self?.hide() }
+        panel.onResignKey = { [weak self] in
+            guard let self else { return }
+            if self.quickLook.isActive,
+               let keyWindow = NSApp.keyWindow,
+               keyWindow === QLPreviewPanel.shared() {
+                return
+            }
+            self.hide()
+        }
+        quickLook.onSessionEnded = { [weak self] in
+            guard let self,
+                  self.panel.isVisible,
+                  !self.animationCoordinator.isDismissalInProgress else { return }
+            self.panel.makeKeyAndOrderFront(nil)
+            self.viewModel.requestFocus()
+        }
+        quickLook.onHandleEvent = { [weak self] event in
+            guard let self, event.type == .keyDown else { return false }
+            return self.handleKeyDown(event) == nil
+        }
 
         let launcherView = LauncherView(
             viewModel: viewModel,
@@ -76,6 +104,13 @@ final class LauncherPanelController {
                 self?.resizePanel(to: height)
             }
             .store(in: &cancellables)
+
+        // Dismiss when user switches away to another application.
+        NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
+            .sink { [weak self] _ in
+                self?.hide()
+            }
+            .store(in: &cancellables)
     }
 
     isolated deinit {
@@ -92,9 +127,10 @@ final class LauncherPanelController {
             NSEvent.removeMonitor(keyMonitor)
             self.keyMonitor = nil
         }
+        panel.orderOut(nil)
+        quickLook.close()
         cancellables.removeAll()
         animationCoordinator.stopAnimations()
-        panel.orderOut(nil)
         viewModel.cancelOperations()
     }
 
@@ -109,6 +145,7 @@ final class LauncherPanelController {
             // Already showing: refocus instead of resetting the session. Reverse
             // an in-flight fade-out first, or its completion would order the
             // panel out right after this wake.
+            NSApp.activate(ignoringOtherApps: true)
             animationCoordinator.cancelDismissal()
             activeScreen = targetScreen()
             animationCoordinator.screen = activeScreen
@@ -122,6 +159,7 @@ final class LauncherPanelController {
             return
         }
 
+        NSApp.activate(ignoringOtherApps: true)
         viewModel.prepareForPresentation()
 
         activeScreen = targetScreen()
@@ -143,7 +181,9 @@ final class LauncherPanelController {
 
     func hide() {
         guard panel.isVisible, !animationCoordinator.isDismissalInProgress else { return }
+        // 先启动淡出再收预览：还焦点回调看到 dismissal 进行中会自动跳过。
         animationCoordinator.fadeOutAndOrderOut()
+        quickLook.close()
     }
 
     private func resizePanel(to height: CGFloat) {
@@ -189,17 +229,30 @@ final class LauncherPanelController {
     func handleKeyDown(_ event: NSEvent) -> NSEvent? {
         guard panel.isVisible else { return event }
 
+        if event.timestamp == lastHandledEventTimestamp && event.keyCode == lastHandledKeyCode {
+            return nil
+        }
+
         // When the focused field editor has marked text (e.g. active Pinyin/IME composition),
         // let the input method handle all keys: Return commits the composition, Escape aborts it,
         // and arrow keys browse candidate words.
         if hasActiveMarkedText {
             return event
         }
+        // 动作菜单的弹出有自己的事件循环，按键由菜单自行处理。
+        if isActionMenuShowing {
+            return event
+        }
 
         switch event.keyCode {
         case UInt16(kVK_Escape):
-            handleEscape()
-            return nil
+            // Quick Look 打开时 Esc 只收起预览，面板与输入保持原样。
+            if quickLook.isActive {
+                quickLook.close()
+            } else {
+                handleEscape()
+            }
+            return markHandled(event)
         case UInt16(kVK_Return), UInt16(kVK_ANSI_KeypadEnter):
             // Cmd+Return searches the web via the default browser; plain Return opens the selection.
             if event.modifierFlags.contains(.command) {
@@ -207,23 +260,42 @@ final class LauncherPanelController {
             } else if let result = viewModel.selectedResult {
                 open(result)
             }
-            return nil
+            return markHandled(event)
         case UInt16(kVK_ANSI_F):
             guard event.modifierFlags.contains(.command) else { return event }
             if let result = viewModel.selectedResult {
                 // Cmd+F reveals the item in Finder; quick queries copy their value instead.
                 reveal(result)
             }
-            return nil
+            return markHandled(event)
+        case UInt16(kVK_ANSI_Y):
+            guard event.modifierFlags.contains(.command) else { return event }
+            // Cmd+Y toggles the native Quick Look preview of the selection.
+            togglePreview()
+            return markHandled(event)
+        case UInt16(kVK_ANSI_K):
+            guard event.modifierFlags.contains(.command) else { return event }
+            // Cmd+K pops up the quick action menu of the selection.
+            showActionMenu()
+            return markHandled(event)
         case UInt16(kVK_UpArrow):
             viewModel.moveSelection(by: -1)
-            return nil
+            updateQuickLookPreviewForCurrentSelection()
+            return markHandled(event)
         case UInt16(kVK_DownArrow):
             viewModel.moveSelection(by: 1)
-            return nil
+            updateQuickLookPreviewForCurrentSelection()
+            return markHandled(event)
         default:
             return event
         }
+    }
+
+    @discardableResult
+    private func markHandled(_ event: NSEvent) -> NSEvent? {
+        lastHandledEventTimestamp = event.timestamp
+        lastHandledKeyCode = event.keyCode
+        return nil
     }
 
     func handleEscape() {
@@ -287,6 +359,82 @@ final class LauncherPanelController {
         hide()
     }
 
+    /// Toggles the native Quick Look preview (`Cmd+Y`) of the selected result.
+    private func togglePreview() {
+        if quickLook.isActive {
+            quickLook.close()
+            return
+        }
+        guard let result = viewModel.selectedResult else { return }
+        // 网址与快速查询没有可预览的文件系统条目。
+        guard let url = result.url, url.isFileURL else { return }
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            viewModel.publishFileOpenError(
+                fileName: result.name,
+                reason: "文件已被移动或删除"
+            )
+            return
+        }
+        quickLook.show(url: url)
+    }
+
+    /// Updates the Quick Look preview item to follow selection changes (`↑` / `↓`).
+    private func updateQuickLookPreviewForCurrentSelection() {
+        guard quickLook.isActive else { return }
+        guard let result = viewModel.selectedResult,
+              let url = result.url,
+              url.isFileURL,
+              FileManager.default.fileExists(atPath: url.path) else {
+            quickLook.reloadPreviewItem(with: nil)
+            return
+        }
+        quickLook.reloadPreviewItem(with: url)
+    }
+
+    /// Pops up the quick action menu (`Cmd+K`) anchored to the panel's bottom-left.
+    private func showActionMenu() {
+        guard let result = viewModel.selectedResult,
+              !LauncherActionMenu.availableActions(for: result).isEmpty,
+              let surface = panel.contentView else { return }
+
+        menuActionTarget.onAction = { [weak self] action in
+            guard let self else { return }
+            self.performMenuAction(action, for: result)
+        }
+        isActionMenuShowing = true
+        LauncherActionMenu.popUp(
+            for: result,
+            in: surface,
+            at: NSPoint(x: 16, y: 10),
+            target: menuActionTarget
+        )
+        isActionMenuShowing = false
+    }
+
+    func performMenuAction(_ action: ResultMenuAction, for result: SearchResult) {
+        switch action {
+        case .revealInFinder:
+            reveal(result)
+        case .copyPath:
+            guard let url = result.url else { return }
+            copyText(url.path)
+        case .copyBundleID:
+            guard case .application(let app) = result, let bundleID = app.bundleIdentifier else { return }
+            copyText(bundleID)
+        case .openInTerminal:
+            guard let directory = result.terminalDirectory else { return }
+            guard FileManager.default.fileExists(atPath: directory.path) else {
+                viewModel.publishFileOpenError(
+                    fileName: result.name,
+                    reason: "文件已被移动或删除"
+                )
+                return
+            }
+            viewModel.openInTerminal(url: directory)
+            hide()
+        }
+    }
+
     private func copy(_ result: QuickQueryResult) {
         guard let value = result.copyValue else { return }
         copyText(value)
@@ -312,6 +460,8 @@ final class LauncherPanelController {
 final class LauncherPanel: NSPanel {
     /// Invoked when the panel loses key window status.
     var onResignKey: (() -> Void)?
+    /// Quick Look 预览会话，由 LauncherPanelController 持有并经响应链转发到这里。
+    weak var quickLookPresenter: QuickLookPresenter?
 
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
@@ -319,5 +469,23 @@ final class LauncherPanel: NSPanel {
     override func resignKey() {
         super.resignKey()
         onResignKey?()
+    }
+
+    /// QLPreviewPanel 经由 key 窗口的响应链寻找接管者（QLPreviewPanelController
+    /// 分类方法）；启动器面板的键鼠处理都在窗口层，所以由窗口自身接管再委托给会话对象。
+    /// 分类方法未标注隔离，QL 固定在主线程回调，这里显式断言回到主 actor。
+    nonisolated override func acceptsPreviewPanelControl(_ panel: QLPreviewPanel!) -> Bool {
+        MainActor.assumeIsolated { quickLookPresenter?.isActive ?? false }
+    }
+
+    nonisolated override func beginPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        MainActor.assumeIsolated {
+            guard let presenter = quickLookPresenter else { return }
+            presenter.beginControl(in: panel)
+        }
+    }
+
+    nonisolated override func endPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        MainActor.assumeIsolated { quickLookPresenter?.endControl() }
     }
 }

@@ -20,4 +20,14 @@ final class WorkspaceFileOpener: FileOpening {
     func revealInFinder(url: URL) {
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
+
+    /// 用系统终端打开目录，等价于 `open -a Terminal <目录>`。
+    func openInTerminal(url: URL) {
+        guard let terminalURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") else { return }
+        NSWorkspace.shared.open(
+            [url],
+            withApplicationAt: terminalURL,
+            configuration: NSWorkspace.OpenConfiguration()
+        )
+    }
 }

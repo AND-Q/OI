@@ -389,6 +389,21 @@ final class FileSearchTests: XCTestCase {
         XCTAssertEqual(opener.revealedURLs, [plan.url])
     }
 
+    func testViewModelOpenInTerminalForwardsDirectoryToOpener() async {
+        let opener = StubFileOpener()
+        let viewModel = LauncherViewModel(
+            discoverApplications: DiscoverApplications(catalog: StubAppCatalog(descriptors: [])),
+            launchApplication: LaunchApplication(launcher: StubApplicationLauncher()),
+            openFile: OpenFile(opener: opener),
+            usageStore: MemoryAppUsageStore()
+        )
+        let plan = file("plan.md")
+
+        viewModel.openInTerminal(url: plan.url.deletingLastPathComponent())
+
+        XCTAssertEqual(opener.terminalURLs, [plan.url.deletingLastPathComponent()])
+    }
+
     func testViewModelPublishesFileOpenFailure() async {
         let opener = StubFileOpener()
         opener.error = StubFileSearchError()
@@ -463,6 +478,7 @@ private final class StubFileOpener: FileOpening {
     var error: Error?
     private(set) var openedFiles: [FileDescriptor] = []
     private(set) var revealedURLs: [URL] = []
+    private(set) var terminalURLs: [URL] = []
 
     func open(_ file: FileDescriptor) async throws {
         if let error { throw error }
@@ -471,6 +487,10 @@ private final class StubFileOpener: FileOpening {
 
     func revealInFinder(url: URL) {
         revealedURLs.append(url)
+    }
+
+    func openInTerminal(url: URL) {
+        terminalURLs.append(url)
     }
 }
 

@@ -42,11 +42,18 @@
 - **涉及文件**：
   - [Features/Launcher/WebURLResolver.swift](Features/Launcher/WebURLResolver.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Features/Launcher/LauncherResultsList.swift](Features/Launcher/LauncherResultsList.swift)、[Features/Launcher/LauncherView.swift](Features/Launcher/LauncherView.swift)、[UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)、[Domain/Models/SearchResult.swift](Domain/Models/SearchResult.swift)、[Application/Ports/URLOpening.swift](Application/Ports/URLOpening.swift)、[Application/UseCases/OpenURL.swift](Application/UseCases/OpenURL.swift)、[Infrastructure/Launch/WorkspaceURLOpener.swift](Infrastructure/Launch/WorkspaceURLOpener.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)
 
-## [ ] 4. 结果操作与原生预览
+## [x] 4. 结果操作与原生预览
 
 - **需求描述**：
   - `Cmd+Y` 触发 macOS 原生 Quick Look 快速预览；
   - `Cmd+K` 动作菜单与快捷操作（在 Finder 中显示、复制路径、复制 Bundle ID、在终端打开）；
+- **实现说明**：
+  - 新增 [UI/Panel/QuickLookPresenter.swift](UI/Panel/QuickLookPresenter.swift)：Quick Look 预览会话，持有 `QLPreviewPanel` 的数据源与生命周期。接管点按 QL 官方约定挂在 key 窗口响应链上（`LauncherPanel` 实现分类方法后委托给会话对象）；预览期间面板失焦不再误判为关闭，`Esc` 只收起预览，`↑` / `↓` 移动选中项时预览实时跟随，预览关闭后键盘焦点自动回到输入框；
+  - 新增 [UI/Panel/LauncherActionMenu.swift](UI/Panel/LauncherActionMenu.swift)：`Cmd+K` 动作菜单，按结果类型动态给出可用动作（网址与快速查询无文件系统条目，四项均不可用），经 `NSMenu` 弹出并回调度到面板控制器执行；
+  - 「在终端中打开」走既有分层：[FileOpening](Application/Ports/FileOpening.swift) 端口新增 `openInTerminal(url:)`，[WorkspaceFileOpener](Infrastructure/Launch/WorkspaceFileOpener.swift) 用 `NSWorkspace` 等价 `open -a Terminal <目录>` 实现（文件夹打开自身，文件与应用打开所在目录）；
+  - 面板隐藏、停止与重新呼出时预览会话一并收起；文件已被移动或删除时给出与 `Cmd+F` 一致的红色错误横幅。
+- **涉及文件**：
+  - [UI/Panel/QuickLookPresenter.swift](UI/Panel/QuickLookPresenter.swift)、[UI/Panel/LauncherActionMenu.swift](UI/Panel/LauncherActionMenu.swift)、[UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)、[Domain/Models/SearchResult.swift](Domain/Models/SearchResult.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Application/Ports/FileOpening.swift](Application/Ports/FileOpening.swift)、[Application/UseCases/OpenFile.swift](Application/UseCases/OpenFile.swift)、[Infrastructure/Launch/WorkspaceFileOpener.swift](Infrastructure/Launch/WorkspaceFileOpener.swift)、[OITests/LauncherModelTests.swift](OITests/LauncherModelTests.swift)、[OITests/FileSearchTests.swift](OITests/FileSearchTests.swift)
 
 ## [ ] 5. 基础设置面板
 

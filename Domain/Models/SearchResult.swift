@@ -47,4 +47,13 @@ enum SearchResult: Identifiable, Hashable, Sendable {
         case .application, .file: return nil
         }
     }
+
+    /// Target directory for terminal operations: folders target themselves, files and applications target their containing directory.
+    var terminalDirectory: URL? {
+        switch self {
+        case .application(let app): return app.url.deletingLastPathComponent()
+        case .file(let file): return file.isDirectory ? file.url : file.url.deletingLastPathComponent()
+        case .quickQuery, .webURL: return nil
+        }
+    }
 }

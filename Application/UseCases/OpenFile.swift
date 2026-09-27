@@ -24,4 +24,8 @@ struct OpenFile {
     func reveal(url: URL) {
         opener.revealInFinder(url: url)
     }
+
+    func openInTerminal(url: URL) {
+        opener.openInTerminal(url: url)
+    }
 }

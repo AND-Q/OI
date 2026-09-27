@@ -268,6 +268,11 @@ final class LauncherViewModel: ObservableObject {
         openFile?.reveal(url: url)
     }
 
+    /// Opens the item's directory in Terminal (`Cmd+K` action menu).
+    func openInTerminal(url: URL) {
+        openFile?.openInTerminal(url: url)
+    }
+
     /// Publishes a failure directly when an item cannot be opened or located.
     func publishFileOpenError(fileName: String, reason: String) {
         launchState = .failed(LauncherErrorMessage.message(

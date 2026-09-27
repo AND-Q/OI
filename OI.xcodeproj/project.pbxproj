@@ -56,6 +56,8 @@
 		A10000010000003B /* OpenURL.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000003B /* OpenURL.swift */; };
 		A10000010000003C /* WorkspaceURLOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000003C /* WorkspaceURLOpener.swift */; };
 		A10000010000003D /* WebURLResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000003D /* WebURLResolver.swift */; };
+		A10000010000003E /* QuickLookPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000003E /* QuickLookPresenter.swift */; };
+		A10000010000003F /* LauncherActionMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000003F /* LauncherActionMenu.swift */; };
 		B100000100000004 /* FileSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000005 /* FileSearchTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -123,6 +125,8 @@
 		A20000010000003B /* OpenURL.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenURL.swift; sourceTree = "<group>"; };
 		A20000010000003C /* WorkspaceURLOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceURLOpener.swift; sourceTree = "<group>"; };
 		A20000010000003D /* WebURLResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebURLResolver.swift; sourceTree = "<group>"; };
+		A20000010000003E /* QuickLookPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookPresenter.swift; sourceTree = "<group>"; };
+		A20000010000003F /* LauncherActionMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherActionMenu.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -307,6 +311,8 @@
 			isa = PBXGroup;
 			children = (
 				A20000010000000F /* LauncherPanelController.swift */,
+				A20000010000003E /* QuickLookPresenter.swift */,
+				A20000010000003F /* LauncherActionMenu.swift */,
 				A20000010000001A /* VisualEffectBackground.swift */,
 				A200000100000021 /* LauncherSearchInput.swift */,
 				A20000010000001B /* PanelAnimationCoordinator.swift */,
@@ -522,6 +528,8 @@
 				A10000010000003B /* OpenURL.swift in Sources */,
 				A10000010000003C /* WorkspaceURLOpener.swift in Sources */,
 				A10000010000003D /* WebURLResolver.swift in Sources */,
+				A10000010000003E /* QuickLookPresenter.swift in Sources */,
+				A10000010000003F /* LauncherActionMenu.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
