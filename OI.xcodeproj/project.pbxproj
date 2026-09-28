@@ -38,7 +38,17 @@
 		A10000010000001D /* UserDefaultsAppUsageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000001F /* UserDefaultsAppUsageStore.swift */; };
 		A10000010000001E /* AppDirectoryWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000020 /* AppDirectoryWatcher.swift */; };
 		A10000010000001F /* LauncherSearchInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000021 /* LauncherSearchInput.swift */; };
-		B100000100000001 /* LauncherModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000001 /* LauncherModelTests.swift */; };
+		B100000100000005 /* TestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000006 /* TestSupport.swift */; };
+		B100000100000006 /* AppDescriptorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000007 /* AppDescriptorTests.swift */; };
+		B100000100000007 /* FileSystemAppCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000008 /* FileSystemAppCatalogTests.swift */; };
+		B100000100000008 /* LauncherViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000009 /* LauncherViewModelTests.swift */; };
+		B100000100000009 /* WebURLResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000010 /* WebURLResolverTests.swift */; };
+		B100000100000010 /* LauncherSearchInputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000011 /* LauncherSearchInputTests.swift */; };
+		B100000100000011 /* LauncherPanelControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000012 /* LauncherPanelControllerTests.swift */; };
+		B100000100000012 /* LauncherActionMenuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000013 /* LauncherActionMenuTests.swift */; };
+		B100000100000013 /* QuickLookPresenterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000014 /* QuickLookPresenterTests.swift */; };
+		B100000100000014 /* PanelAnimationCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000015 /* PanelAnimationCoordinatorTests.swift */; };
+		B100000100000015 /* StatusBarControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000016 /* StatusBarControllerTests.swift */; };
 		B100000100000003 /* ApplicationSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000004 /* ApplicationSearchTests.swift */; };
 		B100000100000002 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B200000100000003 /* XCTest.framework */; };
 		C100000100000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C200000100000001 /* Assets.xcassets */; };
@@ -105,7 +115,17 @@
 		A20000010000001F /* UserDefaultsAppUsageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsAppUsageStore.swift; sourceTree = "<group>"; };
 		A200000100000020 /* AppDirectoryWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDirectoryWatcher.swift; sourceTree = "<group>"; };
 		A200000100000021 /* LauncherSearchInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherSearchInput.swift; sourceTree = "<group>"; };
-		B200000100000001 /* LauncherModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherModelTests.swift; sourceTree = "<group>"; };
+		B200000100000006 /* TestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestSupport.swift; sourceTree = "<group>"; };
+		B200000100000007 /* AppDescriptorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDescriptorTests.swift; sourceTree = "<group>"; };
+		B200000100000008 /* FileSystemAppCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileSystemAppCatalogTests.swift; sourceTree = "<group>"; };
+		B200000100000009 /* LauncherViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherViewModelTests.swift; sourceTree = "<group>"; };
+		B200000100000010 /* WebURLResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebURLResolverTests.swift; sourceTree = "<group>"; };
+		B200000100000011 /* LauncherSearchInputTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherSearchInputTests.swift; sourceTree = "<group>"; };
+		B200000100000012 /* LauncherPanelControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherPanelControllerTests.swift; sourceTree = "<group>"; };
+		B200000100000013 /* LauncherActionMenuTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherActionMenuTests.swift; sourceTree = "<group>"; };
+		B200000100000014 /* QuickLookPresenterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookPresenterTests.swift; sourceTree = "<group>"; };
+		B200000100000015 /* PanelAnimationCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelAnimationCoordinatorTests.swift; sourceTree = "<group>"; };
+		B200000100000016 /* StatusBarControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarControllerTests.swift; sourceTree = "<group>"; };
 		B200000100000004 /* ApplicationSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationSearchTests.swift; sourceTree = "<group>"; };
 		B200000100000002 /* OITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B200000100000003 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
@@ -218,7 +238,17 @@
 		A400000100000007 /* OITests */ = {
 			isa = PBXGroup;
 			children = (
-				B200000100000001 /* LauncherModelTests.swift */,
+				B200000100000006 /* TestSupport.swift */,
+				B200000100000007 /* AppDescriptorTests.swift */,
+				B200000100000008 /* FileSystemAppCatalogTests.swift */,
+				B200000100000009 /* LauncherViewModelTests.swift */,
+				B200000100000010 /* WebURLResolverTests.swift */,
+				B200000100000011 /* LauncherSearchInputTests.swift */,
+				B200000100000012 /* LauncherPanelControllerTests.swift */,
+				B200000100000013 /* LauncherActionMenuTests.swift */,
+				B200000100000014 /* QuickLookPresenterTests.swift */,
+				B200000100000015 /* PanelAnimationCoordinatorTests.swift */,
+				B200000100000016 /* StatusBarControllerTests.swift */,
 				B200000100000004 /* ApplicationSearchTests.swift */,
 				B200000100000005 /* FileSearchTests.swift */,
 			);
@@ -537,7 +567,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B100000100000001 /* LauncherModelTests.swift in Sources */,
+				B100000100000005 /* TestSupport.swift in Sources */,
+				B100000100000006 /* AppDescriptorTests.swift in Sources */,
+				B100000100000007 /* FileSystemAppCatalogTests.swift in Sources */,
+				B100000100000008 /* LauncherViewModelTests.swift in Sources */,
+				B100000100000009 /* WebURLResolverTests.swift in Sources */,
+				B100000100000010 /* LauncherSearchInputTests.swift in Sources */,
+				B100000100000011 /* LauncherPanelControllerTests.swift in Sources */,
+				B100000100000012 /* LauncherActionMenuTests.swift in Sources */,
+				B100000100000013 /* QuickLookPresenterTests.swift in Sources */,
+				B100000100000014 /* PanelAnimationCoordinatorTests.swift in Sources */,
+				B100000100000015 /* StatusBarControllerTests.swift in Sources */,
 				B100000100000003 /* ApplicationSearchTests.swift in Sources */,
 				B100000100000004 /* FileSearchTests.swift in Sources */,
 			);
