@@ -11,6 +11,7 @@ final class LauncherViewModel: ObservableObject {
 
     @Published var query = "" {
         didSet {
+            isActionSheetVisible = false
             if case .failed = launchState {
                 launchState = .idle
             }
@@ -30,6 +31,8 @@ final class LauncherViewModel: ObservableObject {
     @Published private(set) var quickQueryResult: QuickQueryResult?
     @Published private(set) var webURLResult: URL?
     @Published private(set) var selectedIndex = 0
+    @Published private(set) var isActionSheetVisible = false
+    @Published private(set) var selectedActionIndex = 0
     @Published private(set) var listResetRequest = 0
     @Published private(set) var focusRequest = 0
     @Published private(set) var loadState: LauncherLoadState = .idle
@@ -152,7 +155,8 @@ final class LauncherViewModel: ObservableObject {
         }
         return .results(
             rowCount: results.count,
-            sectionHeaderCount: fileResults.isEmpty ? 0 : 1
+            sectionHeaderCount: fileResults.isEmpty ? 0 : 1,
+            minHeight: isActionSheetVisible ? LauncherLayout.actionSheetMinHeight : 0
         )
     }
 
@@ -305,6 +309,7 @@ final class LauncherViewModel: ObservableObject {
     }
 
     func cancelOperations() {
+        isActionSheetVisible = false
         loadTask?.cancel()
         launchTask?.cancel()
         fileSearchTask?.cancel()
@@ -314,6 +319,7 @@ final class LauncherViewModel: ObservableObject {
     }
 
     func prepareForPresentation() {
+        isActionSheetVisible = false
         query = ""
         refreshApplications(force: false)
     }
@@ -332,7 +338,55 @@ final class LauncherViewModel: ObservableObject {
         guard count > 0 else { return }
         let newIndex = min(max(selectedIndex + offset, 0), count - 1)
         guard newIndex != selectedIndex else { return }
+        let wasActionSheetVisible = isActionSheetVisible
+        isActionSheetVisible = false
         selectedIndex = newIndex
+        if wasActionSheetVisible {
+            updatePanelHeight()
+        }
+    }
+
+    var currentAvailableActions: [ResultMenuAction] {
+        guard let selectedResult else { return [] }
+        return LauncherActionMenu.availableActions(for: selectedResult)
+    }
+
+    var selectedAction: ResultMenuAction? {
+        let actions = currentAvailableActions
+        guard actions.indices.contains(selectedActionIndex) else { return nil }
+        return actions[selectedActionIndex]
+    }
+
+    func toggleActionSheet() {
+        let actions = currentAvailableActions
+        guard !actions.isEmpty else {
+            if isActionSheetVisible {
+                isActionSheetVisible = false
+                updatePanelHeight()
+            }
+            return
+        }
+        if isActionSheetVisible {
+            isActionSheetVisible = false
+        } else {
+            selectedActionIndex = 0
+            isActionSheetVisible = true
+        }
+        updatePanelHeight()
+    }
+
+    func dismissActionSheet() {
+        guard isActionSheetVisible else { return }
+        isActionSheetVisible = false
+        updatePanelHeight()
+    }
+
+    func moveActionSelection(by delta: Int) {
+        let actions = currentAvailableActions
+        guard !actions.isEmpty else { return }
+        let count = actions.count
+        let nextIndex = (selectedActionIndex + delta + count) % count
+        selectedActionIndex = nextIndex
     }
 
     @discardableResult
@@ -419,6 +473,8 @@ final class LauncherViewModel: ObservableObject {
             ? apps
             : searchIndex.search(query: normalizedQuery, usage: usageRecords, now: now())
 
+        // 选择归零会让展开中的操作菜单目标漂移，必须同步收起（后台目录刷新路径）。
+        isActionSheetVisible = false
         selectedIndex = 0
         updatePanelHeight()
     }

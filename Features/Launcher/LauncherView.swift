@@ -12,19 +12,22 @@ enum LauncherLayout {
 
     static let compactCornerRadius: CGFloat = searchHeight / 2
     static let expandedCornerRadius: CGFloat = 32
+    /// Minimum panel expansion reserved for the floating action sheet.
+    static let actionSheetMinHeight: CGFloat = 185
 
     /// What the expanded area below the search field shows.
     enum ExpandedContent: Equatable {
-        case results(rowCount: Int, sectionHeaderCount: Int = 0)
+        case results(rowCount: Int, sectionHeaderCount: Int = 0, minHeight: CGFloat = 0)
         case status
 
         var height: CGFloat {
             switch self {
-            case .results(let rowCount, let sectionHeaderCount):
+            case .results(let rowCount, let sectionHeaderCount, let minHeight):
                 let contentHeight = CGFloat(max(rowCount, 0)) * LauncherLayout.rowHeight
                     + CGFloat(max(sectionHeaderCount, 0)) * LauncherLayout.sectionHeaderHeight
                 let maximumHeight = CGFloat(LauncherLayout.maximumVisibleRows) * LauncherLayout.rowHeight
-                return LauncherLayout.listVerticalPadding * 2 + min(contentHeight, maximumHeight)
+                let baseHeight = LauncherLayout.listVerticalPadding * 2 + min(contentHeight, maximumHeight)
+                return max(baseHeight, minHeight)
             case .status:
                 return LauncherLayout.statusHeight
             }
@@ -43,6 +46,7 @@ struct LauncherView: View {
     @ObservedObject var animation: PanelAnimationCoordinator
     let iconProvider: any ApplicationIconProviding
     let onOpen: (SearchResult) -> Void
+    let onAction: (ResultMenuAction, SearchResult) -> Void
     let onDismiss: () -> Void
 
     var body: some View {
@@ -64,19 +68,68 @@ struct LauncherView: View {
             }
         }
         .frame(width: LauncherLayout.width, height: animation.currentHeight)
+        .overlay(alignment: .bottomTrailing) {
+            if viewModel.isActionSheetVisible,
+               let selectedResult = viewModel.selectedResult {
+                // Extract once for both the emptiness check and the sheet input;
+                // the computed property rebuilds the array on every access.
+                let actions = viewModel.currentAvailableActions
+                if !actions.isEmpty {
+                    ZStack(alignment: .bottomTrailing) {
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                viewModel.dismissActionSheet()
+                            }
+
+                        LauncherActionSheetView(
+                            result: selectedResult,
+                            actions: actions,
+                            selectedIndex: viewModel.selectedActionIndex,
+                            iconProvider: iconProvider,
+                            onSelect: { action in
+                                onAction(action, selectedResult)
+                            }
+                        )
+                        .padding(.trailing, 16)
+                        .padding(.bottom, 12)
+                        .transition(
+                            .asymmetric(
+                                insertion: .scale(scale: 0.94, anchor: .bottomTrailing)
+                                    .combined(with: .opacity),
+                                removal: .scale(scale: 0.94, anchor: .bottomTrailing)
+                                    .combined(with: .opacity)
+                            )
+                        )
+                    }
+                    .frame(width: LauncherLayout.width, height: animation.currentHeight)
+                }
+            }
+        }
+        .animation(.spring(response: 0.22, dampingFraction: 0.82), value: viewModel.isActionSheetVisible)
         .onAppear { viewModel.requestFocus() }
         .onExitCommand {
-            if !viewModel.query.isEmpty {
+            if viewModel.isActionSheetVisible {
+                viewModel.dismissActionSheet()
+            } else if !viewModel.query.isEmpty {
                 viewModel.query = ""
             } else {
                 onDismiss()
             }
         }
         .onMoveCommand { direction in
-            switch direction {
-            case .up: viewModel.moveSelection(by: -1)
-            case .down: viewModel.moveSelection(by: 1)
-            default: break
+            if viewModel.isActionSheetVisible {
+                switch direction {
+                case .up: viewModel.moveActionSelection(by: -1)
+                case .down: viewModel.moveActionSelection(by: 1)
+                default: break
+                }
+            } else {
+                switch direction {
+                case .up: viewModel.moveSelection(by: -1)
+                case .down: viewModel.moveSelection(by: 1)
+                default: break
+                }
             }
         }
     }

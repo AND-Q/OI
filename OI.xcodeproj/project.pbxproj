@@ -268,6 +268,7 @@
 				A200000100000018 /* LauncherState.swift */,
 				A200000100000039 /* QuickQueryResolver.swift */,
 				A20000010000003D /* WebURLResolver.swift */,
+				A20000010000003F /* LauncherActionMenu.swift */,
 			);
 			path = Launcher;
 			sourceTree = "<group>";
@@ -312,7 +313,6 @@
 			children = (
 				A20000010000000F /* LauncherPanelController.swift */,
 				A20000010000003E /* QuickLookPresenter.swift */,
-				A20000010000003F /* LauncherActionMenu.swift */,
 				A20000010000001A /* VisualEffectBackground.swift */,
 				A200000100000021 /* LauncherSearchInput.swift */,
 				A20000010000001B /* PanelAnimationCoordinator.swift */,

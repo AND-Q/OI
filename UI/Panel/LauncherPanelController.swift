@@ -9,14 +9,11 @@ final class LauncherPanelController {
     private let viewModel: LauncherViewModel
     private let iconProvider: any ApplicationIconProviding
     let quickLook = QuickLookPresenter()
-    private let menuActionTarget = ResultMenuTarget()
     let panel: LauncherPanel
     private let animationCoordinator: PanelAnimationCoordinator
     private var keyMonitor: Any?
     private var cancellables = Set<AnyCancellable>()
     private var activeScreen: NSScreen?
-    /// 动作菜单弹出期间按键由菜单自己处理，键盘监听不得拦截。
-    private var isActionMenuShowing = false
     private var lastHandledEventTimestamp: TimeInterval = 0
     private var lastHandledKeyCode: UInt16 = 0
 
@@ -84,6 +81,9 @@ final class LauncherPanelController {
             animation: animationCoordinator,
             iconProvider: iconProvider,
             onOpen: { [weak self] result in self?.open(result) },
+            onAction: { [weak self] action, result in
+                self?.performMenuAction(action, for: result)
+            },
             onDismiss: { [weak self] in self?.hide() }
         )
         let hostingView = NSHostingView(rootView: launcherView)
@@ -129,6 +129,7 @@ final class LauncherPanelController {
         }
         panel.orderOut(nil)
         quickLook.close()
+        viewModel.dismissActionSheet()
         cancellables.removeAll()
         animationCoordinator.stopAnimations()
         viewModel.cancelOperations()
@@ -181,6 +182,7 @@ final class LauncherPanelController {
 
     func hide() {
         guard panel.isVisible, !animationCoordinator.isDismissalInProgress else { return }
+        viewModel.dismissActionSheet()
         // 先启动淡出再收预览：还焦点回调看到 dismissal 进行中会自动跳过。
         animationCoordinator.fadeOutAndOrderOut()
         quickLook.close()
@@ -239,16 +241,14 @@ final class LauncherPanelController {
         if hasActiveMarkedText {
             return event
         }
-        // 动作菜单的弹出有自己的事件循环，按键由菜单自行处理。
-        if isActionMenuShowing {
-            return event
-        }
 
         switch event.keyCode {
         case UInt16(kVK_Escape):
-            // Quick Look 打开时 Esc 只收起预览，面板与输入保持原样。
+            // Quick Look 打开时 Esc 只收起预览；动作菜单展开时 Esc 只收起菜单。
             if quickLook.isActive {
                 quickLook.close()
+            } else if viewModel.isActionSheetVisible {
+                viewModel.dismissActionSheet()
             } else {
                 handleEscape()
             }
@@ -257,6 +257,12 @@ final class LauncherPanelController {
             // Cmd+Return searches the web via the default browser; plain Return opens the selection.
             if event.modifierFlags.contains(.command) {
                 searchWebAndDismiss()
+            } else if viewModel.isActionSheetVisible {
+                // 菜单展开时独占回车；选中项暂不可用时也不穿透启动底层应用。
+                if let action = viewModel.selectedAction,
+                   let result = viewModel.selectedResult {
+                    performMenuAction(action, for: result)
+                }
             } else if let result = viewModel.selectedResult {
                 open(result)
             }
@@ -275,16 +281,49 @@ final class LauncherPanelController {
             return markHandled(event)
         case UInt16(kVK_ANSI_K):
             guard event.modifierFlags.contains(.command) else { return event }
-            // Cmd+K pops up the quick action menu of the selection.
-            showActionMenu()
+            // Cmd+K toggles the quick action menu of the selection.
+            toggleActionMenu()
             return markHandled(event)
+        case UInt16(kVK_ANSI_T):
+            guard event.modifierFlags.contains(.command) else { return event }
+            if let result = viewModel.selectedResult, result.terminalDirectory != nil {
+                performMenuAction(.openInTerminal, for: result)
+                return markHandled(event)
+            }
+            return event
+        case UInt16(kVK_ANSI_B):
+            guard event.modifierFlags.contains(.command) else { return event }
+            if let result = viewModel.selectedResult,
+               case .application(let app) = result,
+               app.bundleIdentifier != nil {
+                performMenuAction(.copyBundleID, for: result)
+                return markHandled(event)
+            }
+            return event
+        case UInt16(kVK_ANSI_C):
+            if event.modifierFlags.contains(.command) && event.modifierFlags.contains(.option) {
+                // Only file URLs have a meaningful path to copy; web URLs would lose the host.
+                if let result = viewModel.selectedResult, result.url?.isFileURL == true {
+                    performMenuAction(.copyPath, for: result)
+                    return markHandled(event)
+                }
+            }
+            return event
         case UInt16(kVK_UpArrow):
-            viewModel.moveSelection(by: -1)
-            updateQuickLookPreviewForCurrentSelection()
+            if viewModel.isActionSheetVisible {
+                viewModel.moveActionSelection(by: -1)
+            } else {
+                viewModel.moveSelection(by: -1)
+                updateQuickLookPreviewForCurrentSelection()
+            }
             return markHandled(event)
         case UInt16(kVK_DownArrow):
-            viewModel.moveSelection(by: 1)
-            updateQuickLookPreviewForCurrentSelection()
+            if viewModel.isActionSheetVisible {
+                viewModel.moveActionSelection(by: 1)
+            } else {
+                viewModel.moveSelection(by: 1)
+                updateQuickLookPreviewForCurrentSelection()
+            }
             return markHandled(event)
         default:
             return event
@@ -338,6 +377,9 @@ final class LauncherPanelController {
     }
 
     func reveal(_ result: SearchResult) {
+        // Cmd+F 是唯一绕过 performMenuAction 的动作入口，无论后续隐藏面板、
+        // 复制链接还是报错保留面板，都先退出菜单模式，避免卡片遮挡错误横幅。
+        viewModel.dismissActionSheet()
         if case .quickQuery(let quickQuery) = result {
             copy(quickQuery)
             return
@@ -365,6 +407,8 @@ final class LauncherPanelController {
             quickLook.close()
             return
         }
+        // 预览与操作卡片互斥：开启预览前收起操作卡片。
+        viewModel.dismissActionSheet()
         guard let result = viewModel.selectedResult else { return }
         // 网址与快速查询没有可预览的文件系统条目。
         guard let url = result.url, url.isFileURL else { return }
@@ -391,27 +435,16 @@ final class LauncherPanelController {
         quickLook.reloadPreviewItem(with: url)
     }
 
-    /// Pops up the quick action menu (`Cmd+K`) anchored to the panel's bottom-left.
-    private func showActionMenu() {
-        guard let result = viewModel.selectedResult,
-              !LauncherActionMenu.availableActions(for: result).isEmpty,
-              let surface = panel.contentView else { return }
-
-        menuActionTarget.onAction = { [weak self] action in
-            guard let self else { return }
-            self.performMenuAction(action, for: result)
-        }
-        isActionMenuShowing = true
-        LauncherActionMenu.popUp(
-            for: result,
-            in: surface,
-            at: NSPoint(x: 16, y: 10),
-            target: menuActionTarget
-        )
-        isActionMenuShowing = false
+    /// Toggles the quick action menu (`Cmd+K`).
+    private func toggleActionMenu() {
+        // 预览与操作卡片互斥：展开卡片前收起 Quick Look 预览。
+        // 可用操作校验由 viewModel.toggleActionSheet() 内部完成，此处不重复判断。
+        quickLook.close()
+        viewModel.toggleActionSheet()
     }
 
     func performMenuAction(_ action: ResultMenuAction, for result: SearchResult) {
+        viewModel.dismissActionSheet()
         switch action {
         case .revealInFinder:
             reveal(result)

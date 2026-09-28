@@ -1466,6 +1466,223 @@ final class LauncherModelTests: XCTestCase {
         XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
     }
 
+    func testResultMenuActionMetadata() {
+        XCTAssertEqual(ResultMenuAction.revealInFinder.title, "在 Finder 中显示")
+        XCTAssertEqual(ResultMenuAction.revealInFinder.systemImage, "folder")
+        XCTAssertEqual(ResultMenuAction.revealInFinder.shortcutKeys, ["⌘", "F"])
+
+        XCTAssertEqual(ResultMenuAction.copyPath.title, "复制路径")
+        XCTAssertEqual(ResultMenuAction.copyPath.systemImage, "doc.on.doc")
+        XCTAssertEqual(ResultMenuAction.copyPath.shortcutKeys, ["⌥", "⌘", "C"])
+
+        XCTAssertEqual(ResultMenuAction.copyBundleID.title, "复制 Bundle ID")
+        XCTAssertEqual(ResultMenuAction.copyBundleID.systemImage, "number")
+        XCTAssertEqual(ResultMenuAction.copyBundleID.shortcutKeys, ["⌘", "B"])
+
+        XCTAssertEqual(ResultMenuAction.openInTerminal.title, "在终端中打开")
+        XCTAssertEqual(ResultMenuAction.openInTerminal.systemImage, "terminal")
+        XCTAssertEqual(ResultMenuAction.openInTerminal.shortcutKeys, ["⌘", "T"])
+    }
+
+    func testActionSheetToggleNavigationAndDismissal() async {
+        let app = AppDescriptor(name: "TestApp", url: URL(fileURLWithPath: "/Applications/TestApp.app"), bundleIdentifier: "com.test.app")
+        let viewModel = makeViewModel(with: [app])
+        await viewModel.loadApps()?.value
+        viewModel.query = "Test"
+
+        XCTAssertEqual(viewModel.results.count, 1)
+        XCTAssertFalse(viewModel.isActionSheetVisible)
+
+        // Toggle on
+        viewModel.toggleActionSheet()
+        XCTAssertTrue(viewModel.isActionSheetVisible)
+        XCTAssertEqual(viewModel.selectedActionIndex, 0)
+        XCTAssertEqual(viewModel.selectedAction, .revealInFinder)
+
+        // Navigate down
+        viewModel.moveActionSelection(by: 1)
+        XCTAssertEqual(viewModel.selectedActionIndex, 1)
+        XCTAssertEqual(viewModel.selectedAction, .copyPath)
+
+        viewModel.moveActionSelection(by: 1)
+        XCTAssertEqual(viewModel.selectedActionIndex, 2)
+        XCTAssertEqual(viewModel.selectedAction, .copyBundleID)
+
+        viewModel.moveActionSelection(by: 1)
+        XCTAssertEqual(viewModel.selectedActionIndex, 3)
+        XCTAssertEqual(viewModel.selectedAction, .openInTerminal)
+
+        // Wrap around down
+        viewModel.moveActionSelection(by: 1)
+        XCTAssertEqual(viewModel.selectedActionIndex, 0)
+
+        // Wrap around up
+        viewModel.moveActionSelection(by: -1)
+        XCTAssertEqual(viewModel.selectedActionIndex, 3)
+
+        // Dismiss
+        viewModel.dismissActionSheet()
+        XCTAssertFalse(viewModel.isActionSheetVisible)
+    }
+
+    func testActionSheetAutoDismissesOnQueryOrSelectionChange() async {
+        let app1 = AppDescriptor(name: "AppOne", url: URL(fileURLWithPath: "/Applications/AppOne.app"))
+        let app2 = AppDescriptor(name: "AppTwo", url: URL(fileURLWithPath: "/Applications/AppTwo.app"))
+        let viewModel = makeViewModel(with: [app1, app2])
+        await viewModel.loadApps()?.value
+        viewModel.query = "App"
+
+        viewModel.toggleActionSheet()
+        XCTAssertTrue(viewModel.isActionSheetVisible)
+
+        // Selection move dismisses action sheet
+        viewModel.moveSelection(by: 1)
+        XCTAssertFalse(viewModel.isActionSheetVisible)
+
+        viewModel.toggleActionSheet()
+        XCTAssertTrue(viewModel.isActionSheetVisible)
+
+        // Query change dismisses action sheet
+        viewModel.query = "AppO"
+        XCTAssertFalse(viewModel.isActionSheetVisible)
+    }
+
+    func testLauncherPanelControllerActionMenuKeyHandling() async throws {
+        let tempDir = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let app = AppDescriptor(name: "DemoApp", url: tempDir, bundleIdentifier: "com.demo.app")
+        let viewModel = makeViewModel(with: [app])
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+        controller.show()
+        await viewModel.loadApps()?.value
+        viewModel.query = "Demo"
+
+        // Cmd+K toggles action sheet on
+        let cmdKEvent = try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [.command],
+                timestamp: 10,
+                windowNumber: 0,
+                context: nil,
+                characters: "k",
+                charactersIgnoringModifiers: "k",
+                isARepeat: false,
+                keyCode: 40 // kVK_ANSI_K
+            )
+        )
+        _ = controller.handleKeyDown(cmdKEvent)
+        XCTAssertTrue(viewModel.isActionSheetVisible)
+        XCTAssertEqual(viewModel.selectedActionIndex, 0)
+
+        // Down arrow moves selection in action sheet
+        let downArrowEvent = try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [],
+                timestamp: 11,
+                windowNumber: 0,
+                context: nil,
+                characters: "",
+                charactersIgnoringModifiers: "",
+                isARepeat: false,
+                keyCode: 125 // kVK_DownArrow
+            )
+        )
+        _ = controller.handleKeyDown(downArrowEvent)
+        XCTAssertTrue(viewModel.isActionSheetVisible)
+        XCTAssertEqual(viewModel.selectedActionIndex, 1)
+
+        // Escape closes action sheet, keeping panel open
+        let escapeEvent = try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [],
+                timestamp: 12,
+                windowNumber: 0,
+                context: nil,
+                characters: "",
+                charactersIgnoringModifiers: "",
+                isARepeat: false,
+                keyCode: 53 // kVK_Escape
+            )
+        )
+        _ = controller.handleKeyDown(escapeEvent)
+        XCTAssertFalse(viewModel.isActionSheetVisible)
+        XCTAssertTrue(controller.isVisible)
+        XCTAssertFalse(controller.isDismissalInProgress)
+    }
+
+    func testOptionCommandCCopiesPathForFileResult() async throws {
+        let app = AppDescriptor(name: "PathApp", url: URL(fileURLWithPath: "/Applications/PathApp.app"), bundleIdentifier: "com.test.pathapp")
+        let viewModel = makeViewModel(with: [app])
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+        controller.show()
+        await viewModel.loadApps()?.value
+        viewModel.query = "Path"
+
+        let event = try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [.command, .option],
+                timestamp: 13,
+                windowNumber: 0,
+                context: nil,
+                characters: "ç",
+                charactersIgnoringModifiers: "c",
+                isARepeat: false,
+                keyCode: 8 // kVK_ANSI_C
+            )
+        )
+        XCTAssertNil(controller.handleKeyDown(event))
+        XCTAssertEqual(NSPasteboard.general.string(forType: .string), "/Applications/PathApp.app")
+        XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
+    }
+
+    func testOptionCommandCIgnoresWebURLResult() throws {
+        let viewModel = makeViewModel(with: [])
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+        controller.show()
+        viewModel.query = "https://github.com"
+        XCTAssertEqual(viewModel.selectedResult, .webURL(URL(string: "https://github.com")!))
+
+        let event = try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [.command, .option],
+                timestamp: 14,
+                windowNumber: 0,
+                context: nil,
+                characters: "ç",
+                charactersIgnoringModifiers: "c",
+                isARepeat: false,
+                keyCode: 8 // kVK_ANSI_C
+            )
+        )
+        // 网址结果没有可复制的文件路径：事件原样放行，面板保持打开。
+        XCTAssertNotNil(controller.handleKeyDown(event))
+        XCTAssertTrue(controller.isVisible)
+        XCTAssertFalse(controller.isDismissalInProgress)
+    }
+
     // MARK: - Quick Look 预览
 
     func testQuickLookPresenterReloadUpdatesPreviewURLWhenActive() {
