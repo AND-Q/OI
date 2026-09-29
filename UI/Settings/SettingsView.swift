@@ -19,6 +19,32 @@ struct SettingsView: View {
             }
 
             Section {
+                LabeledContent {
+                    HStack(spacing: 12) {
+                        ShortcutRecorderField(shortcut: viewModel.settings.launcherShortcut) {
+                            viewModel.applyLauncherShortcut($0)
+                        }
+                        Button("恢复默认") {
+                            viewModel.applyLauncherShortcut(.standard)
+                        }
+                        .disabled(
+                            viewModel.settings.launcherShortcut == .standard
+                                && viewModel.launcherShortcutNotice == nil
+                        )
+                    }
+                } label: {
+                    Text("呼出快捷键")
+                }
+                if let notice = viewModel.launcherShortcutNotice {
+                    launcherShortcutNoticeRow(notice)
+                }
+            } header: {
+                Text("快捷键")
+            } footer: {
+                Text("全局呼出启动器面板的快捷键，需包含 ⌘、⌥ 或 ⌃ 修饰键。点按录制后按 Esc 取消。")
+            }
+
+            Section {
                 Toggle("文件与文件夹搜索", isOn: $viewModel.settings.isFileSearchEnabled)
                 Toggle("启动历史排序", isOn: $viewModel.settings.isUsageRankingEnabled)
             } header: {
@@ -38,6 +64,16 @@ struct SettingsView: View {
             get: { viewModel.isLaunchAtLoginEnabled },
             set: { viewModel.setLaunchAtLogin($0) }
         )
+    }
+
+    @ViewBuilder
+    private func launcherShortcutNoticeRow(_ notice: LauncherShortcutNotice) -> some View {
+        switch notice {
+        case .failure(let reason):
+            Label("快捷键注册失败：\(reason)", systemImage: "exclamationmark.triangle.fill")
+                .font(.footnote)
+                .foregroundStyle(.red)
+        }
     }
 
     @ViewBuilder

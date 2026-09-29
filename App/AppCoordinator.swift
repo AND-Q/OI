@@ -3,7 +3,6 @@ import os
 
 @MainActor
 final class AppCoordinator {
-    private let configuration: AppConfiguration
     private let logger: Logger
     private let dependencies: AppDependencies
     private let viewModel: LauncherViewModel
@@ -21,18 +20,12 @@ final class AppCoordinator {
     private var didStart = false
 
     convenience init() {
-        let configuration = AppConfiguration.live
         self.init(
-            configuration: configuration,
-            dependencies: AppDependencies.live(configuration: configuration)
+            dependencies: AppDependencies.live(configuration: .live)
         )
     }
 
-    init(
-        configuration: AppConfiguration,
-        dependencies: AppDependencies
-    ) {
-        self.configuration = configuration
+    init(dependencies: AppDependencies) {
         self.logger = Logger(
             subsystem: Bundle.main.bundleIdentifier ?? "OI",
             category: "AppCoordinator"
@@ -44,6 +37,24 @@ final class AppCoordinator {
             viewModel: dependencies.launcherViewModel,
             iconProvider: dependencies.applicationIconProvider
         )
+        // 设置面板切换呼出快捷键时经由同一注册路径生效。直接强引用服务与面板：
+        // 闭包被调用时面板必须存在（否则注册出的热键呼不出任何东西），
+        // 也避免弱引用失效时「正常返回」被调用方误判为注册成功。
+        // 代价是协调者与依赖图之间形成引用环（本对象 → 依赖 → 设置模型 → 本对象），
+        // 这里刻意接受：协调者与依赖图同寿命，环不会延长任何对象的存活时间。
+        let shortcutService = self.shortcutService
+        let panelController = self.panelController
+        dependencies.settingsViewModel.launcherShortcutActivator = { shortcut in
+            try shortcutService.register(
+                keyCode: shortcut.keyCode,
+                modifiers: shortcut.modifiers,
+                handler: {
+                    Task { @MainActor in
+                        panelController.toggle()
+                    }
+                }
+            )
+        }
     }
 
     func start() {
@@ -51,7 +62,7 @@ final class AppCoordinator {
         didStart = true
         NSApp.setActivationPolicy(.accessory)
         statusBarController.start()
-        registerShortcut()
+        registerLauncherShortcut()
         viewModel.loadApps()
         // 静默启动关闭时，启动后自动呼出启动器面板。
         if !dependencies.settingsStore.load().isSilentLaunchEnabled {
@@ -68,19 +79,19 @@ final class AppCoordinator {
         settingsWindowController.close()
     }
 
-    private func registerShortcut() {
+    /// 按用户设置注册呼出快捷键；失败（如组合被其他应用占用）时保持未注册，
+    /// 记录日志并把原因同步到设置面板，避免用户面对一个静默失效的快捷键。
+    private func registerLauncherShortcut() {
+        // 激活闭包由协调者在构造时注入；缺失只可能来自测试自建的设置模型。
+        guard let activator = dependencies.settingsViewModel.launcherShortcutActivator else {
+            return
+        }
+        let shortcut = dependencies.settingsStore.load().launcherShortcut
         do {
-            try shortcutService.register(
-                keyCode: configuration.launcherShortcut.keyCode,
-                modifiers: configuration.launcherShortcut.modifiers,
-                handler: { [weak self] in
-                    Task { @MainActor in
-                        self?.panelController.toggle()
-                    }
-                }
-            )
+            try activator(shortcut)
         } catch {
             logger.error("Global shortcut registration failed: \(error.localizedDescription, privacy: .public)")
+            dependencies.settingsViewModel.reportShortcutRegistrationFailure(error)
         }
     }
 

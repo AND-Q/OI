@@ -4,6 +4,7 @@ DerivedData/
 *.xcuserstate
 xcuserdata/
 .tmp-swift/
+.dsh-dd/
 
 # 本地构建产物
 build-*/

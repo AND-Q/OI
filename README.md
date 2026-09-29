@@ -10,7 +10,7 @@ OI 是一个原生 macOS 菜单栏启动器模板：使用 `⌥Space` 呼出启�
 App/                         Composition Root
   OIApp.swift                SwiftUI 生命周期入口
   AppDelegate.swift          NSApplication 生命周期适配
-  AppConfiguration.swift     可变配置（扫描路径、快捷键）
+  AppConfiguration.swift     可变配置（扫描路径等，快捷键已移入用户设置）
   AppDependencies.swift      唯一的具体依赖组装点
   AppCoordinator.swift       启动、停止和 AppKit 生命周期协调
 

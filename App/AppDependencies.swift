@@ -8,8 +8,9 @@ struct AppDependencies {
     let settingsStore: any AppSettingsStoring
     let applicationIconProvider: any ApplicationIconProviding
     let globalShortcutService: any GlobalShortcutHandling
-    /// 持有引用以确保目录事件在整个应用生命周期内持续送达。
-    private let appDirectoryWatcher: AppDirectoryWatcher
+    /// 持有引用以确保目录事件在整个应用生命周期内持续送达；测试注入依赖图时可省略，
+    /// 此时不监听目录变动。
+    var appDirectoryWatcher: AppDirectoryWatcher? = nil
 
     static func live(configuration: AppConfiguration) -> AppDependencies {
         let settingsStore = UserDefaultsAppSettingsStore()

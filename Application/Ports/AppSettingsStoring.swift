@@ -1,5 +1,22 @@
 import Foundation
 
+/// 全局呼出快捷键。`modifiers` 采用 Carbon 热键掩码约定
+/// （cmdKey = 1 << 8、shiftKey = 1 << 9、optionKey = 1 << 11、controlKey = 1 << 12），
+/// 与 `GlobalShortcutHandling` 注册端口一致，本层无需引入 Carbon。
+struct LauncherShortcut: Sendable, Equatable, Hashable {
+    var keyCode: UInt32
+    var modifiers: UInt32
+
+    /// 组合必须包含 ⌘、⌥ 或 ⌃ 之一：无实质修饰键的全局热键会拦截正常打字。
+    var isValid: Bool {
+        let actionableModifiers: UInt32 = (1 << 8) | (1 << 11) | (1 << 12)
+        return modifiers & actionableModifiers != 0
+    }
+
+    /// 默认呼出快捷键：Option + Space（keyCode 49 = kVK_Space）。
+    static let standard = LauncherShortcut(keyCode: 49, modifiers: 1 << 11)
+}
+
 /// 应用级用户设置（设置面板读写）。开机自启动不在此存储：其状态由系统登录项持有，
 /// 设置面板实时读取，见 `LoginItemControlling`。
 struct AppSettings: Sendable, Equatable {
@@ -9,6 +26,8 @@ struct AppSettings: Sendable, Equatable {
     var isFileSearchEnabled: Bool = true
     /// 启动历史排序：记录启动次数与最近使用时间，优化常用应用排序。
     var isUsageRankingEnabled: Bool = true
+    /// 全局呼出快捷键。
+    var launcherShortcut: LauncherShortcut = .standard
 }
 
 /// 应用级设置的持久化端口。设置值极小且只在主线程读写，端口按同步设计。

@@ -76,9 +76,14 @@
 		A100000100000044 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000044 /* SettingsViewModel.swift */; };
 		A100000100000045 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000045 /* SettingsView.swift */; };
 		A100000100000046 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000046 /* SettingsWindowController.swift */; };
+		A100000100000047 /* ShortcutFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000047 /* ShortcutFormatter.swift */; };
+		A100000100000048 /* ShortcutRecorderField.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000048 /* ShortcutRecorderField.swift */; };
 		B100000100000016 /* SettingsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000017 /* SettingsViewModelTests.swift */; };
 		B100000100000017 /* UserDefaultsAppSettingsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000018 /* UserDefaultsAppSettingsStoreTests.swift */; };
 		B100000100000018 /* SettingsWindowControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000019 /* SettingsWindowControllerTests.swift */; };
+		B100000100000019 /* LauncherShortcutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001A /* LauncherShortcutTests.swift */; };
+		B10000010000001A /* ShortcutFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001B /* ShortcutFormatterTests.swift */; };
+		B10000010000001B /* AppCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001C /* AppCoordinatorTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -164,9 +169,14 @@
 		A200000100000044 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
 		A200000100000045 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A200000100000046 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
+		A200000100000047 /* ShortcutFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutFormatter.swift; sourceTree = "<group>"; };
+		A200000100000048 /* ShortcutRecorderField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutRecorderField.swift; sourceTree = "<group>"; };
 		B200000100000017 /* SettingsViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModelTests.swift; sourceTree = "<group>"; };
 		B200000100000018 /* UserDefaultsAppSettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsAppSettingsStoreTests.swift; sourceTree = "<group>"; };
 		B200000100000019 /* SettingsWindowControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowControllerTests.swift; sourceTree = "<group>"; };
+		B20000010000001A /* LauncherShortcutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherShortcutTests.swift; sourceTree = "<group>"; };
+		B20000010000001B /* ShortcutFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutFormatterTests.swift; sourceTree = "<group>"; };
+		B20000010000001C /* AppCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinatorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -278,6 +288,9 @@
 				B200000100000017 /* SettingsViewModelTests.swift */,
 				B200000100000018 /* UserDefaultsAppSettingsStoreTests.swift */,
 				B200000100000019 /* SettingsWindowControllerTests.swift */,
+				B20000010000001A /* LauncherShortcutTests.swift */,
+				B20000010000001B /* ShortcutFormatterTests.swift */,
+				B20000010000001C /* AppCoordinatorTests.swift */,
 			);
 			path = OITests;
 			sourceTree = "<group>";
@@ -463,8 +476,8 @@
 		A40000010000001D /* Settings */ = {
 			isa = PBXGroup;
 			children = (
-				A200000100000045 /* SettingsView.swift */,
 				A200000100000044 /* SettingsViewModel.swift */,
+				A200000100000047 /* ShortcutFormatter.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -472,7 +485,9 @@
 		A40000010000001E /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				A200000100000045 /* SettingsView.swift */,
 				A200000100000046 /* SettingsWindowController.swift */,
+				A200000100000048 /* ShortcutRecorderField.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -629,6 +644,8 @@
 				A100000100000044 /* SettingsViewModel.swift in Sources */,
 				A100000100000045 /* SettingsView.swift in Sources */,
 				A100000100000046 /* SettingsWindowController.swift in Sources */,
+				A100000100000047 /* ShortcutFormatter.swift in Sources */,
+				A100000100000048 /* ShortcutRecorderField.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -652,6 +669,9 @@
 				B100000100000016 /* SettingsViewModelTests.swift in Sources */,
 				B100000100000017 /* UserDefaultsAppSettingsStoreTests.swift in Sources */,
 				B100000100000018 /* SettingsWindowControllerTests.swift in Sources */,
+				B100000100000019 /* LauncherShortcutTests.swift in Sources */,
+				B10000010000001A /* ShortcutFormatterTests.swift in Sources */,
+				B10000010000001B /* AppCoordinatorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

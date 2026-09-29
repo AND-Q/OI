@@ -9,6 +9,7 @@ extension XCTestCase {
         with descriptors: [AppDescriptor],
         aliases: [String: [String]] = [:],
         usageStore: any AppUsageStoring = MemoryAppUsageStore(),
+        settingsStore: any AppSettingsStoring = MemoryAppSettingsStore(),
         urlOpener: OpenURL? = nil,
         now: @escaping () -> Date = { Date() }
     ) -> LauncherViewModel {
@@ -21,6 +22,7 @@ extension XCTestCase {
             ),
             openURL: urlOpener,
             usageStore: usageStore,
+            settingsStore: settingsStore,
             aliases: aliases,
             now: now
         )

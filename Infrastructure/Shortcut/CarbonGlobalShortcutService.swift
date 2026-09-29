@@ -8,6 +8,8 @@ enum GlobalShortcutError: LocalizedError {
         switch self {
         case .eventHandlerInstallationFailed(let status):
             return "无法安装全局快捷键事件处理器（\(status)）"
+        case .registrationFailed(let status) where status == eventHotKeyExistsErr:
+            return "该快捷键已被其他应用占用，请换一个组合"
         case .registrationFailed(let status):
             return "无法注册全局快捷键（\(status)）"
         }
