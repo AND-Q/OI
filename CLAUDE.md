@@ -90,7 +90,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **运行单个测试用例**:
   `xcodebuild -project OI.xcodeproj -scheme OI -configuration Debug test -destination 'platform=macOS' -only-testing:OITests/ApplicationSearchTests/testPinyinPrefixMatch`
 - **运行指定测试套件**:
-  `xcodebuild -project OI.xcodeproj -scheme OI -configuration Debug test -destination 'platform=macOS' -only-testing:OITests/LauncherModelTests`
+  `xcodebuild -project OI.xcodeproj -scheme OI -configuration Debug test -destination 'platform=macOS' -only-testing:OITests/LauncherViewModelTests`
+- **测试运行策略**:
+  - 平时迭代：只运行被改动的测试类（`-only-testing:OITests/<类名>`），避免每次全套运行导致测试宿主界面弹框。
+  - 交付/提交前：运行一次全部单元测试确认没有回归，并在最终说明中报告结果。
 
 项目 target 为 `OI`，测试 target 为 `OITests`。最低部署版本为 macOS 27.0。Debug、Release 和 Tests 均已开启完整严格并发检查（Complete Strict Concurrency Checking）。
 
