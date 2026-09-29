@@ -6,14 +6,14 @@ import XCTest
 
 @MainActor
 final class StatusBarControllerTests: XCTestCase {
-    func testStatusBarControllerStartConfiguresButtonAndMenu() throws {
-        var toggleCalled = false
+    func testStatusBarControllerStartAttachesMenuWithItems() throws {
+        var showLauncherCalled = false
         var settingsCalled = false
         var aboutCalled = false
         var quitCalled = false
 
         let controller = StatusBarController(
-            onToggle: { toggleCalled = true },
+            onShowLauncher: { showLauncherCalled = true },
             onSettings: { settingsCalled = true },
             onAbout: { aboutCalled = true },
             onQuit: { quitCalled = true }
@@ -25,138 +25,35 @@ final class StatusBarControllerTests: XCTestCase {
         let statusItem = try XCTUnwrap(controller.statusItem)
         let button = try XCTUnwrap(statusItem.button)
         XCTAssertNotNil(button.image)
-        XCTAssertTrue(button.target === controller)
-        XCTAssertEqual(button.action, #selector(StatusBarController.handleStatusItemClick(_:)))
 
-        // Menu is prepared but not attached to statusItem yet (so clicks go to button)
-        XCTAssertNil(statusItem.menu)
-        let menu = try XCTUnwrap(controller.contextMenu)
-        XCTAssertEqual(menu.items.count, 4)
-        XCTAssertEqual(menu.items[0].title, "关于 OI")
+        // Menu is attached to the status item so any click presents it
+        let menu = try XCTUnwrap(statusItem.menu)
+        XCTAssertTrue(menu === controller.contextMenu)
+        XCTAssertEqual(menu.items.count, 6)
+        XCTAssertEqual(menu.items[0].title, "显示启动器")
         XCTAssertTrue(menu.items[0].target === controller)
-        XCTAssertEqual(menu.items[1].title, "设置…")
-        XCTAssertEqual(menu.items[1].keyEquivalent, ",")
-        XCTAssertTrue(menu.items[1].target === controller)
-        XCTAssertTrue(menu.items[2].isSeparatorItem)
-        XCTAssertEqual(menu.items[3].title, "退出")
-        XCTAssertEqual(menu.items[3].keyEquivalent, "q")
+        XCTAssertTrue(menu.items[1].isSeparatorItem)
+        XCTAssertEqual(menu.items[2].title, "关于 OI")
+        XCTAssertTrue(menu.items[2].target === controller)
+        XCTAssertEqual(menu.items[3].title, "设置…")
+        XCTAssertEqual(menu.items[3].keyEquivalent, ",")
         XCTAssertTrue(menu.items[3].target === controller)
+        XCTAssertTrue(menu.items[4].isSeparatorItem)
+        XCTAssertEqual(menu.items[5].title, "退出")
+        XCTAssertEqual(menu.items[5].keyEquivalent, "q")
+        XCTAssertTrue(menu.items[5].target === controller)
 
         // Trigger menu item actions
         _ = menu.items[0].target?.perform(menu.items[0].action, with: menu.items[0])
+        XCTAssertTrue(showLauncherCalled)
+
+        _ = menu.items[2].target?.perform(menu.items[2].action, with: menu.items[2])
         XCTAssertTrue(aboutCalled)
 
-        _ = menu.items[1].target?.perform(menu.items[1].action, with: menu.items[1])
+        _ = menu.items[3].target?.perform(menu.items[3].action, with: menu.items[3])
         XCTAssertTrue(settingsCalled)
 
-        _ = menu.items[3].target?.perform(menu.items[3].action, with: menu.items[3])
+        _ = menu.items[5].target?.perform(menu.items[5].action, with: menu.items[5])
         XCTAssertTrue(quitCalled)
-    }
-
-    func testStatusBarControllerLeftClickTogglesLauncher() throws {
-        var toggleCount = 0
-        let controller = StatusBarController(
-            onToggle: { toggleCount += 1 },
-            onSettings: {},
-            onAbout: {},
-            onQuit: {}
-        )
-        defer { controller.stop() }
-        controller.start()
-
-        let leftClickEvent = try XCTUnwrap(
-            NSEvent.mouseEvent(
-                with: .leftMouseUp,
-                location: .zero,
-                modifierFlags: [],
-                timestamp: 0,
-                windowNumber: 0,
-                context: nil,
-                eventNumber: 0,
-                clickCount: 1,
-                pressure: 1.0
-            )
-        )
-
-        controller.handleStatusItemClick(with: leftClickEvent)
-        XCTAssertEqual(toggleCount, 1)
-        XCTAssertNil(controller.statusItem?.menu)
-
-        // Nil event fallback also triggers toggle
-        controller.handleStatusItemClick(with: nil)
-        XCTAssertEqual(toggleCount, 2)
-    }
-
-    func testStatusBarControllerRightClickPresentsMenuAndMenuCloseResetsIt() throws {
-        var toggleCount = 0
-        let controller = StatusBarController(
-            onToggle: { toggleCount += 1 },
-            onSettings: {},
-            onAbout: {},
-            onQuit: {}
-        )
-        defer { controller.stop() }
-        controller.start()
-
-        let rightClickEvent = try XCTUnwrap(
-            NSEvent.mouseEvent(
-                with: .rightMouseUp,
-                location: .zero,
-                modifierFlags: [],
-                timestamp: 0,
-                windowNumber: 0,
-                context: nil,
-                eventNumber: 0,
-                clickCount: 1,
-                pressure: 1.0
-            )
-        )
-
-        controller.handleStatusItemClick(with: rightClickEvent)
-        XCTAssertEqual(toggleCount, 0)
-        XCTAssertNotNil(controller.statusItem?.menu)
-        XCTAssertTrue(controller.statusItem?.menu === controller.contextMenu)
-
-        // Closing the menu schedules clearing statusItem.menu on the next main runloop tick
-        let menu = try XCTUnwrap(controller.contextMenu)
-        controller.menuDidClose(menu)
-
-        let exp = expectation(description: "Menu cleared on next tick")
-        DispatchQueue.main.async {
-            XCTAssertNil(controller.statusItem?.menu)
-            exp.fulfill()
-        }
-        wait(for: [exp], timeout: 1.0)
-    }
-
-    func testStatusBarControllerControlLeftClickTreatedAsRightClick() throws {
-        var toggleCount = 0
-        let controller = StatusBarController(
-            onToggle: { toggleCount += 1 },
-            onSettings: {},
-            onAbout: {},
-            onQuit: {}
-        )
-        defer { controller.stop() }
-        controller.start()
-
-        let controlLeftClickEvent = try XCTUnwrap(
-            NSEvent.mouseEvent(
-                with: .leftMouseUp,
-                location: .zero,
-                modifierFlags: [.control],
-                timestamp: 0,
-                windowNumber: 0,
-                context: nil,
-                eventNumber: 0,
-                clickCount: 1,
-                pressure: 1.0
-            )
-        )
-
-        controller.handleStatusItemClick(with: controlLeftClickEvent)
-        XCTAssertEqual(toggleCount, 0)
-        XCTAssertNotNil(controller.statusItem?.menu)
-        XCTAssertTrue(controller.statusItem?.menu === controller.contextMenu)
     }
 }

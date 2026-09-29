@@ -10,7 +10,7 @@ final class AppCoordinator {
     private let shortcutService: any GlobalShortcutHandling
     private let panelController: LauncherPanelController
     private lazy var statusBarController = StatusBarController(
-        onToggle: { [weak self] in self?.panelController.toggle() },
+        onShowLauncher: { [weak self] in self?.panelController.show() },
         onSettings: { [weak self] in self?.showSettings() },
         onAbout: { [weak self] in self?.showAbout() },
         onQuit: { NSApp.terminate(nil) }
