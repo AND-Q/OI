@@ -231,6 +231,54 @@ final class LauncherViewModelTests: XCTestCase {
         XCTAssertEqual(failedRecord?.launchCount, 1)
     }
 
+    func testViewModelIgnoresUsageRankingAndRecordingWhenDisabled() async {
+        let alphaOne = AppDescriptor(
+            name: "AlphaOne",
+            url: URL(fileURLWithPath: "/Applications/AlphaOne.app"),
+            bundleIdentifier: "com.example.alphaone"
+        )
+        let alphaTwo = AppDescriptor(
+            name: "AlphaTwo",
+            url: URL(fileURLWithPath: "/Applications/AlphaTwo.app"),
+            bundleIdentifier: "com.example.alphatwo"
+        )
+        let store = MemoryAppUsageStore()
+        let settingsStore = MemoryAppSettingsStore()
+        let viewModel = LauncherViewModel(
+            discoverApplications: DiscoverApplications(
+                catalog: StubAppCatalog(descriptors: [alphaOne, alphaTwo])
+            ),
+            launchApplication: LaunchApplication(launcher: StubApplicationLauncher()),
+            usageStore: store,
+            settingsStore: settingsStore
+        )
+        await viewModel.loadApps()?.value
+
+        // 记录 AlphaTwo 的启动历史后，同级前缀匹配内历史置顶。
+        await viewModel.launch(alphaTwo)?.value
+        let record = await pollUsageRecord(store: store, key: alphaTwo.usageKey)
+        XCTAssertEqual(record?.launchCount, 1)
+
+        await viewModel.refreshApplications(force: true)?.value
+        viewModel.query = "alpha"
+        XCTAssertEqual(viewModel.filteredApps.map(\.name), ["AlphaTwo", "AlphaOne"])
+
+        // 关闭启动历史排序：不重新扫描也应对下一次按键检索立即生效，且不再记录新的启动。
+        settingsStore.save(AppSettings(isUsageRankingEnabled: false))
+        viewModel.query = "alpha"
+        XCTAssertEqual(viewModel.filteredApps.map(\.name), ["AlphaOne", "AlphaTwo"])
+
+        await viewModel.launch(alphaOne)?.value
+        let unrecorded = await pollUsageRecord(store: store, key: alphaOne.usageKey, expecting: 0)
+        XCTAssertNil(unrecorded)
+
+        // 重新开启后恢复记录。
+        settingsStore.save(AppSettings())
+        await viewModel.launch(alphaOne)?.value
+        let reRecorded = await pollUsageRecord(store: store, key: alphaOne.usageKey)
+        XCTAssertEqual(reRecorded?.launchCount, 1)
+    }
+
     func testViewModelRefreshesSnapshotOnlyWhenStale() async {
         let apps = [
             AppDescriptor(name: "Alpha", url: URL(fileURLWithPath: "/Applications/Alpha.app"))

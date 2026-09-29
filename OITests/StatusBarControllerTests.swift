@@ -8,11 +8,13 @@ import XCTest
 final class StatusBarControllerTests: XCTestCase {
     func testStatusBarControllerStartConfiguresButtonAndMenu() throws {
         var toggleCalled = false
+        var settingsCalled = false
         var aboutCalled = false
         var quitCalled = false
 
         let controller = StatusBarController(
             onToggle: { toggleCalled = true },
+            onSettings: { settingsCalled = true },
             onAbout: { aboutCalled = true },
             onQuit: { quitCalled = true }
         )
@@ -29,19 +31,25 @@ final class StatusBarControllerTests: XCTestCase {
         // Menu is prepared but not attached to statusItem yet (so clicks go to button)
         XCTAssertNil(statusItem.menu)
         let menu = try XCTUnwrap(controller.contextMenu)
-        XCTAssertEqual(menu.items.count, 3)
+        XCTAssertEqual(menu.items.count, 4)
         XCTAssertEqual(menu.items[0].title, "关于 OI")
         XCTAssertTrue(menu.items[0].target === controller)
-        XCTAssertTrue(menu.items[1].isSeparatorItem)
-        XCTAssertEqual(menu.items[2].title, "退出")
-        XCTAssertEqual(menu.items[2].keyEquivalent, "q")
-        XCTAssertTrue(menu.items[2].target === controller)
+        XCTAssertEqual(menu.items[1].title, "设置…")
+        XCTAssertEqual(menu.items[1].keyEquivalent, ",")
+        XCTAssertTrue(menu.items[1].target === controller)
+        XCTAssertTrue(menu.items[2].isSeparatorItem)
+        XCTAssertEqual(menu.items[3].title, "退出")
+        XCTAssertEqual(menu.items[3].keyEquivalent, "q")
+        XCTAssertTrue(menu.items[3].target === controller)
 
         // Trigger menu item actions
         _ = menu.items[0].target?.perform(menu.items[0].action, with: menu.items[0])
         XCTAssertTrue(aboutCalled)
 
-        _ = menu.items[2].target?.perform(menu.items[2].action, with: menu.items[2])
+        _ = menu.items[1].target?.perform(menu.items[1].action, with: menu.items[1])
+        XCTAssertTrue(settingsCalled)
+
+        _ = menu.items[3].target?.perform(menu.items[3].action, with: menu.items[3])
         XCTAssertTrue(quitCalled)
     }
 
@@ -49,6 +57,7 @@ final class StatusBarControllerTests: XCTestCase {
         var toggleCount = 0
         let controller = StatusBarController(
             onToggle: { toggleCount += 1 },
+            onSettings: {},
             onAbout: {},
             onQuit: {}
         )
@@ -82,6 +91,7 @@ final class StatusBarControllerTests: XCTestCase {
         var toggleCount = 0
         let controller = StatusBarController(
             onToggle: { toggleCount += 1 },
+            onSettings: {},
             onAbout: {},
             onQuit: {}
         )
@@ -123,6 +133,7 @@ final class StatusBarControllerTests: XCTestCase {
         var toggleCount = 0
         let controller = StatusBarController(
             onToggle: { toggleCount += 1 },
+            onSettings: {},
             onAbout: {},
             onQuit: {}
         )

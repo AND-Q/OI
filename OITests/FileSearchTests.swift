@@ -429,12 +429,38 @@ final class FileSearchTests: XCTestCase {
         )
     }
 
-    private func makeViewModel(apps: [AppDescriptor], searcher: StubFileSearcher) -> LauncherViewModel {
+    func testViewModelSkipsFileSearchWhenDisabledInSettings() async {
+        let searcher = StubFileSearcher(results: [file("anything.txt")])
+        let settingsStore = MemoryAppSettingsStore(initial: AppSettings(isFileSearchEnabled: false))
+        let viewModel = makeViewModel(apps: [], searcher: searcher, settingsStore: settingsStore)
+        await viewModel.loadApps()?.value
+
+        viewModel.query = "anything"
+        await viewModel.waitForFileSearch()
+
+        XCTAssertTrue(searcher.queries.isEmpty)
+        XCTAssertEqual(viewModel.fileResults, [])
+
+        // 重新开启后恢复文件搜索。
+        settingsStore.save(AppSettings())
+        viewModel.query = "anythin"
+        await viewModel.waitForFileSearch()
+
+        XCTAssertEqual(searcher.queries, ["anythin"])
+        XCTAssertEqual(viewModel.fileResults.map(\.name), ["anything.txt"])
+    }
+
+    private func makeViewModel(
+        apps: [AppDescriptor],
+        searcher: StubFileSearcher,
+        settingsStore: any AppSettingsStoring = MemoryAppSettingsStore()
+    ) -> LauncherViewModel {
         LauncherViewModel(
             discoverApplications: DiscoverApplications(catalog: StubAppCatalog(descriptors: apps)),
             launchApplication: LaunchApplication(launcher: StubApplicationLauncher()),
             searchFiles: SearchFiles(searcher: searcher, limit: 10),
             openFile: OpenFile(opener: StubFileOpener()),
+            settingsStore: settingsStore,
             fileSearchDebounce: .zero
         )
     }

@@ -4,12 +4,15 @@ import Foundation
 @MainActor
 struct AppDependencies {
     let launcherViewModel: LauncherViewModel
+    let settingsViewModel: SettingsViewModel
+    let settingsStore: any AppSettingsStoring
     let applicationIconProvider: any ApplicationIconProviding
     let globalShortcutService: any GlobalShortcutHandling
     /// 持有引用以确保目录事件在整个应用生命周期内持续送达。
     private let appDirectoryWatcher: AppDirectoryWatcher
 
     static func live(configuration: AppConfiguration) -> AppDependencies {
+        let settingsStore = UserDefaultsAppSettingsStore()
         let catalog = FileSystemAppCatalog(
             searchDirectories: configuration.applicationSearchDirectories
         )
@@ -30,12 +33,18 @@ struct AppDependencies {
             openFile: OpenFile(opener: fileOpener),
             openURL: OpenURL(opener: urlOpener),
             usageStore: usageStore,
+            settingsStore: settingsStore,
             aliases: configuration.applicationAliases,
             fileSearchMinimumQueryLength: configuration.fileSearchMinimumQueryLength
         )
 
         return AppDependencies(
             launcherViewModel: launcherViewModel,
+            settingsViewModel: SettingsViewModel(
+                settingsStore: settingsStore,
+                loginItemController: SMAppServiceLoginItemController()
+            ),
+            settingsStore: settingsStore,
             applicationIconProvider: WorkspaceApplicationIconProvider(),
             globalShortcutService: CarbonGlobalShortcutService(),
             appDirectoryWatcher: AppDirectoryWatcher(

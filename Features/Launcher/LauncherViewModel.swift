@@ -46,6 +46,7 @@ final class LauncherViewModel: ObservableObject {
     private let openFile: OpenFile?
     private let openURL: OpenURL?
     private let usageStore: any AppUsageStoring
+    private let settingsStore: any AppSettingsStoring
     private let aliases: [String: [String]]
     private let fileSearchMinimumQueryLength: Int
     private let fileSearchDebounce: Duration
@@ -68,6 +69,7 @@ final class LauncherViewModel: ObservableObject {
         openFile: OpenFile? = nil,
         openURL: OpenURL? = nil,
         usageStore: any AppUsageStoring = MemoryAppUsageStore(),
+        settingsStore: any AppSettingsStoring = MemoryAppSettingsStore(),
         aliases: [String: [String]] = [:],
         fileSearchMinimumQueryLength: Int = 2,
         fileSearchDebounce: Duration = .milliseconds(120),
@@ -79,6 +81,7 @@ final class LauncherViewModel: ObservableObject {
         self.openFile = openFile
         self.openURL = openURL
         self.usageStore = usageStore
+        self.settingsStore = settingsStore
         self.aliases = aliases
         self.fileSearchMinimumQueryLength = fileSearchMinimumQueryLength
         self.fileSearchDebounce = fileSearchDebounce
@@ -207,6 +210,7 @@ final class LauncherViewModel: ObservableObject {
                 let descriptors = try await discoverApplications.execute()
                 try Task.checkCancellation()
 
+                // 历史记录始终加载为内存缓存；是否参与排序由检索期按设置决定。
                 let usage = await usageStore.records()
                 let index = await Task.detached(priority: .userInitiated) {
                     ApplicationSearchIndex(applications: descriptors, aliases: aliases)
@@ -451,6 +455,7 @@ final class LauncherViewModel: ObservableObject {
     }
 
     private func recordUsage(for application: AppDescriptor) {
+        guard settingsStore.load().isUsageRankingEnabled else { return }
         let key = application.usageKey
         let usageStore = self.usageStore
         Task { [weak self] in
@@ -469,9 +474,10 @@ final class LauncherViewModel: ObservableObject {
 
     private func updateFilteredApps() {
         let normalizedQuery = self.normalizedQuery
+        let effectiveUsage = settingsStore.load().isUsageRankingEnabled ? usageRecords : [:]
         filteredApps = normalizedQuery.isEmpty
             ? apps
-            : searchIndex.search(query: normalizedQuery, usage: usageRecords, now: now())
+            : searchIndex.search(query: normalizedQuery, usage: effectiveUsage, now: now())
 
         // 选择归零会让展开中的操作菜单目标漂移，必须同步收起（后台目录刷新路径）。
         isActionSheetVisible = false
@@ -491,6 +497,7 @@ final class LauncherViewModel: ObservableObject {
 
         let normalizedQuery = self.normalizedQuery
         guard let searchFiles,
+              settingsStore.load().isFileSearchEnabled,
               normalizedQuery.count >= fileSearchMinimumQueryLength else {
             if !fileResults.isEmpty { fileResults = [] }
             fileSearchState = .idle

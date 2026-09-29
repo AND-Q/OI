@@ -26,16 +26,19 @@ Features/Launcher/           用户功能和状态
   LauncherState.swift        可测试的加载与启动状态
   LauncherViewModel.swift    搜索、选择和异步任务协调
   LauncherView.swift         SwiftUI 界面
+Features/Settings/           设置面板（设置状态与 SwiftUI 表单）
 
 Infrastructure/              系统能力实现
   AppCatalog/                文件系统扫描
   Launch/                    NSWorkspace 启动实现
   Shortcut/                  Carbon 全局快捷键实现
+  LoginItem/                 SMAppService 开机自启动实现
 
 UI/                          AppKit/SwiftUI 桥接
   Icons/                     NSImage 图标提供与缓存
   Panel/                     NSPanel 和键盘事件适配
   StatusBar/                 NSStatusItem 适配
+  Settings/                  设置窗口壳
 
 Assets.xcassets/             App 图标与全局 Accent Color
 ```

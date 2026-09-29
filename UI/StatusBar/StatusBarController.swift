@@ -5,15 +5,18 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private(set) var statusItem: NSStatusItem?
     private(set) var contextMenu: NSMenu?
     private let onToggle: () -> Void
+    private let onSettings: () -> Void
     private let onAbout: () -> Void
     private let onQuit: () -> Void
 
     init(
         onToggle: @escaping () -> Void,
+        onSettings: @escaping () -> Void,
         onAbout: @escaping () -> Void,
         onQuit: @escaping () -> Void
     ) {
         self.onToggle = onToggle
+        self.onSettings = onSettings
         self.onAbout = onAbout
         self.onQuit = onQuit
         super.init()
@@ -36,11 +39,18 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.delegate = self
 
         let aboutItem = NSMenuItem(title: "关于 OI", action: #selector(about), keyEquivalent: "")
+        let settingsItem = NSMenuItem(
+            title: "设置…",
+            action: #selector(settings),
+            keyEquivalent: ","
+        )
         let quitItem = NSMenuItem(title: "退出", action: #selector(quit), keyEquivalent: "q")
         aboutItem.target = self
+        settingsItem.target = self
         quitItem.target = self
 
         menu.addItem(aboutItem)
+        menu.addItem(settingsItem)
         menu.addItem(.separator())
         menu.addItem(quitItem)
 
@@ -80,6 +90,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc func about() {
         onAbout()
+    }
+
+    @objc func settings() {
+        onSettings()
     }
 
     @objc func quit() {

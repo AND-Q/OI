@@ -55,11 +55,20 @@
 - **涉及文件**：
   - [UI/Panel/QuickLookPresenter.swift](UI/Panel/QuickLookPresenter.swift)、[UI/Panel/LauncherActionMenu.swift](UI/Panel/LauncherActionMenu.swift)、[UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)、[Domain/Models/SearchResult.swift](Domain/Models/SearchResult.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Application/Ports/FileOpening.swift](Application/Ports/FileOpening.swift)、[Application/UseCases/OpenFile.swift](Application/UseCases/OpenFile.swift)、[Infrastructure/Launch/WorkspaceFileOpener.swift](Infrastructure/Launch/WorkspaceFileOpener.swift)、[OITests/LauncherModelTests.swift](OITests/LauncherModelTests.swift)、[OITests/FileSearchTests.swift](OITests/FileSearchTests.swift)
 
-## [ ] 5. 基础设置面板
+## [x] 5. 基础设置面板
 
 - **需求描述**：
   - 开机自启动配置（`SMAppService`）、开机静默模式。
   - 根据现有的项目，各种设置项。
+- **实现说明**：
+  - 新增设置窗口：状态栏右键菜单新增「设置…」，经 [AppCoordinator](App/AppCoordinator.swift) 打开 [SettingsWindowController](UI/Settings/SettingsWindowController.swift) 托管的 SwiftUI 分组表单（菜单栏应用没有 app menu，不走 Settings 场景与 `showSettingsWindow:` 选择器）；
+  - 开机自启动：新增 [LoginItemControlling](Application/Ports/LoginItemControlling.swift) 端口与 [SMAppServiceLoginItemController](Infrastructure/LoginItem/SMAppServiceLoginItemController.swift)（`SMAppService.mainApp`）；开关状态实时读自系统登录项（含"等待批准"状态），注册/移除失败时回读系统真实状态并给出红色提示，等待批准时给出系统设置引导；
+  - 开机静默启动：持久化开关（默认开）。关闭后 [AppCoordinator.start()](App/AppCoordinator.swift) 在启动完成时自动呼出启动器面板；
+  - 文件与文件夹搜索、启动历史排序：两个持久化开关接入 [LauncherViewModel](Features/Launcher/LauncherViewModel.swift) —— 文件搜索关闭时不再触发 Spotlight 查询；启动历史排序关闭时排序不读取历史、启动也不再记录（重新开启即恢复）；
+  - 设置持久化：新增 [AppSettingsStoring](Application/Ports/AppSettingsStoring.swift) 端口（含内存实现）与 [UserDefaultsAppSettingsStore](Infrastructure/Settings/UserDefaultsAppSettingsStore.swift)，缺失键回退默认值，开机自启动状态不持久化（以系统登录项为准）；
+  - 设置改动即时生效并写回；设置窗口打开时同步系统登录项真实状态。
+- **涉及文件**：
+  - [Application/Ports/AppSettingsStoring.swift](Application/Ports/AppSettingsStoring.swift)、[Application/Ports/LoginItemControlling.swift](Application/Ports/LoginItemControlling.swift)、[Infrastructure/LoginItem/SMAppServiceLoginItemController.swift](Infrastructure/LoginItem/SMAppServiceLoginItemController.swift)、[Infrastructure/Settings/UserDefaultsAppSettingsStore.swift](Infrastructure/Settings/UserDefaultsAppSettingsStore.swift)、[Features/Settings/SettingsViewModel.swift](Features/Settings/SettingsViewModel.swift)、[Features/Settings/SettingsView.swift](Features/Settings/SettingsView.swift)、[UI/Settings/SettingsWindowController.swift](UI/Settings/SettingsWindowController.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[App/AppCoordinator.swift](App/AppCoordinator.swift)、[UI/StatusBar/StatusBarController.swift](UI/StatusBar/StatusBarController.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[OITests/SettingsViewModelTests.swift](OITests/SettingsViewModelTests.swift)、[OITests/UserDefaultsAppSettingsStoreTests.swift](OITests/UserDefaultsAppSettingsStoreTests.swift)
 
 ## [ ] 6. 个性化快捷键
 
