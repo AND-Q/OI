@@ -23,7 +23,8 @@ final class KeychainQuickAIKeyStore: QuickAIKeyStoring {
 
     func save(_ apiKey: String?) {
         SecItemDelete(baseQuery as CFDictionary)
-        guard let apiKey, !apiKey.isEmpty, let data = apiKey.data(using: .utf8) else { return }
+        let trimmed = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let trimmed, !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { return }
         var attributes = baseQuery
         attributes[kSecValueData as String] = data
         SecItemAdd(attributes as CFDictionary, nil)

@@ -155,9 +155,9 @@ final class LauncherViewModel: ObservableObject {
     }
 
     /// Whether the panel is expanded (Spotlight collapses to a capsule with an empty query).
-    /// 纯空白输入按空查询处理（搜索计划 §8.3）。
+    /// 纯空白输入按空查询处理（搜索计划 §8.3）；Quick AI 激活时始终保持展开。
     var isExpanded: Bool {
-        !normalizedQuery.isEmpty
+        quickAISession != nil || !normalizedQuery.isEmpty
     }
     /// What the expanded area shows; kept here so view and window share one source of truth.
     var expandedContent: LauncherLayout.ExpandedContent {
@@ -340,6 +340,7 @@ final class LauncherViewModel: ObservableObject {
 
     func prepareForPresentation() {
         isActionSheetVisible = false
+        exitQuickAI()
         query = ""
         refreshApplications(force: false)
     }

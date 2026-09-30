@@ -22,6 +22,7 @@ final class MemoryQuickAIKeyStore: QuickAIKeyStoring {
     }
 
     func save(_ apiKey: String?) {
-        storedKey = apiKey?.isEmpty == false ? apiKey : nil
+        let trimmed = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
+        storedKey = (trimmed?.isEmpty == false) ? trimmed : nil
     }
 }

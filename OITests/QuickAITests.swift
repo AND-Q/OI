@@ -88,6 +88,17 @@ final class QuickAITests: XCTestCase {
         XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
     }
 
+    func testMakeRequestNormalizesTrailingSlashOnEndpoint() throws {
+        let configuration = try XCTUnwrap(QuickAIConfiguration(
+            baseURLString: "https://api.openai.com/v1/chat/completions/",
+            model: "gpt-4o-mini",
+            apiKey: nil
+        ))
+
+        let request = OpenAICompatibleQuickAIClient.makeRequest(question: "hi", configuration: configuration)
+        XCTAssertEqual(request.url?.absoluteString, "https://api.openai.com/v1/chat/completions")
+    }
+
     // MARK: - Markdown
 
     func testMarkdownSplitsBlockElements() {
@@ -131,6 +142,15 @@ final class QuickAITests: XCTestCase {
             QuickAIMarkdown.blocks(from: "#tag\n3.14 是圆周率"),
             [.paragraph("#tag\n3.14 是圆周率")]
         )
+    }
+
+    func testMarkdownHandlesCRLFNewlines() {
+        let markdown = "# 标题\r\n第一段\r\n\r\n第二段"
+        XCTAssertEqual(QuickAIMarkdown.blocks(from: markdown), [
+            .heading(level: 1, text: "标题"),
+            .paragraph("第一段"),
+            .paragraph("第二段"),
+        ])
     }
 
     // MARK: - Use case
@@ -252,6 +272,20 @@ final class QuickAITests: XCTestCase {
         XCTAssertEqual(viewModel.quickAISession?.isAnswerCopied, true)
     }
 
+    func testPrepareForPresentationResetsQuickAISession() async throws {
+        let viewModel = makeQuickAIViewModel(answerer: StubQuickAIAnswerer(deltas: ["回答"]))
+        viewModel.query = "问题"
+        try await XCTUnwrap(viewModel.startQuickAI()).value
+        XCTAssertNotNil(viewModel.quickAISession)
+        XCTAssertTrue(viewModel.isExpanded)
+
+        viewModel.prepareForPresentation()
+
+        XCTAssertNil(viewModel.quickAISession)
+        XCTAssertEqual(viewModel.query, "")
+        XCTAssertFalse(viewModel.isExpanded)
+    }
+
     // MARK: - Settings
 
     func testUserDefaultsStoreRoundTripsQuickAISettings() throws {
@@ -282,6 +316,20 @@ final class QuickAITests: XCTestCase {
 
         viewModel.setQuickAIAPIKey("")
         XCTAssertNil(keyStore.load())
+    }
+
+    func testKeychainQuickAIKeyStoreRoundTripsAndDeletes() {
+        let testService = "OITests.KeychainQuickAIKeyStore.\(UUID().uuidString)"
+        let store = KeychainQuickAIKeyStore(service: testService)
+        defer { store.save(nil) }
+
+        XCTAssertNil(store.load())
+
+        store.save("sk-keychain-test")
+        XCTAssertEqual(store.load(), "sk-keychain-test")
+
+        store.save("  ")
+        XCTAssertNil(store.load())
     }
 
     // MARK: - Helpers

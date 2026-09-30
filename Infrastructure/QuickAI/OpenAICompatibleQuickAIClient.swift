@@ -55,11 +55,20 @@ struct OpenAICompatibleQuickAIClient: QuickAIAnswering {
         }
     }
 
+    static func endpointURL(for baseURL: URL) -> URL {
+        let trimmedPath = baseURL.path().trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if trimmedPath.hasSuffix("chat/completions") {
+            if baseURL.absoluteString.hasSuffix("/") {
+                return URL(string: String(baseURL.absoluteString.dropLast())) ?? baseURL
+            }
+            return baseURL
+        }
+        return baseURL.appending(path: "chat/completions")
+    }
+
     static func makeRequest(question: String, configuration: QuickAIConfiguration) -> URLRequest {
         // 用户可能直接粘贴完整的 chat/completions 地址，此时不再重复拼接。
-        let endpoint = configuration.baseURL.path().hasSuffix("chat/completions")
-            ? configuration.baseURL
-            : configuration.baseURL.appending(path: "chat/completions")
+        let endpoint = endpointURL(for: configuration.baseURL)
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.timeoutInterval = 60

@@ -25,7 +25,11 @@ enum QuickAIMarkdown {
             paragraph = []
         }
 
-        for line in markdown.components(separatedBy: "\n") {
+        let normalized = markdown
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+
+        for line in normalized.components(separatedBy: "\n") {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
 
             if trimmed.hasPrefix("```") {
