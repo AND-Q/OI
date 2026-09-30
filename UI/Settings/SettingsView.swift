@@ -70,7 +70,9 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480)
+        // 固定高度、内容在表单内滚动：窗口按 preferredContentSize 跟随理想高度时，
+        // 分组增多后理想高度超出屏幕，窗口被压回又被撑大，会触发约束更新死循环崩溃。
+        .frame(width: 480, height: 560)
         .onAppear { viewModel.refreshLaunchAtLoginStatus() }
     }
 
