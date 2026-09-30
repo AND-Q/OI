@@ -9,6 +9,8 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
     private static let usageRankingKey = "settings.isUsageRankingEnabled"
     private static let shortcutKeyCodeKey = "settings.launcherShortcut.keyCode"
     private static let shortcutModifiersKey = "settings.launcherShortcut.modifiers"
+    private static let quickAIBaseURLKey = "settings.quickAI.baseURL"
+    private static let quickAIModelKey = "settings.quickAI.model"
 
     private let defaults: UserDefaults
 
@@ -39,7 +41,9 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
                 ?? fallback.isFileSearchEnabled,
             isUsageRankingEnabled: defaults.object(forKey: Self.usageRankingKey) as? Bool
                 ?? fallback.isUsageRankingEnabled,
-            launcherShortcut: launcherShortcut
+            launcherShortcut: launcherShortcut,
+            quickAIBaseURL: defaults.string(forKey: Self.quickAIBaseURLKey) ?? fallback.quickAIBaseURL,
+            quickAIModel: defaults.string(forKey: Self.quickAIModelKey) ?? fallback.quickAIModel
         )
     }
 
@@ -49,5 +53,7 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
         defaults.set(settings.isUsageRankingEnabled, forKey: Self.usageRankingKey)
         defaults.set(Int(settings.launcherShortcut.keyCode), forKey: Self.shortcutKeyCodeKey)
         defaults.set(Int(settings.launcherShortcut.modifiers), forKey: Self.shortcutModifiersKey)
+        defaults.set(settings.quickAIBaseURL, forKey: Self.quickAIBaseURLKey)
+        defaults.set(settings.quickAIModel, forKey: Self.quickAIModelKey)
     }
 }

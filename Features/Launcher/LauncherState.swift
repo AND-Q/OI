@@ -28,3 +28,20 @@ enum LauncherRow: Hashable, Sendable {
     case sectionHeader(String)
     case result(SearchResult)
 }
+
+/// One Quick AI question and its streamed answer, shown in place of the results list.
+struct QuickAISession: Equatable, Sendable {
+    enum State: Equatable, Sendable {
+        case streaming
+        case finished
+        case failed(String)
+    }
+
+    let question: String
+    var answer = ""
+    var state: State = .streaming
+    /// `Cmd+C` 复制后在页脚给出反馈；回答继续增长时复位。
+    var isAnswerCopied = false
+
+    var isStreaming: Bool { state == .streaming }
+}

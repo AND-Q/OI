@@ -16,6 +16,7 @@ final class SettingsWindowController {
         // 窗口关闭后实例常驻内存（isReleasedWhenClosed = false），重新展示时 SwiftUI 的
         // onAppear 未必重新触发，必须在展示入口主动同步系统登录项状态。
         viewModel.refreshLaunchAtLoginStatus()
+        viewModel.reloadQuickAIAPIKey()
         let window = self.window ?? makeWindow()
         self.window = window
         NSApp.activate(ignoringOtherApps: true)

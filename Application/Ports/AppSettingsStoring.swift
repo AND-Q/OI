@@ -28,6 +28,10 @@ struct AppSettings: Sendable, Equatable {
     var isUsageRankingEnabled: Bool = true
     /// 全局呼出快捷键。
     var launcherShortcut: LauncherShortcut = .standard
+    /// Quick AI 接口地址（OpenAI Chat Completions 兼容，如 `https://api.openai.com/v1`）。
+    var quickAIBaseURL: String = ""
+    /// Quick AI 模型名。API Key 不在此存储，见 `QuickAIKeyStoring`。
+    var quickAIModel: String = ""
 }
 
 /// 应用级设置的持久化端口。设置值极小且只在主线程读写，端口按同步设计。

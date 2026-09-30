@@ -84,6 +84,14 @@
 		B100000100000019 /* LauncherShortcutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001A /* LauncherShortcutTests.swift */; };
 		B10000010000001A /* ShortcutFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001B /* ShortcutFormatterTests.swift */; };
 		B10000010000001B /* AppCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001C /* AppCoordinatorTests.swift */; };
+		A100000100000049 /* QuickAIAnswering.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000049 /* QuickAIAnswering.swift */; };
+		A10000010000004A /* QuickAIKeyStoring.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000004A /* QuickAIKeyStoring.swift */; };
+		A10000010000004B /* AskQuickAI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000004B /* AskQuickAI.swift */; };
+		A10000010000004C /* OpenAICompatibleQuickAIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000004C /* OpenAICompatibleQuickAIClient.swift */; };
+		A10000010000004D /* KeychainQuickAIKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000004D /* KeychainQuickAIKeyStore.swift */; };
+		A10000010000004E /* QuickAIMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000004E /* QuickAIMarkdown.swift */; };
+		A10000010000004F /* QuickAIAnswerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000004F /* QuickAIAnswerView.swift */; };
+		B10000010000001C /* QuickAITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001D /* QuickAITests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -177,6 +185,14 @@
 		B20000010000001A /* LauncherShortcutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherShortcutTests.swift; sourceTree = "<group>"; };
 		B20000010000001B /* ShortcutFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutFormatterTests.swift; sourceTree = "<group>"; };
 		B20000010000001C /* AppCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinatorTests.swift; sourceTree = "<group>"; };
+		A200000100000049 /* QuickAIAnswering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAIAnswering.swift; sourceTree = "<group>"; };
+		A20000010000004A /* QuickAIKeyStoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAIKeyStoring.swift; sourceTree = "<group>"; };
+		A20000010000004B /* AskQuickAI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskQuickAI.swift; sourceTree = "<group>"; };
+		A20000010000004C /* OpenAICompatibleQuickAIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAICompatibleQuickAIClient.swift; sourceTree = "<group>"; };
+		A20000010000004D /* KeychainQuickAIKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainQuickAIKeyStore.swift; sourceTree = "<group>"; };
+		A20000010000004E /* QuickAIMarkdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAIMarkdown.swift; sourceTree = "<group>"; };
+		A20000010000004F /* QuickAIAnswerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAIAnswerView.swift; sourceTree = "<group>"; };
+		B20000010000001D /* QuickAITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -254,6 +270,7 @@
 				A400000100000019 /* Usage */,
 				A40000010000001B /* LoginItem */,
 				A40000010000001C /* Settings */,
+				A40000010000001F /* QuickAI */,
 			);
 			path = Infrastructure;
 			sourceTree = "<group>";
@@ -291,6 +308,7 @@
 				B20000010000001A /* LauncherShortcutTests.swift */,
 				B20000010000001B /* ShortcutFormatterTests.swift */,
 				B20000010000001C /* AppCoordinatorTests.swift */,
+				B20000010000001D /* QuickAITests.swift */,
 			);
 			path = OITests;
 			sourceTree = "<group>";
@@ -327,6 +345,8 @@
 				A200000100000032 /* FileSearching.swift */,
 				A200000100000033 /* FileOpening.swift */,
 				A20000010000003A /* URLOpening.swift */,
+				A200000100000049 /* QuickAIAnswering.swift */,
+				A20000010000004A /* QuickAIKeyStoring.swift */,
 			);
 			path = Ports;
 			sourceTree = "<group>";
@@ -341,6 +361,8 @@
 				A200000100000039 /* QuickQueryResolver.swift */,
 				A20000010000003D /* WebURLResolver.swift */,
 				A20000010000003F /* LauncherActionMenu.swift */,
+				A20000010000004E /* QuickAIMarkdown.swift */,
+				A20000010000004F /* QuickAIAnswerView.swift */,
 			);
 			path = Launcher;
 			sourceTree = "<group>";
@@ -428,6 +450,7 @@
 				A200000100000034 /* SearchFiles.swift */,
 				A200000100000035 /* OpenFile.swift */,
 				A20000010000003B /* OpenURL.swift */,
+				A20000010000004B /* AskQuickAI.swift */,
 			);
 			path = UseCases;
 			sourceTree = "<group>";
@@ -498,6 +521,15 @@
 				B200000100000003 /* XCTest.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		A40000010000001F /* QuickAI */ = {
+			isa = PBXGroup;
+			children = (
+				A20000010000004C /* OpenAICompatibleQuickAIClient.swift */,
+				A20000010000004D /* KeychainQuickAIKeyStore.swift */,
+			);
+			path = QuickAI;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -646,6 +678,13 @@
 				A100000100000046 /* SettingsWindowController.swift in Sources */,
 				A100000100000047 /* ShortcutFormatter.swift in Sources */,
 				A100000100000048 /* ShortcutRecorderField.swift in Sources */,
+				A100000100000049 /* QuickAIAnswering.swift in Sources */,
+				A10000010000004A /* QuickAIKeyStoring.swift in Sources */,
+				A10000010000004B /* AskQuickAI.swift in Sources */,
+				A10000010000004C /* OpenAICompatibleQuickAIClient.swift in Sources */,
+				A10000010000004D /* KeychainQuickAIKeyStore.swift in Sources */,
+				A10000010000004E /* QuickAIMarkdown.swift in Sources */,
+				A10000010000004F /* QuickAIAnswerView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -672,6 +711,7 @@
 				B100000100000019 /* LauncherShortcutTests.swift in Sources */,
 				B10000010000001A /* ShortcutFormatterTests.swift in Sources */,
 				B10000010000001B /* AppCoordinatorTests.swift in Sources */,
+				B10000010000001C /* QuickAITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

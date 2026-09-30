@@ -11,6 +11,10 @@ final class LauncherViewModel: ObservableObject {
 
     @Published var query = "" {
         didSet {
+            // 改动问题即退出 Quick AI，回到检索结果；再按 Tab 以新输入重新提问。
+            if query != oldValue {
+                exitQuickAI()
+            }
             isActionSheetVisible = false
             if case .failed = launchState {
                 launchState = .idle
@@ -39,12 +43,14 @@ final class LauncherViewModel: ObservableObject {
     @Published private(set) var launchState: LauncherLaunchState = .idle
     @Published private(set) var fileSearchState: LauncherFileSearchState = .idle
     @Published private(set) var panelHeight = LauncherLayout.searchHeight
+    @Published private(set) var quickAISession: QuickAISession?
 
     private let discoverApplications: DiscoverApplications
     private let launchApplication: LaunchApplication
     private let searchFiles: SearchFiles?
     private let openFile: OpenFile?
     private let openURL: OpenURL?
+    private let askQuickAI: AskQuickAI?
     private let usageStore: any AppUsageStoring
     private let settingsStore: any AppSettingsStoring
     private let aliases: [String: [String]]
@@ -55,8 +61,10 @@ final class LauncherViewModel: ObservableObject {
     private var loadTask: Task<Void, Never>?
     private var launchTask: Task<Void, Never>?
     private var fileSearchTask: Task<Void, Never>?
+    private var quickAITask: Task<Void, Never>?
     private var refreshGeneration = 0
     private var fileSearchGeneration = 0
+    private var quickAIGeneration = 0
     private var searchIndex = ApplicationSearchIndex()
     private var usageRecords: [String: AppUsageRecord] = [:]
     private var lastRefreshedAt: Date?
@@ -68,6 +76,7 @@ final class LauncherViewModel: ObservableObject {
         searchFiles: SearchFiles? = nil,
         openFile: OpenFile? = nil,
         openURL: OpenURL? = nil,
+        askQuickAI: AskQuickAI? = nil,
         usageStore: any AppUsageStoring = MemoryAppUsageStore(),
         settingsStore: any AppSettingsStoring = MemoryAppSettingsStore(),
         aliases: [String: [String]] = [:],
@@ -80,6 +89,7 @@ final class LauncherViewModel: ObservableObject {
         self.searchFiles = searchFiles
         self.openFile = openFile
         self.openURL = openURL
+        self.askQuickAI = askQuickAI
         self.usageStore = usageStore
         self.settingsStore = settingsStore
         self.aliases = aliases
@@ -92,6 +102,7 @@ final class LauncherViewModel: ObservableObject {
         loadTask?.cancel()
         launchTask?.cancel()
         fileSearchTask?.cancel()
+        quickAITask?.cancel()
     }
 
     /// Web URLs first (直达), then quick queries, applications and files.
@@ -115,7 +126,8 @@ final class LauncherViewModel: ObservableObject {
     }
 
     var selectedResult: SearchResult? {
-        guard isExpanded, results.indices.contains(selectedIndex) else { return nil }
+        // Quick AI 模式下没有选中结果，结果相关快捷键（Cmd+F/Y/K 等）随之静默。
+        guard isExpanded, quickAISession == nil, results.indices.contains(selectedIndex) else { return nil }
         return results[selectedIndex]
     }
 
@@ -149,6 +161,9 @@ final class LauncherViewModel: ObservableObject {
     }
     /// What the expanded area shows; kept here so view and window share one source of truth.
     var expandedContent: LauncherLayout.ExpandedContent {
+        if quickAISession != nil {
+            return .quickAI
+        }
         if quickQueryResult == nil && webURLResult == nil && (
             (errorMessage != nil && apps.isEmpty)
                 || (isLoading && apps.isEmpty)
@@ -314,6 +329,7 @@ final class LauncherViewModel: ObservableObject {
 
     func cancelOperations() {
         isActionSheetVisible = false
+        stopQuickAI()
         loadTask?.cancel()
         launchTask?.cancel()
         fileSearchTask?.cancel()
@@ -338,6 +354,7 @@ final class LauncherViewModel: ObservableObject {
     }
 
     func moveSelection(by offset: Int) {
+        guard quickAISession == nil else { return }
         let count = results.count
         guard count > 0 else { return }
         let newIndex = min(max(selectedIndex + offset, 0), count - 1)
@@ -348,6 +365,66 @@ final class LauncherViewModel: ObservableObject {
         if wasActionSheetVisible {
             updatePanelHeight()
         }
+    }
+
+    /// Answer text to copy (`Enter` / `Cmd+C`); nil until some content has arrived.
+    var quickAIAnswerToCopy: String? {
+        guard let answer = quickAISession?.answer.trimmingCharacters(in: .whitespacesAndNewlines),
+              !answer.isEmpty else { return nil }
+        return answer
+    }
+
+    /// Asks the current query as a Quick AI question (`Tab`) and streams the
+    /// answer into `quickAISession`. Returns nil when there is nothing to ask.
+    @discardableResult
+    func startQuickAI() -> Task<Void, Never>? {
+        let question = normalizedQuery
+        guard let askQuickAI, !question.isEmpty else { return nil }
+
+        stopQuickAI()
+        quickAIGeneration += 1
+        let generation = quickAIGeneration
+        isActionSheetVisible = false
+        quickAISession = QuickAISession(question: question)
+        updatePanelHeight()
+
+        let task = Task { [weak self] in
+            do {
+                try await askQuickAI.execute(question: question) { delta in
+                    guard let self, self.quickAIGeneration == generation else { return }
+                    self.quickAISession?.answer += delta
+                    self.quickAISession?.isAnswerCopied = false
+                }
+                guard let self, self.quickAIGeneration == generation else { return }
+                self.quickAISession?.state = .finished
+            } catch {
+                // 中断（Esc、隐藏面板、改动输入）会递增 generation，取消带来的错误在此丢弃。
+                guard let self, self.quickAIGeneration == generation else { return }
+                self.quickAISession?.state = .failed(LauncherErrorMessage.message(for: error))
+            }
+
+            if let self, self.quickAIGeneration == generation {
+                self.quickAITask = nil
+            }
+        }
+        quickAITask = task
+        return task
+    }
+
+    /// Interrupts an in-flight answer but keeps what has arrived on screen,
+    /// so hiding the panel does not resize it mid fade-out.
+    func stopQuickAI() {
+        guard quickAITask != nil else { return }
+        quickAIGeneration += 1
+        quickAITask?.cancel()
+        quickAITask = nil
+        if quickAISession?.isStreaming == true {
+            quickAISession?.state = .finished
+        }
+    }
+
+    func markQuickAIAnswerCopied() {
+        quickAISession?.isAnswerCopied = true
     }
 
     var currentAvailableActions: [ResultMenuAction] {
@@ -437,6 +514,14 @@ final class LauncherViewModel: ObservableObject {
         }
 
         return launchTask
+    }
+
+    /// Leaves Quick AI mode and returns to the search results.
+    private func exitQuickAI() {
+        stopQuickAI()
+        guard quickAISession != nil else { return }
+        quickAISession = nil
+        updatePanelHeight()
     }
 
     private func finishLaunching() {
@@ -565,6 +650,10 @@ private enum LauncherErrorMessage {
             return "无法打开 \(fileName)：\(reason)"
         case .urlOpenFailed(let reason):
             return "无法打开链接：\(reason)"
+        case .quickAINotConfigured:
+            return "请先在「设置… → Quick AI」中填写接口地址与模型。"
+        case .quickAIFailed(let reason):
+            return "回答失败：\(reason)"
         }
     }
 }

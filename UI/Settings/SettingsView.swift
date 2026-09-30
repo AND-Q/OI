@@ -52,6 +52,22 @@ struct SettingsView: View {
             } footer: {
                 Text("启动历史排序会记录应用的启动次数与最近使用时间，用于优化常用应用的排序，数据仅保存在本机。")
             }
+
+            Section {
+                TextField(
+                    "接口地址",
+                    text: $viewModel.settings.quickAIBaseURL,
+                    prompt: Text("https://api.openai.com/v1")
+                )
+                .autocorrectionDisabled()
+                TextField("模型", text: $viewModel.settings.quickAIModel, prompt: Text("gpt-4o-mini"))
+                    .autocorrectionDisabled()
+                SecureField("API Key", text: quickAIAPIKey, prompt: Text("本地模型可留空"))
+            } header: {
+                Text("Quick AI")
+            } footer: {
+                Text("在启动器中输入问题后按 Tab 提问。兼容 OpenAI Chat Completions 接口，也可填写 Ollama 等本地服务（如 http://localhost:11434/v1）。提问内容会发送到所填地址，API Key 保存在钥匙串中。")
+            }
         }
         .formStyle(.grouped)
         .frame(width: 480)
@@ -63,6 +79,14 @@ struct SettingsView: View {
         Binding(
             get: { viewModel.isLaunchAtLoginEnabled },
             set: { viewModel.setLaunchAtLogin($0) }
+        )
+    }
+
+    /// API Key 写入钥匙串而非设置存储，因此不走 settings 绑定。
+    private var quickAIAPIKey: Binding<String> {
+        Binding(
+            get: { viewModel.quickAIAPIKey },
+            set: { viewModel.setQuickAIAPIKey($0) }
         )
     }
 

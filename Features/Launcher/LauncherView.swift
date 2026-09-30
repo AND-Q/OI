@@ -14,11 +14,15 @@ enum LauncherLayout {
     static let expandedCornerRadius: CGFloat = 32
     /// Minimum panel expansion reserved for the floating action sheet.
     static let actionSheetMinHeight: CGFloat = 185
+    /// Quick AI answer area (answer plus footer), fixed so streaming never resizes the window.
+    static let quickAIHeight: CGFloat = 400
+    static let quickAIFooterHeight: CGFloat = 32
 
     /// What the expanded area below the search field shows.
     enum ExpandedContent: Equatable {
         case results(rowCount: Int, sectionHeaderCount: Int = 0, minHeight: CGFloat = 0)
         case status
+        case quickAI
 
         var height: CGFloat {
             switch self {
@@ -30,6 +34,8 @@ enum LauncherLayout {
                 return max(baseHeight, minHeight)
             case .status:
                 return LauncherLayout.statusHeight
+            case .quickAI:
+                return LauncherLayout.quickAIHeight
             }
         }
     }
@@ -63,8 +69,14 @@ struct LauncherView: View {
             // Spotlight's collapse back to the capsule.
             if viewModel.isExpanded {
                 divider
-                results
-                    .frame(height: max(0, animation.currentHeight - LauncherLayout.searchHeight - 1))
+                Group {
+                    if let session = viewModel.quickAISession {
+                        QuickAIAnswerView(session: session)
+                    } else {
+                        results
+                    }
+                }
+                .frame(height: max(0, animation.currentHeight - LauncherLayout.searchHeight - 1))
             }
         }
         .frame(width: LauncherLayout.width, height: animation.currentHeight)
@@ -111,6 +123,8 @@ struct LauncherView: View {
         .onExitCommand {
             if viewModel.isActionSheetVisible {
                 viewModel.dismissActionSheet()
+            } else if viewModel.quickAISession != nil {
+                onDismiss()
             } else if !viewModel.query.isEmpty {
                 viewModel.query = ""
             } else {
@@ -147,7 +161,12 @@ struct LauncherView: View {
             .frame(maxWidth: .infinity)
             .frame(height: 36)
 
-            if viewModel.isLoading {
+            if viewModel.quickAISession != nil {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 22))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
+            } else if viewModel.isLoading {
                 ProgressView()
                     .controlSize(.small)
             } else if let result = viewModel.selectedResult {

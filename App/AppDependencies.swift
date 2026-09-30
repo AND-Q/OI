@@ -24,6 +24,7 @@ struct AppDependencies {
         let fileOpener = WorkspaceFileOpener()
         let urlOpener = WorkspaceURLOpener()
         let usageStore = UserDefaultsAppUsageStore()
+        let quickAIKeyStore = KeychainQuickAIKeyStore()
         let launcherViewModel = LauncherViewModel(
             discoverApplications: DiscoverApplications(catalog: catalog),
             launchApplication: LaunchApplication(launcher: applicationLauncher),
@@ -33,6 +34,11 @@ struct AppDependencies {
             ),
             openFile: OpenFile(opener: fileOpener),
             openURL: OpenURL(opener: urlOpener),
+            askQuickAI: AskQuickAI(
+                answerer: OpenAICompatibleQuickAIClient(),
+                settingsStore: settingsStore,
+                keyStore: quickAIKeyStore
+            ),
             usageStore: usageStore,
             settingsStore: settingsStore,
             aliases: configuration.applicationAliases,
@@ -43,7 +49,8 @@ struct AppDependencies {
             launcherViewModel: launcherViewModel,
             settingsViewModel: SettingsViewModel(
                 settingsStore: settingsStore,
-                loginItemController: SMAppServiceLoginItemController()
+                loginItemController: SMAppServiceLoginItemController(),
+                quickAIKeyStore: quickAIKeyStore
             ),
             settingsStore: settingsStore,
             applicationIconProvider: WorkspaceApplicationIconProvider(),

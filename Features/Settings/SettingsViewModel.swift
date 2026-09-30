@@ -24,6 +24,8 @@ final class SettingsViewModel: ObservableObject {
     @Published private(set) var isLaunchAtLoginEnabled: Bool
     @Published private(set) var launchAtLoginNotice: LaunchAtLoginNotice?
     @Published private(set) var launcherShortcutNotice: LauncherShortcutNotice?
+    /// Quick AI API Key 存于独立的密钥存储，设置窗口展示时才读取，不在启动期访问钥匙串。
+    @Published private(set) var quickAIAPIKey = ""
 
     /// 由 AppCoordinator 注入：把呼出快捷键切换为给定组合并接管按键处理，
     /// 注册失败时抛错，不产生部分生效的状态。
@@ -31,13 +33,16 @@ final class SettingsViewModel: ObservableObject {
 
     private let settingsStore: any AppSettingsStoring
     private let loginItemController: any LoginItemControlling
+    private let quickAIKeyStore: any QuickAIKeyStoring
 
     init(
         settingsStore: any AppSettingsStoring,
-        loginItemController: any LoginItemControlling
+        loginItemController: any LoginItemControlling,
+        quickAIKeyStore: any QuickAIKeyStoring = MemoryQuickAIKeyStore()
     ) {
         self.settingsStore = settingsStore
         self.loginItemController = loginItemController
+        self.quickAIKeyStore = quickAIKeyStore
         self.settings = settingsStore.load()
         let status = loginItemController.status
         self.isLaunchAtLoginEnabled = status != .notRegistered
@@ -102,6 +107,16 @@ final class SettingsViewModel: ObservableObject {
     func reportShortcutRegistrationFailure(_ error: Error) {
         let reason = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         launcherShortcutNotice = .failure(reason)
+    }
+
+    func setQuickAIAPIKey(_ apiKey: String) {
+        quickAIAPIKey = apiKey
+        quickAIKeyStore.save(apiKey.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    /// 设置窗口展示时读取已保存的 API Key。
+    func reloadQuickAIAPIKey() {
+        quickAIAPIKey = quickAIKeyStore.load() ?? ""
     }
 
     /// 设置窗口打开时同步系统真实状态：用户可能直接在系统设置中批准或移除了登录项。

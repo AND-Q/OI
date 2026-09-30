@@ -183,6 +183,8 @@ final class LauncherPanelController {
     func hide() {
         guard panel.isVisible, !animationCoordinator.isDismissalInProgress else { return }
         viewModel.dismissActionSheet()
+        // 只中断请求、保留已收到的回答，避免淡出途中面板高度收缩。
+        viewModel.stopQuickAI()
         // 先启动淡出再收预览：还焦点回调看到 dismissal 进行中会自动跳过。
         animationCoordinator.fadeOutAndOrderOut()
         quickLook.close()
@@ -249,14 +251,33 @@ final class LauncherPanelController {
                 quickLook.close()
             } else if viewModel.isActionSheetVisible {
                 viewModel.dismissActionSheet()
+            } else if viewModel.quickAISession != nil {
+                // Quick AI 中 Esc 一次即中断回答并关闭面板。
+                hide()
             } else {
                 handleEscape()
+            }
+            return markHandled(event)
+        case UInt16(kVK_Tab):
+            // Tab 以当前输入发起 Quick AI；带修饰键或空输入时保持系统默认行为。
+            guard event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty else {
+                return event
+            }
+            if viewModel.quickAISession == nil {
+                guard viewModel.startQuickAI() != nil else { return event }
+                // 预览与回答区互斥：发起提问前收起 Quick Look 预览。
+                quickLook.close()
             }
             return markHandled(event)
         case UInt16(kVK_Return), UInt16(kVK_ANSI_KeypadEnter):
             // Cmd+Return searches the web via the default browser; plain Return opens the selection.
             if event.modifierFlags.contains(.command) {
                 searchWebAndDismiss()
+            } else if viewModel.quickAISession != nil {
+                // 回答尚未到达时不复制空内容，也不关闭面板。
+                if let answer = viewModel.quickAIAnswerToCopy {
+                    copyText(answer)
+                }
             } else if viewModel.isActionSheetVisible {
                 // 菜单展开时独占回车；选中项暂不可用时也不穿透启动底层应用。
                 if let action = viewModel.selectedAction,
@@ -301,6 +322,16 @@ final class LauncherPanelController {
             }
             return event
         case UInt16(kVK_ANSI_C):
+            if viewModel.quickAISession != nil,
+               event.modifierFlags.contains(.command),
+               !event.modifierFlags.contains(.option) {
+                // Quick AI 中 Cmd+C 复制整段回答并保留面板，流式输出期间复制当前已到达的部分。
+                if let answer = viewModel.quickAIAnswerToCopy {
+                    writeToPasteboard(answer)
+                    viewModel.markQuickAIAnswerCopied()
+                }
+                return markHandled(event)
+            }
             if event.modifierFlags.contains(.command) && event.modifierFlags.contains(.option) {
                 // Only file URLs have a meaningful path to copy; web URLs would lose the host.
                 if let result = viewModel.selectedResult, result.url?.isFileURL == true {
@@ -474,9 +505,13 @@ final class LauncherPanelController {
     }
 
     private func copyText(_ value: String) {
+        writeToPasteboard(value)
+        hide()
+    }
+
+    private func writeToPasteboard(_ value: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(value, forType: .string)
-        hide()
     }
 
     private var hasActiveMarkedText: Bool {
