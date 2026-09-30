@@ -79,6 +79,7 @@ This file provides guidance to agents when working with code in this repository.
 ## 1. 项目重要约定
 
 - **程序界面运行与测试协作**
+  - 重要！！：本项目不需要进行测试，你修改完成后我会拉取到本地使用xcode来进行测试。你只需要把所有文件写好即可。
   - 当需要进行程序界面（GUI）交互测试时，智能体应先告知用户在 Xcode 中将程序运行起来；用户运行起来后，由智能体来进行相关的界面与功能测试。
 
 ## 2. 常用构建与测试命令
