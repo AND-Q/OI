@@ -123,8 +123,10 @@ struct LauncherView: View {
         .onExitCommand {
             if viewModel.isActionSheetVisible {
                 viewModel.dismissActionSheet()
-            } else if viewModel.isQuickAIModeActive {
+            } else if viewModel.quickAISession != nil {
                 onDismiss()
+            } else if viewModel.isQuickAIModeActive {
+                viewModel.toggleQuickAIMode()
             } else if !viewModel.query.isEmpty {
                 viewModel.query = ""
             } else {

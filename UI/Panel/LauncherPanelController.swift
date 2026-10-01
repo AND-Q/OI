@@ -251,9 +251,12 @@ final class LauncherPanelController {
                 quickLook.close()
             } else if viewModel.isActionSheetVisible {
                 viewModel.dismissActionSheet()
-            } else if viewModel.isQuickAIModeActive {
-                // Quick AI 中 Esc 一次即中断回答并关闭面板。
+            } else if viewModel.quickAISession != nil {
+                // 已提问：Esc 一次即中断回答并关闭面板。
                 hide()
+            } else if viewModel.isQuickAIModeActive {
+                // 尚未提问：Esc 返回检索，已输入的文字保留。
+                viewModel.toggleQuickAIMode()
             } else {
                 handleEscape()
             }
