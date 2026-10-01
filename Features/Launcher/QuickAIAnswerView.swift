@@ -128,6 +128,7 @@ struct QuickAIAnswerView: View {
             Spacer()
             shortcutHint("↩", "复制并关闭")
             shortcutHint("⌘C", "复制")
+            shortcutHint("⇥", "返回搜索")
             shortcutHint("esc", session.isStreaming ? "中断并关闭" : "关闭")
         }
         .font(.system(size: 12))

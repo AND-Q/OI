@@ -192,8 +192,45 @@ final class QuickAITests: XCTestCase {
 
     // MARK: - View model
 
-    func testTabStartsQuickAIAndStreamsAnswer() async throws {
+    func testTabEntersQuickAIModeBeforeTypingQuestion() {
+        let viewModel = makeQuickAIViewModel(answerer: StubQuickAIAnswerer(deltas: []))
+
+        viewModel.toggleQuickAIMode()
+        viewModel.query = "1+1 等于几"
+
+        XCTAssertTrue(viewModel.isQuickAIModeActive)
+        XCTAssertNil(viewModel.quickAISession)
+        XCTAssertFalse(viewModel.isExpanded)
+        XCTAssertNil(viewModel.selectedResult)
+        XCTAssertEqual(viewModel.panelHeight, LauncherLayout.searchHeight)
+    }
+
+    func testTabTogglesBackToSearchKeepingText() async throws {
+        let viewModel = makeQuickAIViewModel(answerer: StubQuickAIAnswerer(deltas: ["回答"]))
+        viewModel.toggleQuickAIMode()
+        viewModel.query = "问题"
+        try await XCTUnwrap(viewModel.startQuickAI()).value
+
+        viewModel.toggleQuickAIMode()
+
+        XCTAssertFalse(viewModel.isQuickAIModeActive)
+        XCTAssertNil(viewModel.quickAISession)
+        XCTAssertEqual(viewModel.query, "问题")
+        XCTAssertTrue(viewModel.isExpanded)
+        XCTAssertNotEqual(viewModel.expandedContent, .quickAI)
+    }
+
+    func testQuickAIRequiresQuickAIMode() {
+        let viewModel = makeQuickAIViewModel(answerer: StubQuickAIAnswerer(deltas: []))
+        viewModel.query = "问题"
+
+        XCTAssertNil(viewModel.startQuickAI())
+        XCTAssertNil(viewModel.quickAISession)
+    }
+
+    func testEnterStartsQuickAIAndStreamsAnswer() async throws {
         let viewModel = makeQuickAIViewModel(answerer: StubQuickAIAnswerer(deltas: ["**1+1**", " = 2"]))
+        viewModel.toggleQuickAIMode()
         viewModel.query = "1+1 等于几"
 
         let task = try XCTUnwrap(viewModel.startQuickAI())
@@ -214,6 +251,7 @@ final class QuickAITests: XCTestCase {
 
     func testQuickAIIgnoresEmptyQuery() {
         let viewModel = makeQuickAIViewModel(answerer: StubQuickAIAnswerer(deltas: []))
+        viewModel.toggleQuickAIMode()
         viewModel.query = "   "
 
         XCTAssertNil(viewModel.startQuickAI())
@@ -225,6 +263,7 @@ final class QuickAITests: XCTestCase {
             answerer: StubQuickAIAnswerer(deltas: []),
             settingsStore: MemoryAppSettingsStore()
         )
+        viewModel.toggleQuickAIMode()
         viewModel.query = "hi"
 
         try await XCTUnwrap(viewModel.startQuickAI()).value
@@ -238,6 +277,7 @@ final class QuickAITests: XCTestCase {
 
     func testStopQuickAIKeepsPartialAnswer() async throws {
         let viewModel = makeQuickAIViewModel(answerer: HangingQuickAIAnswerer())
+        viewModel.toggleQuickAIMode()
         viewModel.query = "写一首诗"
         let task = try XCTUnwrap(viewModel.startQuickAI())
         try await waitUntil { viewModel.quickAISession?.answer.isEmpty == false }
@@ -249,8 +289,9 @@ final class QuickAITests: XCTestCase {
         XCTAssertEqual(viewModel.quickAISession?.state, .finished)
     }
 
-    func testEditingQueryExitsQuickAI() async throws {
+    func testEditingQuestionDiscardsAnswerButStaysInQuickAIMode() async throws {
         let viewModel = makeQuickAIViewModel(answerer: HangingQuickAIAnswerer())
+        viewModel.toggleQuickAIMode()
         viewModel.query = "写一首诗"
         let task = try XCTUnwrap(viewModel.startQuickAI())
         try await waitUntil { viewModel.quickAISession?.answer.isEmpty == false }
@@ -259,11 +300,13 @@ final class QuickAITests: XCTestCase {
         await task.value
 
         XCTAssertNil(viewModel.quickAISession)
-        XCTAssertNotEqual(viewModel.expandedContent, .quickAI)
+        XCTAssertTrue(viewModel.isQuickAIModeActive)
+        XCTAssertFalse(viewModel.isExpanded)
     }
 
     func testMarkQuickAIAnswerCopied() async throws {
         let viewModel = makeQuickAIViewModel(answerer: StubQuickAIAnswerer(deltas: ["答案"]))
+        viewModel.toggleQuickAIMode()
         viewModel.query = "问题"
         try await XCTUnwrap(viewModel.startQuickAI()).value
 
@@ -274,6 +317,7 @@ final class QuickAITests: XCTestCase {
 
     func testPrepareForPresentationResetsQuickAISession() async throws {
         let viewModel = makeQuickAIViewModel(answerer: StubQuickAIAnswerer(deltas: ["回答"]))
+        viewModel.toggleQuickAIMode()
         viewModel.query = "问题"
         try await XCTUnwrap(viewModel.startQuickAI()).value
         XCTAssertNotNil(viewModel.quickAISession)
@@ -282,6 +326,7 @@ final class QuickAITests: XCTestCase {
         viewModel.prepareForPresentation()
 
         XCTAssertNil(viewModel.quickAISession)
+        XCTAssertFalse(viewModel.isQuickAIModeActive)
         XCTAssertEqual(viewModel.query, "")
         XCTAssertFalse(viewModel.isExpanded)
     }

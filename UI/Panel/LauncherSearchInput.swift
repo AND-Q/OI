@@ -4,6 +4,7 @@ import SwiftUI
 /// Keep placeholder text and its symbol in AppKit's native material rendering path.
 struct LauncherSearchInput: NSViewRepresentable {
     @Binding var query: String
+    let isQuickAIMode: Bool
     let focusRequest: Int
     let onSubmit: () -> Void
 
@@ -14,7 +15,7 @@ struct LauncherSearchInput: NSViewRepresentable {
     func updateNSView(_ nsView: LauncherSearchInputView, context: Context) {
         nsView.onQueryChange = { query = $0 }
         nsView.onSubmit = onSubmit
-        nsView.update(query: query, focusRequest: focusRequest)
+        nsView.update(query: query, isQuickAIMode: isQuickAIMode, focusRequest: focusRequest)
     }
 }
 
@@ -70,7 +71,13 @@ final class LauncherSearchInputView: NSView, NSTextFieldDelegate {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func update(query: String, focusRequest: Int) {
+    func update(query: String, isQuickAIMode: Bool, focusRequest: Int) {
+        let placeholder = isQuickAIMode ? "向 AI 提问，按回车发送" : "聚焦搜索"
+        if textField.placeholderString != placeholder {
+            textField.placeholderString = placeholder
+            textField.setAccessibilityLabel(placeholder)
+        }
+
         // SwiftUI also updates this bridge during panel animations. Never replace
         // marked text while the input method is still composing a candidate.
         let editor = textField.currentEditor() as? NSTextView

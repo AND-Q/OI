@@ -11,19 +11,13 @@ final class LauncherViewModel: ObservableObject {
 
     @Published var query = "" {
         didSet {
-            // 改动问题即退出 Quick AI，回到检索结果；再按 Tab 以新输入重新提问。
+            // Quick AI 模式下改动问题即丢弃旧回答、回到输入态，按 Enter 以新问题重新提问；
+            // 输入态不做应用与文件检索。
             if query != oldValue {
-                exitQuickAI()
+                discardQuickAISession()
             }
-            isActionSheetVisible = false
-            if case .failed = launchState {
-                launchState = .idle
-            }
-            quickQueryResult = QuickQueryResolver.resolve(query)
-            webURLResult = WebURLResolver.recognize(query)
-            scheduleFileSearch()
-            updateFilteredApps()
-            requestListReset()
+            guard !isQuickAIModeActive else { return }
+            refreshSearchResults()
         }
     }
     @Published private(set) var apps: [AppDescriptor] = []
@@ -43,6 +37,8 @@ final class LauncherViewModel: ObservableObject {
     @Published private(set) var launchState: LauncherLaunchState = .idle
     @Published private(set) var fileSearchState: LauncherFileSearchState = .idle
     @Published private(set) var panelHeight = LauncherLayout.searchHeight
+    /// Tab 切入的 Quick AI 模式：输入框改为提问，`quickAISession` 只在该模式下存在。
+    @Published private(set) var isQuickAIModeActive = false
     @Published private(set) var quickAISession: QuickAISession?
 
     private let discoverApplications: DiscoverApplications
@@ -127,7 +123,7 @@ final class LauncherViewModel: ObservableObject {
 
     var selectedResult: SearchResult? {
         // Quick AI 模式下没有选中结果，结果相关快捷键（Cmd+F/Y/K 等）随之静默。
-        guard isExpanded, quickAISession == nil, results.indices.contains(selectedIndex) else { return nil }
+        guard isExpanded, !isQuickAIModeActive, results.indices.contains(selectedIndex) else { return nil }
         return results[selectedIndex]
     }
 
@@ -155,9 +151,9 @@ final class LauncherViewModel: ObservableObject {
     }
 
     /// Whether the panel is expanded (Spotlight collapses to a capsule with an empty query).
-    /// 纯空白输入按空查询处理（搜索计划 §8.3）；Quick AI 激活时始终保持展开。
+    /// 纯空白输入按空查询处理（搜索计划 §8.3）；Quick AI 输入问题时保持胶囊，有回答时展开。
     var isExpanded: Bool {
-        quickAISession != nil || !normalizedQuery.isEmpty
+        quickAISession != nil || (!isQuickAIModeActive && !normalizedQuery.isEmpty)
     }
     /// What the expanded area shows; kept here so view and window share one source of truth.
     var expandedContent: LauncherLayout.ExpandedContent {
@@ -340,7 +336,8 @@ final class LauncherViewModel: ObservableObject {
 
     func prepareForPresentation() {
         isActionSheetVisible = false
-        exitQuickAI()
+        discardQuickAISession()
+        isQuickAIModeActive = false
         query = ""
         refreshApplications(force: false)
     }
@@ -355,7 +352,7 @@ final class LauncherViewModel: ObservableObject {
     }
 
     func moveSelection(by offset: Int) {
-        guard quickAISession == nil else { return }
+        guard !isQuickAIModeActive else { return }
         let count = results.count
         guard count > 0 else { return }
         let newIndex = min(max(selectedIndex + offset, 0), count - 1)
@@ -375,12 +372,27 @@ final class LauncherViewModel: ObservableObject {
         return answer
     }
 
-    /// Asks the current query as a Quick AI question (`Tab`) and streams the
-    /// answer into `quickAISession`. Returns nil when there is nothing to ask.
+    /// Switches between search and Quick AI mode (`Tab`). The typed text is kept,
+    /// so it becomes the question draft or the search query again.
+    func toggleQuickAIMode() {
+        if isQuickAIModeActive {
+            discardQuickAISession()
+            isQuickAIModeActive = false
+            refreshSearchResults()
+        } else {
+            guard askQuickAI != nil else { return }
+            isActionSheetVisible = false
+            isQuickAIModeActive = true
+            updatePanelHeight()
+        }
+    }
+
+    /// Asks the current query as a Quick AI question (`Enter` in Quick AI mode) and
+    /// streams the answer into `quickAISession`. Returns nil when there is nothing to ask.
     @discardableResult
     func startQuickAI() -> Task<Void, Never>? {
         let question = normalizedQuery
-        guard let askQuickAI, !question.isEmpty else { return nil }
+        guard let askQuickAI, isQuickAIModeActive, !question.isEmpty else { return nil }
 
         stopQuickAI()
         quickAIGeneration += 1
@@ -517,12 +529,24 @@ final class LauncherViewModel: ObservableObject {
         return launchTask
     }
 
-    /// Leaves Quick AI mode and returns to the search results.
-    private func exitQuickAI() {
+    /// Drops the current answer; Quick AI mode itself stays as it is.
+    private func discardQuickAISession() {
         stopQuickAI()
         guard quickAISession != nil else { return }
         quickAISession = nil
         updatePanelHeight()
+    }
+
+    private func refreshSearchResults() {
+        isActionSheetVisible = false
+        if case .failed = launchState {
+            launchState = .idle
+        }
+        quickQueryResult = QuickQueryResolver.resolve(query)
+        webURLResult = WebURLResolver.recognize(query)
+        scheduleFileSearch()
+        updateFilteredApps()
+        requestListReset()
     }
 
     private func finishLaunching() {

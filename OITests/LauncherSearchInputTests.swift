@@ -10,7 +10,7 @@ final class LauncherSearchInputTests: XCTestCase {
         let input = LauncherSearchInputView()
         var changes: [String] = []
         input.onQueryChange = { changes.append($0) }
-        input.update(query: "we", focusRequest: 0)
+        input.update(query: "we", isQuickAIMode: false, focusRequest: 0)
         XCTAssertEqual(input.textField.stringValue, "we")
         XCTAssertTrue(changes.isEmpty)
 
@@ -18,7 +18,7 @@ final class LauncherSearchInputTests: XCTestCase {
         input.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification, object: input.textField))
         XCTAssertEqual(changes, ["微信"])
 
-        input.update(query: "", focusRequest: 1)
+        input.update(query: "", isQuickAIMode: false, focusRequest: 1)
         XCTAssertEqual(input.textField.stringValue, "")
         XCTAssertEqual(changes, ["微信"])
     }
@@ -49,7 +49,7 @@ final class LauncherSearchInputTests: XCTestCase {
         editor.setMarkedText("wei", selectedRange: NSRange(location: 3, length: 0), replacementRange: NSRange(location: NSNotFound, length: 0))
         XCTAssertTrue(editor.hasMarkedText())
 
-        input.update(query: "", focusRequest: 0)
+        input.update(query: "", isQuickAIMode: false, focusRequest: 0)
         XCTAssertTrue(editor.hasMarkedText())
         XCTAssertEqual(editor.string, "wei")
 
@@ -76,7 +76,7 @@ final class LauncherSearchInputTests: XCTestCase {
         editor.string = "safari"
         input.textField.stringValue = "safari"
 
-        input.update(query: "", focusRequest: 0)
+        input.update(query: "", isQuickAIMode: false, focusRequest: 0)
         XCTAssertEqual(input.textField.stringValue, "")
         XCTAssertEqual(editor.string, "")
     }

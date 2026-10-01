@@ -251,7 +251,7 @@ final class LauncherPanelController {
                 quickLook.close()
             } else if viewModel.isActionSheetVisible {
                 viewModel.dismissActionSheet()
-            } else if viewModel.quickAISession != nil {
+            } else if viewModel.isQuickAIModeActive {
                 // Quick AI 中 Esc 一次即中断回答并关闭面板。
                 hide()
             } else {
@@ -259,23 +259,23 @@ final class LauncherPanelController {
             }
             return markHandled(event)
         case UInt16(kVK_Tab):
-            // Tab 以当前输入发起 Quick AI；带修饰键或空输入时保持系统默认行为。
+            // Tab 在检索与 Quick AI 模式间切换，已输入的文字保留；带修饰键时保持系统默认行为。
             guard event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty else {
                 return event
             }
-            if viewModel.quickAISession == nil {
-                guard viewModel.startQuickAI() != nil else { return event }
-                // 预览与回答区互斥：发起提问前收起 Quick Look 预览。
-                quickLook.close()
-            }
+            viewModel.toggleQuickAIMode()
+            // 预览与回答区互斥：进入 Quick AI 前收起 Quick Look 预览。
+            quickLook.close()
             return markHandled(event)
         case UInt16(kVK_Return), UInt16(kVK_ANSI_KeypadEnter):
             // Cmd+Return searches the web via the default browser; plain Return opens the selection.
             if event.modifierFlags.contains(.command) {
                 searchWebAndDismiss()
-            } else if viewModel.quickAISession != nil {
-                // 回答尚未到达时不复制空内容，也不关闭面板。
-                if let answer = viewModel.quickAIAnswerToCopy {
+            } else if viewModel.isQuickAIModeActive {
+                // 输入态 Enter 发起提问；已有回答时复制并关闭，回答尚未到达时不复制空内容。
+                if viewModel.quickAISession == nil {
+                    viewModel.startQuickAI()
+                } else if let answer = viewModel.quickAIAnswerToCopy {
                     copyText(answer)
                 }
             } else if viewModel.isActionSheetVisible {

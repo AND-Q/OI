@@ -123,7 +123,7 @@ struct LauncherView: View {
         .onExitCommand {
             if viewModel.isActionSheetVisible {
                 viewModel.dismissActionSheet()
-            } else if viewModel.quickAISession != nil {
+            } else if viewModel.isQuickAIModeActive {
                 onDismiss()
             } else if !viewModel.query.isEmpty {
                 viewModel.query = ""
@@ -152,6 +152,7 @@ struct LauncherView: View {
         HStack(spacing: 14) {
             LauncherSearchInput(
                 query: $viewModel.query,
+                isQuickAIMode: viewModel.isQuickAIModeActive,
                 focusRequest: viewModel.focusRequest,
                 onSubmit: {
                     guard let result = viewModel.selectedResult else { return }
@@ -161,7 +162,7 @@ struct LauncherView: View {
             .frame(maxWidth: .infinity)
             .frame(height: 36)
 
-            if viewModel.quickAISession != nil {
+            if viewModel.isQuickAIModeActive {
                 Image(systemName: "sparkles")
                     .font(.system(size: 22))
                     .foregroundStyle(.secondary)
