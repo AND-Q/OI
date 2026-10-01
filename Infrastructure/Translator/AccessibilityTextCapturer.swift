@@ -19,6 +19,8 @@ struct AccessibilityTextCapturer: TextCapturing {
     /// 取词时从命中的容器向下查找文字元素的最大层数，以及每层最多检查的子元素数。
     private static let maximumDescendantDepth = 4
     private static let maximumChildrenScanned = 64
+    /// 在文字节点内逐词查找点按位置时最多检查的词数。
+    private static let maximumScannedWords = 300
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "OI", category: "Translator")
 
     func selectedText() async -> CapturedText? {
@@ -231,34 +233,61 @@ struct AccessibilityTextCapturer: TextCapturing {
         return (text, start)
     }
 
-    /// 先按坐标取文本标记；Chrome 虽声明支持 `AXTextMarkerForPosition` 却常常取不到，
-    /// 再用 `AXStartTextMarkerForBounds` 取以点按处为左上角的极小区域内的第一个字符。
+    /// 先按坐标取文本标记（WebKit 支持）；取不到时在文字节点内逐词查找。
     private static func wordUsingTextMarkers(in element: AXUIElement, at point: CGPoint) -> CapturedText? {
         if let pointValue = axValue(point: point),
-           let marker = textMarker(in: element, "AXTextMarkerForPosition", parameter: pointValue),
+           let marker = attribute(element, "AXTextMarkerForPosition", parameter: pointValue),
            let captured = word(aroundMarker: marker, in: element, at: point, method: "text marker for position") {
             return captured
         }
-        let probe = CGRect(origin: point, size: CGSize(width: 1, height: 1))
-        if let probeValue = axValue(rect: probe),
-           let marker = textMarker(in: element, "AXStartTextMarkerForBounds", parameter: probeValue),
-           let captured = word(aroundMarker: marker, in: element, at: point, method: "text marker for bounds") {
-            return captured
-        }
-        return nil
+        return wordByScanningTextMarkers(in: element, at: point)
     }
 
-    /// 取文本标记；元素声明支持却取不到时记录错误码（不支持该属性的元素很常见，不记录）。
-    private static func textMarker(in element: AXUIElement, _ name: String, parameter: CFTypeRef) -> CFTypeRef? {
-        var value: CFTypeRef?
-        let result = AXUIElementCopyParameterizedAttributeValue(element, name as CFString, parameter, &value)
-        if result == .success, let value {
-            return value
+    /// Chrome 声明支持却取不到按坐标的文本标记：从文字节点开头起逐词取位置，找出覆盖点按处的词。
+    /// 只在文字叶节点（AXStaticText）上进行，避免在整页范围内逐词查找。
+    private static func wordByScanningTextMarkers(in element: AXUIElement, at point: CGPoint) -> CapturedText? {
+        guard (attribute(element, kAXRoleAttribute) as? String) == kAXStaticTextRole,
+              let frame = frame(of: element),
+              frame.insetBy(dx: -hitTolerance, dy: -hitTolerance).contains(point),
+              let frameValue = axValue(rect: frame) else { return nil }
+        var startMarker: CFTypeRef?
+        let startResult = AXUIElementCopyParameterizedAttributeValue(
+            element,
+            "AXStartTextMarkerForBounds" as CFString,
+            frameValue,
+            &startMarker
+        )
+        guard startResult == .success, var cursor = startMarker else {
+            logger.debug("Text marker scan: no start marker (AXError \(startResult.rawValue, privacy: .public))")
+            return nil
         }
-        if result != .parameterizedAttributeUnsupported, result != .attributeUnsupported {
-            let role = attribute(element, kAXRoleAttribute) as? String ?? "unknown"
-            logger.debug("\(name, privacy: .public) failed in \(role, privacy: .public) (AXError \(result.rawValue, privacy: .public))")
+
+        var scannedWords = 0
+        var wordsWithBounds = 0
+        while scannedWords < maximumScannedWords {
+            guard let wordEnd = attribute(element, "AXNextWordEndTextMarkerForTextMarker", parameter: cursor),
+                  !CFEqual(wordEnd, cursor),
+                  let wordStart = attribute(element, "AXPreviousWordStartTextMarkerForTextMarker", parameter: wordEnd),
+                  let wordRange = attribute(
+                      element,
+                      "AXTextMarkerRangeForUnorderedTextMarkers",
+                      parameter: [wordStart, wordEnd] as CFArray
+                  ) else { break }
+            scannedWords += 1
+            if let bounds = usable(rect(attribute(element, "AXBoundsForTextMarkerRange", parameter: wordRange))) {
+                wordsWithBounds += 1
+                if bounds.insetBy(dx: -hitTolerance, dy: -hitTolerance).contains(point) {
+                    let word = attribute(element, "AXStringForTextMarkerRange", parameter: wordRange) as? String ?? ""
+                    return hitWord(word, bounds: bounds, point: point, method: "text marker scan")
+                }
+                // 已越过点按处所在的行：之后的词只会更靠下。
+                if bounds.minY > point.y + hitTolerance { break }
+            }
+            cursor = wordEnd
         }
+        logger.debug(
+            "Text marker scan found no word at \(Self.describe(point), privacy: .public): \(scannedWords, privacy: .public) words scanned, \(wordsWithBounds, privacy: .public) with bounds"
+        )
         return nil
     }
 
