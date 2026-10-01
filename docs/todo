@@ -119,21 +119,18 @@
 - **涉及文件**：
   - [Application/Ports/QuickAIAnswering.swift](Application/Ports/QuickAIAnswering.swift)、[Application/Ports/QuickAIKeyStoring.swift](Application/Ports/QuickAIKeyStoring.swift)、[Application/UseCases/AskQuickAI.swift](Application/UseCases/AskQuickAI.swift)、[Application/Errors/ApplicationError.swift](Application/Errors/ApplicationError.swift)、[Application/Ports/AppSettingsStoring.swift](Application/Ports/AppSettingsStoring.swift)、[Infrastructure/QuickAI/OpenAICompatibleQuickAIClient.swift](Infrastructure/QuickAI/OpenAICompatibleQuickAIClient.swift)、[Infrastructure/QuickAI/KeychainQuickAIKeyStore.swift](Infrastructure/QuickAI/KeychainQuickAIKeyStore.swift)、[Infrastructure/Settings/UserDefaultsAppSettingsStore.swift](Infrastructure/Settings/UserDefaultsAppSettingsStore.swift)、[Features/Launcher/LauncherState.swift](Features/Launcher/LauncherState.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Features/Launcher/LauncherView.swift](Features/Launcher/LauncherView.swift)、[Features/Launcher/QuickAIMarkdown.swift](Features/Launcher/QuickAIMarkdown.swift)、[Features/Launcher/QuickAIAnswerView.swift](Features/Launcher/QuickAIAnswerView.swift)、[Features/Settings/SettingsViewModel.swift](Features/Settings/SettingsViewModel.swift)、[UI/Settings/SettingsView.swift](UI/Settings/SettingsView.swift)、[UI/Settings/SettingsWindowController.swift](UI/Settings/SettingsWindowController.swift)、[UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[OITests/QuickAITests.swift](OITests/QuickAITests.swift)
 
-## [ ] 12. 启动器内置 AI 翻译
+## [ ] 12. 全局划词与触控板重按取词 (Force Touch Translator)
 
 - **需求描述**：
-  - 输入 `tr <内容>` 即时翻译，输入 `tr` 自动读取系统剪贴板文本进行翻译；
-  - 基于原生 `NaturalLanguage` 框架自动识别语种（中文 ↔ 外文双向智能互译，按 `Tab` 键轮转切换目标语言）；
-  - 启动器面板流式呈现译文；`Enter` 复制译文并关闭。
-
-## [ ] 13. 全局划词与触控板重按取词 (Force Touch Translator)
-
-- **需求描述**：
-  - **双模式取词触发**：
+  - **多模式取词触发**：
     1. **直接重按光标自动取词（仿系统原生体验）**：无需预先划选，光标悬停在单词上直接触控板二段用力点按（`pressure` stage 2），通过 Accessibility API 坐标反查（`AXRangeForPosition`）自动提取光标所在单词并翻译；
-    2. **划选长文本后取词**：手动划选句子或长段落后，通过二段重按或全局快捷键（如 `⌥D`）触发所选内容翻译。
+    2. **划选长文本后取词**：手动划选句子或长段落后，通过二段重按或全局快捷键（如 `⌥D`）触发所选内容翻译；未划选文本时按快捷键自动读取系统剪贴板内容翻译。
+  - **翻译与语言能力**：
+    - 基于原生 `NaturalLanguage` 框架自动识别语种（中文 ↔ 外文双向智能互译，支持切换目标语言）；
+    - 复用 Quick AI 接口配置与流式传输通道。
   - **交互体验**：
     - 在光标/选中文本旁原地弹出轻量毛玻璃悬浮气泡（非激活 Panel，不夺取前台焦点，保持高亮选中状态）；
-    - 原地流式展示 AI 翻译结果，`Esc` 或点击外部平滑隐退。
+    - 原地流式展示 AI 翻译结果；支持气泡内查看与修改输入；
+    - `Esc` 或点击外部平滑隐退，`Enter` 复制译文并关闭。
   - **环境引导**：
     - 设置面板提供引导配置（引导关闭系统自带查询、保持开启触感反馈、开启辅助功能权限）。
