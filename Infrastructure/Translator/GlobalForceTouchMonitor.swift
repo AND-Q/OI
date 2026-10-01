@@ -1,23 +1,33 @@
 import AppKit
 import os
 
-/// 用只监听的 CGEventTap 观察触控板压力事件：一次按压从第一段（普通点按）进入第二段（用力点按）时回调一次。
+/// 用只监听的 CGEventTap 观察触控板压力事件：一次按压进入用力点按时回调一次。
 /// 压力事件属于手势类事件，`NSEvent` 的全局监听收不到，只能经事件流的监听点获取。
 /// 只监听不拦截，系统自带的「查询」需由用户在触控板设置中改用其他手势。
 @MainActor
 final class GlobalForceTouchMonitor: ForceTouchMonitoring {
     /// 未获辅助功能授权时无法创建监听点，按此间隔重试，授权后无需重启 OI。
     private static let retryInterval: Duration = .seconds(2)
+    /// 第一段压力达到此值即视为用力点按。第二段要由光标下的视图启用，关闭系统「查询」后
+    /// 很多视图不再进入第二段，压力只会停在第一段接近上限，因此不能只等第二段。
+    private static let deepPressThreshold = 0.9
+
+    /// 一次按压期间的压力统计，抬起时汇总记录，用于核对实际的段位与压力取值。
+    private struct PressStatistics {
+        var eventCount = 0
+        var maximumStage = 0
+        var maximumPressure = 0.0
+        var maximumStageTransition = 0.0
+    }
 
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "OI", category: "Translator")
     private var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var retryTask: Task<Void, Never>?
     private var handler: ((CGPoint) -> Void)?
-    /// 本次按压是否已触发过：压力在一、二段之间来回时不重复触发，抬起后复位。
+    /// 本次按压是否已触发过：压力来回变化时不重复触发，抬起后复位。
     private var didTriggerInCurrentPress = false
-    /// 上一个压力事件的段位，仅用于在段位变化时记录诊断日志。
-    private var lastPressureStage = 0
+    private var pressStatistics = PressStatistics()
 
     func start(handler: @escaping (CGPoint) -> Void) {
         stop()
@@ -42,7 +52,7 @@ final class GlobalForceTouchMonitor: ForceTouchMonitoring {
         removeTap()
         handler = nil
         didTriggerInCurrentPress = false
-        lastPressureStage = 0
+        pressStatistics = PressStatistics()
     }
 
     isolated deinit {
@@ -100,24 +110,40 @@ final class GlobalForceTouchMonitor: ForceTouchMonitoring {
                 CGEvent.tapEnable(tap: tap, enable: true)
             }
         case .leftMouseUp:
+            logPressStatistics()
             didTriggerInCurrentPress = false
         default:
             guard let pressureEvent = NSEvent(cgEvent: event), pressureEvent.type == .pressure else { return }
-            if pressureEvent.stage != lastPressureStage {
-                lastPressureStage = pressureEvent.stage
-                logger.debug("Pressure stage \(pressureEvent.stage, privacy: .public)")
-            }
-            guard pressureEvent.stage > 0 else {
+            let stage = pressureEvent.stage
+            let pressure = Double(pressureEvent.pressure)
+            pressStatistics.eventCount += 1
+            pressStatistics.maximumStage = max(pressStatistics.maximumStage, stage)
+            pressStatistics.maximumPressure = max(pressStatistics.maximumPressure, pressure)
+            pressStatistics.maximumStageTransition = max(
+                pressStatistics.maximumStageTransition,
+                Double(pressureEvent.stageTransition)
+            )
+            guard stage > 0 else {
                 didTriggerInCurrentPress = false
                 return
             }
-            guard pressureEvent.stage >= 2, !didTriggerInCurrentPress else { return }
+            let isDeepPress = stage >= 2 || pressure >= Self.deepPressThreshold
+            guard isDeepPress, !didTriggerInCurrentPress else { return }
             didTriggerInCurrentPress = true
             let location = event.location
             logger.debug(
-                "Force click at (\(Double(location.x), privacy: .public), \(Double(location.y), privacy: .public))"
+                "Force click at (\(Double(location.x), privacy: .public), \(Double(location.y), privacy: .public)), stage \(stage, privacy: .public), pressure \(pressure, privacy: .public)"
             )
             handler?(location)
         }
+    }
+
+    private func logPressStatistics() {
+        let statistics = pressStatistics
+        pressStatistics = PressStatistics()
+        guard statistics.eventCount > 0 else { return }
+        logger.debug(
+            "Press ended: \(statistics.eventCount, privacy: .public) pressure events, max stage \(statistics.maximumStage, privacy: .public), max pressure \(statistics.maximumPressure, privacy: .public), max stage transition \(statistics.maximumStageTransition, privacy: .public)"
+        )
     }
 }
