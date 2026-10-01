@@ -16,6 +16,8 @@ final class GlobalForceTouchMonitor: ForceTouchMonitoring {
     private var handler: ((CGPoint) -> Void)?
     /// 本次按压是否已触发过：压力在一、二段之间来回时不重复触发，抬起后复位。
     private var didTriggerInCurrentPress = false
+    /// 上一个压力事件的段位，仅用于在段位变化时记录诊断日志。
+    private var lastPressureStage = 0
 
     func start(handler: @escaping (CGPoint) -> Void) {
         stop()
@@ -40,6 +42,7 @@ final class GlobalForceTouchMonitor: ForceTouchMonitoring {
         removeTap()
         handler = nil
         didTriggerInCurrentPress = false
+        lastPressureStage = 0
     }
 
     isolated deinit {
@@ -48,7 +51,9 @@ final class GlobalForceTouchMonitor: ForceTouchMonitoring {
     }
 
     private func installTap() -> Bool {
-        let mask = NSEvent.EventTypeMask.pressure.union(.leftMouseUp).rawValue
+        // 事件流中压力事件以手势事件（类型 29 / 30）传递，具体种类记在子类型里，
+        // 由 NSEvent(cgEvent:) 还原为 .pressure；只订阅 .pressure 对应的第 34 位收不到。
+        let mask = NSEvent.EventTypeMask([.gesture, .magnify, .pressure, .leftMouseUp]).rawValue
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
@@ -98,6 +103,10 @@ final class GlobalForceTouchMonitor: ForceTouchMonitoring {
             didTriggerInCurrentPress = false
         default:
             guard let pressureEvent = NSEvent(cgEvent: event), pressureEvent.type == .pressure else { return }
+            if pressureEvent.stage != lastPressureStage {
+                lastPressureStage = pressureEvent.stage
+                logger.debug("Pressure stage \(pressureEvent.stage, privacy: .public)")
+            }
             guard pressureEvent.stage > 0 else {
                 didTriggerInCurrentPress = false
                 return
