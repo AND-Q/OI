@@ -7,7 +7,7 @@ import SwiftUI
 final class SettingsWindowController {
     private let viewModel: SettingsViewModel
     private var window: NSWindow?
-    private var closeObserver: (any NSObjectProtocol)?
+    private var commitObservers: [any NSObjectProtocol] = []
 
     init(viewModel: SettingsViewModel) {
         self.viewModel = viewModel
@@ -47,14 +47,13 @@ final class SettingsWindowController {
         controller.sizingOptions = [.preferredContentSize]
         window.contentViewController = controller
         window.center()
-        // 输入 API Key 后直接点关闭按钮时输入框未必先失焦，关闭前补一次保存。
-        closeObserver = NotificationCenter.default.addObserver(
-            forName: NSWindow.willCloseNotification,
-            object: window,
-            queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.viewModel.commitQuickAIAPIKey()
+        // 输入框失焦不覆盖所有离开方式：直接点关闭按钮，或不点别处就按快捷键切到启动器
+        // （窗口失去 key 时 SwiftUI 输入框并不失焦），这两种情况都补一次保存。
+        commitObservers = [NSWindow.willCloseNotification, NSWindow.didResignKeyNotification].map { name in
+            NotificationCenter.default.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.viewModel.commitQuickAIAPIKey()
+                }
             }
         }
         return window
