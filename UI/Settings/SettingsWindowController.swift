@@ -20,8 +20,14 @@ final class SettingsWindowController {
         viewModel.reloadQuickAIAPIKey()
         let window = self.window ?? makeWindow()
         self.window = window
-        NSApp.activate(ignoringOtherApps: true)
-        window.makeKeyAndOrderFront(nil)
+        // macOS 14 起激活是协作式的：从状态栏菜单触发时菜单仍在收起，此时请求激活常被拒绝，
+        // 窗口只会排在本应用内最前、被其他应用压住。推迟到菜单收起后再激活，
+        // 并用 orderFrontRegardless 保证激活未获批准时窗口也位于所有应用之上。
+        DispatchQueue.main.async {
+            NSApp.activate()
+            window.orderFrontRegardless()
+            window.makeKey()
+        }
     }
 
     func close() {

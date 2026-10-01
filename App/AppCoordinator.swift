@@ -18,6 +18,8 @@ final class AppCoordinator {
         viewModel: dependencies.settingsViewModel
     )
     private var didStart = false
+    /// 标准关于面板没有公开的窗口引用，首次展示时记下以便之后置顶。
+    private weak var aboutWindow: NSWindow?
 
     convenience init() {
         self.init(
@@ -100,7 +102,16 @@ final class AppCoordinator {
     }
 
     private func showAbout() {
-        NSApp.activate()
-        NSApp.orderFrontStandardAboutPanel(nil)
+        // 与设置窗口相同：推迟到状态栏菜单收起后再激活，并强制置顶，避免被其他应用压住。
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            let existingWindows = Set(NSApp.windows.map(ObjectIdentifier.init))
+            NSApp.activate()
+            NSApp.orderFrontStandardAboutPanel(nil)
+            if self.aboutWindow == nil {
+                self.aboutWindow = NSApp.windows.first { !existingWindows.contains(ObjectIdentifier($0)) }
+            }
+            self.aboutWindow?.orderFrontRegardless()
+        }
     }
 }
