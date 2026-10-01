@@ -231,16 +231,50 @@ struct AccessibilityTextCapturer: TextCapturing {
         return (text, start)
     }
 
+    /// 先按坐标取文本标记；Chrome 虽声明支持 `AXTextMarkerForPosition` 却常常取不到，
+    /// 再用 `AXStartTextMarkerForBounds` 取以点按处为左上角的极小区域内的第一个字符。
     private static func wordUsingTextMarkers(in element: AXUIElement, at point: CGPoint) -> CapturedText? {
-        guard let pointValue = axValue(point: point),
-              let marker = attribute(element, "AXTextMarkerForPosition", parameter: pointValue) else { return nil }
+        if let pointValue = axValue(point: point),
+           let marker = textMarker(in: element, "AXTextMarkerForPosition", parameter: pointValue),
+           let captured = word(aroundMarker: marker, in: element, at: point, method: "text marker for position") {
+            return captured
+        }
+        let probe = CGRect(origin: point, size: CGSize(width: 1, height: 1))
+        if let probeValue = axValue(rect: probe),
+           let marker = textMarker(in: element, "AXStartTextMarkerForBounds", parameter: probeValue),
+           let captured = word(aroundMarker: marker, in: element, at: point, method: "text marker for bounds") {
+            return captured
+        }
+        return nil
+    }
+
+    /// 取文本标记；元素声明支持却取不到时记录错误码（不支持该属性的元素很常见，不记录）。
+    private static func textMarker(in element: AXUIElement, _ name: String, parameter: CFTypeRef) -> CFTypeRef? {
+        var value: CFTypeRef?
+        let result = AXUIElementCopyParameterizedAttributeValue(element, name as CFString, parameter, &value)
+        if result == .success, let value {
+            return value
+        }
+        if result != .parameterizedAttributeUnsupported, result != .attributeUnsupported {
+            let role = attribute(element, kAXRoleAttribute) as? String ?? "unknown"
+            logger.debug("\(name, privacy: .public) failed in \(role, privacy: .public) (AXError \(result.rawValue, privacy: .public))")
+        }
+        return nil
+    }
+
+    private static func word(
+        aroundMarker marker: CFTypeRef,
+        in element: AXUIElement,
+        at point: CGPoint,
+        method: String
+    ) -> CapturedText? {
         // 点在单词中间时右侧单词区间即该单词；点在词尾边界时再看左侧单词。
         for wordAttribute in ["AXRightWordTextMarkerRangeForTextMarker", "AXLeftWordTextMarkerRangeForTextMarker"] {
             guard let markerRange = attribute(element, wordAttribute, parameter: marker),
                   let word = attribute(element, "AXStringForTextMarkerRange", parameter: markerRange) as? String
             else { continue }
             let bounds = rect(attribute(element, "AXBoundsForTextMarkerRange", parameter: markerRange))
-            if let captured = hitWord(word, bounds: bounds, point: point, method: "text marker") {
+            if let captured = hitWord(word, bounds: bounds, point: point, method: method) {
                 return captured
             }
         }
@@ -325,6 +359,11 @@ struct AccessibilityTextCapturer: TextCapturing {
     private static func axValue(point: CGPoint) -> AXValue? {
         var point = point
         return AXValueCreate(.cgPoint, &point)
+    }
+
+    private static func axValue(rect: CGRect) -> AXValue? {
+        var rect = rect
+        return AXValueCreate(.cgRect, &rect)
     }
 
     private static func axValue(range: CFRange) -> AXValue? {
