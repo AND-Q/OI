@@ -16,6 +16,9 @@ struct AccessibilityTextCapturer: TextCapturing {
     private static let hitTolerance: CGFloat = 3
     /// 网页选区所在的 AXWebArea 可能在焦点元素（如链接）之上，向上查找的最大层数。
     private static let maximumAncestorDepth = 8
+    /// 取词时从命中的容器向下查找文字元素的最大层数，以及每层最多检查的子元素数。
+    private static let maximumDescendantDepth = 4
+    private static let maximumChildrenScanned = 64
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "OI", category: "Translator")
 
     func selectedText() async -> CapturedText? {
@@ -135,14 +138,67 @@ struct AccessibilityTextCapturer: TextCapturing {
         guard AXUIElementGetPid(hit, &processID) == .success,
               processID != ownProcessID,
               !isSecureTextField(hit) else { return nil }
-        enableAccessibilityTree(of: AXUIElementCreateApplication(processID))
+        let application = AXUIElementCreateApplication(processID)
+        enableAccessibilityTree(of: application)
         AXUIElementSetMessagingTimeout(hit, messagingTimeout)
-        if let word = wordUsingCharacterRange(in: hit, at: point) ?? wordUsingTextMarkers(in: hit, at: point) {
-            return word
+        if let captured = word(in: hit, at: point) {
+            return captured
+        }
+        // 命中的常是不直接提供文字的容器（如 AXGroup）：先找覆盖该点的子元素（由深到浅），
+        // 再找祖先元素——网页的文本标记查询由 AXWebArea 等祖先提供。
+        let candidates = Array(descendants(of: hit, containing: point).reversed()) + ancestors(of: hit)
+        for candidate in candidates {
+            guard !isSecureTextField(candidate) else { return nil }
+            AXUIElementSetMessagingTimeout(candidate, messagingTimeout)
+            if let captured = word(in: candidate, at: point) {
+                return captured
+            }
         }
         let role = attribute(hit, kAXRoleAttribute) as? String ?? "unknown"
-        logger.debug("No word under force click in \(role, privacy: .public) of process \(processID, privacy: .public)")
+        let applicationName = attribute(application, kAXTitleAttribute) as? String ?? "process \(processID)"
+        var parameterizedNames: CFArray?
+        AXUIElementCopyParameterizedAttributeNames(hit, &parameterizedNames)
+        let supported = (parameterizedNames as? [String])?.joined(separator: ", ") ?? "none"
+        logger.debug(
+            "No word under force click in \(role, privacy: .public) of \(applicationName, privacy: .public); parameterized attributes: \(supported, privacy: .public)"
+        )
         return nil
+    }
+
+    private static func word(in element: AXUIElement, at point: CGPoint) -> CapturedText? {
+        wordUsingCharacterRange(in: element, at: point) ?? wordUsingTextMarkers(in: element, at: point)
+    }
+
+    /// 从 `element` 逐层向下，每层取第一个覆盖 `point` 的子元素，按由浅到深返回。
+    private static func descendants(of element: AXUIElement, containing point: CGPoint) -> [AXUIElement] {
+        var chain: [AXUIElement] = []
+        var current = element
+        for _ in 0..<maximumDescendantDepth {
+            guard let children = attribute(current, kAXChildrenAttribute) as? [AXUIElement],
+                  let child = children.prefix(maximumChildrenScanned).first(where: {
+                      frame(of: $0)?.contains(point) == true
+                  }) else { break }
+            chain.append(child)
+            current = child
+        }
+        return chain
+    }
+
+    private static func ancestors(of element: AXUIElement) -> [AXUIElement] {
+        var chain: [AXUIElement] = []
+        var current = uiElement(attribute(element, kAXParentAttribute))
+        while let ancestor = current, chain.count < maximumAncestorDepth {
+            chain.append(ancestor)
+            current = uiElement(attribute(ancestor, kAXParentAttribute))
+        }
+        return chain
+    }
+
+    private static func frame(of element: AXUIElement) -> CGRect? {
+        guard let origin = unpack(attribute(element, kAXPositionAttribute), .cgPoint, initial: CGPoint.zero),
+              let size = unpack(attribute(element, kAXSizeAttribute), .cgSize, initial: CGSize.zero)
+        else { return nil }
+        return CGRect(origin: origin, size: size)
     }
 
     private static func wordUsingCharacterRange(in element: AXUIElement, at point: CGPoint) -> CapturedText? {
@@ -232,17 +288,19 @@ struct AccessibilityTextCapturer: TextCapturing {
     }
 
     private static func range(_ value: CFTypeRef?) -> CFRange? {
-        guard let value, CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
-        var range = CFRange()
-        guard AXValueGetValue(value as! AXValue, .cfRange, &range) else { return nil }
-        return range
+        unpack(value, .cfRange, initial: CFRange())
     }
 
     private static func rect(_ value: CFTypeRef?) -> CGRect? {
+        unpack(value, .cgRect, initial: CGRect.zero)
+    }
+
+    /// 取出 AXValue 中的结构体；值不是 AXValue 或类型不符时为 nil。
+    private static func unpack<T>(_ value: CFTypeRef?, _ type: AXValueType, initial: T) -> T? {
         guard let value, CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
-        var rect = CGRect.zero
-        guard AXValueGetValue(value as! AXValue, .cgRect, &rect) else { return nil }
-        return rect
+        var result = initial
+        guard AXValueGetValue(value as! AXValue, type, &result) else { return nil }
+        return result
     }
 
     private static func axValue(point: CGPoint) -> AXValue? {

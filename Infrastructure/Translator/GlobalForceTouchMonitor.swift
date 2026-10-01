@@ -130,7 +130,8 @@ final class GlobalForceTouchMonitor: ForceTouchMonitoring {
             let isDeepPress = stage >= 2 || pressure >= Self.deepPressThreshold
             guard isDeepPress, !didTriggerInCurrentPress else { return }
             didTriggerInCurrentPress = true
-            let location = event.location
+            // 取当前光标位置（全局显示坐标）：手势事件自带的位置字段含义没有文档保证，用力点按时光标不会移动。
+            let location = CGEvent(source: nil)?.location ?? event.location
             logger.debug(
                 "Force click at (\(Double(location.x), privacy: .public), \(Double(location.y), privacy: .public)), stage \(stage, privacy: .public), pressure \(pressure, privacy: .public)"
             )
