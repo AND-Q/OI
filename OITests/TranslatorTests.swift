@@ -186,7 +186,7 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(untrusted.notice, .accessibilityRequired)
     }
 
-    func testForceTouchRequiresSettingAndAccessibility() async {
+    func testForceTouchRequiresSettingAndPermission() async {
         let word = CapturedText(text: "word", source: .word, screenRect: nil)
         var disabled = Self.configuredSettings
         disabled.isForceTouchTranslationEnabled = false
@@ -269,6 +269,76 @@ final class TranslatorTests: XCTestCase {
         XCTAssertNil(presentation)
         XCTAssertNil(viewModel.session)
         XCTAssertNil(viewModel.notice)
+    }
+
+    /// 辅助功能取不到词（如 VS Code、Chrome）时截图识字兜底；未获屏幕录制权限时不截图。
+    func testForceTouchFallsBackToScreenRecognitionWhenAllowed() async {
+        let recognized = CapturedText(text: "模型", source: .word, screenRect: CGRect(x: 90, y: 95, width: 30, height: 18))
+        let allowed = makeTranslatorViewModel(
+            recognizer: StubScreenWordRecognizer(recognized: recognized),
+            environment: MemoryTranslatorEnvironment(isAccessibilityTrusted: true, isScreenCaptureAllowed: true)
+        )
+        let denied = makeTranslatorViewModel(
+            recognizer: StubScreenWordRecognizer(recognized: recognized),
+            environment: MemoryTranslatorEnvironment(isAccessibilityTrusted: true, isScreenCaptureAllowed: false)
+        )
+
+        let allowedPresentation = await allowed.captureFromForceTouch(at: CGPoint(x: 100, y: 100))
+        let deniedPresentation = await denied.captureFromForceTouch(at: CGPoint(x: 100, y: 100))
+
+        XCTAssertEqual(allowedPresentation, TranslatorPresentation(anchorRect: recognized.screenRect))
+        XCTAssertEqual(allowed.session?.sourceText, "模型")
+        XCTAssertNil(deniedPresentation)
+        XCTAssertNil(denied.session)
+    }
+
+    func testForceTouchPrefersAccessibilityWordOverScreenRecognition() async {
+        let viewModel = makeTranslatorViewModel(
+            capturer: StubTextCapturer(wordAtPoint: CapturedText(text: "word", source: .word, screenRect: nil)),
+            recognizer: StubScreenWordRecognizer(recognized: CapturedText(text: "ocr", source: .word, screenRect: nil)),
+            environment: MemoryTranslatorEnvironment(isAccessibilityTrusted: true, isScreenCaptureAllowed: true)
+        )
+
+        _ = await viewModel.captureFromForceTouch(at: .zero)
+
+        XCTAssertEqual(viewModel.session?.sourceText, "word")
+    }
+
+    func testForceTouchWithOnlyScreenCapturePermissionUsesScreenRecognition() async {
+        let viewModel = makeTranslatorViewModel(
+            capturer: StubTextCapturer(wordAtPoint: CapturedText(text: "word", source: .word, screenRect: nil)),
+            recognizer: StubScreenWordRecognizer(recognized: CapturedText(text: "ocr", source: .word, screenRect: nil)),
+            environment: MemoryTranslatorEnvironment(isAccessibilityTrusted: false, isScreenCaptureAllowed: true)
+        )
+
+        _ = await viewModel.captureFromForceTouch(at: .zero)
+
+        XCTAssertEqual(viewModel.session?.sourceText, "ocr", "未获辅助功能授权时不读取应用中的文字")
+    }
+
+    // MARK: - Screen recognition
+
+    func testScreenRectConvertsVisionCoordinates() {
+        let region = CGRect(x: 100, y: 200, width: 640, height: 120)
+
+        XCTAssertEqual(
+            VisionScreenWordRecognizer.screenRect(
+                fromNormalized: CGRect(x: 0.25, y: 0.5, width: 0.5, height: 0.25),
+                in: region
+            ),
+            CGRect(x: 260, y: 230, width: 320, height: 30)
+        )
+    }
+
+    func testWordIndexPicksWordUnderPointerOrNearestWithinGap() {
+        let rects = [
+            CGRect(x: 0, y: 0, width: 40, height: 18),
+            CGRect(x: 46, y: 0, width: 30, height: 18),
+        ]
+
+        XCTAssertEqual(VisionScreenWordRecognizer.wordIndex(containing: 50, in: rects), 1)
+        XCTAssertEqual(VisionScreenWordRecognizer.wordIndex(containing: 42, in: rects), 0, "落在词间空隙时取最近的词")
+        XCTAssertNil(VisionScreenWordRecognizer.wordIndex(containing: 120, in: rects), "离所有词都太远时不取词")
     }
 
     // MARK: - View model: editing and languages
@@ -562,18 +632,23 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(viewModel.settings.launcherShortcut, .standard)
     }
 
-    func testSettingsViewModelRefreshesAccessibilityAndForwardsRequests() {
-        let environment = MemoryTranslatorEnvironment(isAccessibilityTrusted: false)
+    func testSettingsViewModelRefreshesPermissionsAndForwardsRequests() {
+        let environment = MemoryTranslatorEnvironment(isAccessibilityTrusted: false, isScreenCaptureAllowed: false)
         let viewModel = makeSettingsViewModel(environment: environment)
         XCTAssertFalse(viewModel.isAccessibilityTrusted)
+        XCTAssertFalse(viewModel.isScreenCaptureAllowed)
 
         environment.isAccessibilityTrusted = true
-        viewModel.refreshAccessibilityStatus()
+        environment.isScreenCaptureAllowed = true
+        viewModel.refreshPermissionStatus()
         viewModel.requestAccessibilityAccess()
+        viewModel.requestScreenCaptureAccess()
         viewModel.openTrackpadSettings()
 
         XCTAssertTrue(viewModel.isAccessibilityTrusted)
+        XCTAssertTrue(viewModel.isScreenCaptureAllowed)
         XCTAssertEqual(environment.accessibilityRequestCount, 1)
+        XCTAssertEqual(environment.screenCaptureRequestCount, 1)
         XCTAssertEqual(environment.trackpadSettingsOpenCount, 1)
     }
 
@@ -641,6 +716,7 @@ final class TranslatorTests: XCTestCase {
 
     private func makeTranslatorViewModel(
         capturer: StubTextCapturer = StubTextCapturer(),
+        recognizer: StubScreenWordRecognizer = StubScreenWordRecognizer(),
         answerer: any QuickAIAnswering = RecordingAnswerer(deltas: ["你好"]),
         detector: StubLanguageDetector = StubLanguageDetector(code: "en"),
         environment: MemoryTranslatorEnvironment? = nil,
@@ -655,6 +731,7 @@ final class TranslatorTests: XCTestCase {
                 keyStore: MemoryQuickAIKeyStore()
             ),
             textCapturer: capturer,
+            screenWordRecognizer: recognizer,
             environment: environment ?? MemoryTranslatorEnvironment(isAccessibilityTrusted: true),
             settingsStore: settingsStore
         )
@@ -716,6 +793,14 @@ private struct StubTextCapturer: TextCapturing {
     @MainActor
     func clipboardText() -> CapturedText? {
         clipboard
+    }
+}
+
+private struct StubScreenWordRecognizer: ScreenWordRecognizing {
+    var recognized: CapturedText?
+
+    func word(at point: CGPoint) async -> CapturedText? {
+        recognized
     }
 }
 

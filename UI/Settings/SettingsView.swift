@@ -125,6 +125,21 @@ struct SettingsView: View {
                     )
                 }
                 LabeledContent {
+                    if viewModel.isScreenCaptureAllowed {
+                        Label("已开启", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    } else {
+                        Button("去开启…") {
+                            viewModel.requestScreenCaptureAccess()
+                        }
+                    }
+                } label: {
+                    guideRow(
+                        "开启屏幕录制权限",
+                        "VS Code、Chrome 等应用不提供光标下的文字，用力点按时截取光标附近一小块屏幕在本机识别；截图不保存也不上传"
+                    )
+                }
+                LabeledContent {
                     Button("打开触控板设置…") {
                         viewModel.openTrackpadSettings()
                     }
@@ -141,7 +156,7 @@ struct SettingsView: View {
             } header: {
                 Text("取词环境")
             } footer: {
-                Text("未开启辅助功能权限时，翻译快捷键只能翻译剪贴板内容。重新编译或更新 OI 后若取词失效，请在辅助功能列表中移除 OI 后重新添加。")
+                Text("未开启辅助功能权限时，翻译快捷键只能翻译剪贴板内容；未开启屏幕录制权限时，部分应用中无法用力点按取词。授权屏幕录制后需按系统提示重新打开 OI 才能生效。重新编译或更新 OI 后若取词失效，请在对应的权限列表中移除 OI 后重新添加。")
             }
         }
         .formStyle(.grouped)
@@ -150,7 +165,7 @@ struct SettingsView: View {
         .frame(width: 480, height: 560)
         .onAppear {
             viewModel.refreshLaunchAtLoginStatus()
-            viewModel.refreshAccessibilityStatus()
+            viewModel.refreshPermissionStatus()
         }
     }
 

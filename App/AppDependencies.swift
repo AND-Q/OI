@@ -76,6 +76,7 @@ struct AppDependencies {
                         keyStore: quickAIKeyStore
                     ),
                     textCapturer: AccessibilityTextCapturer(),
+                    screenWordRecognizer: VisionScreenWordRecognizer(),
                     environment: translatorEnvironment,
                     settingsStore: settingsStore
                 ),
