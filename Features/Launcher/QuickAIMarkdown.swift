@@ -108,21 +108,14 @@ enum QuickAIMarkdown {
         return blocks
     }
 
-    /// Removes `<think>…</think>` reasoning that some models (e.g. via Ollama) put in
-    /// the answer. While streaming, an unclosed `<think>` hides everything after it.
+    /// Removes the leading `<think>…</think>` reasoning that some models (e.g. via
+    /// Ollama) put before the answer. While streaming, an unclosed leading `<think>`
+    /// hides everything after it. 只处理开头的推理块：正文里提到 `<think>` 标签时原样保留。
     static func removingThinking(from answer: String) -> String {
-        var visible = ""
-        var remaining = answer[...]
-        while let start = remaining.range(of: "<think>") {
-            visible += remaining[..<start.lowerBound]
-            guard let end = remaining[start.upperBound...].range(of: "</think>") else {
-                remaining = ""
-                break
-            }
-            remaining = remaining[end.upperBound...]
-        }
-        visible += remaining
-        return visible.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("<think>") else { return trimmed }
+        guard let end = trimmed.range(of: "</think>") else { return "" }
+        return trimmed[end.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Inline Markdown (bold, italic, `code`, links) with line breaks preserved.
@@ -164,7 +157,11 @@ enum QuickAIMarkdown {
         let indent = leadingSpaces / 2
 
         for bullet in ["- ", "* ", "+ "] where trimmed.hasPrefix(bullet) {
-            return .listItem(marker: "•", text: String(trimmed.dropFirst(2)), indent: indent)
+            return .listItem(
+                marker: "•",
+                text: trimmed.dropFirst(2).trimmingCharacters(in: .whitespaces),
+                indent: indent
+            )
         }
 
         let digits = trimmed.prefix(while: { $0.isASCII && $0.isNumber })

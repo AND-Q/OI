@@ -9,7 +9,6 @@ final class QuickAITests: XCTestCase {
 
     func testConfigurationRequiresHTTPURLAndModel() {
         XCTAssertNil(QuickAIConfiguration(baseURLString: "", model: "gpt", apiKey: nil))
-        XCTAssertNil(QuickAIConfiguration(baseURLString: "api.openai.com/v1", model: "gpt", apiKey: nil))
         XCTAssertNil(QuickAIConfiguration(baseURLString: "ftp://example.com", model: "gpt", apiKey: nil))
         XCTAssertNil(QuickAIConfiguration(baseURLString: "https://api.openai.com/v1", model: "  ", apiKey: nil))
 
@@ -21,6 +20,17 @@ final class QuickAITests: XCTestCase {
         XCTAssertEqual(configuration?.baseURL.absoluteString, "http://localhost:11434/v1")
         XCTAssertEqual(configuration?.model, "qwen2.5")
         XCTAssertNil(configuration?.apiKey)
+    }
+
+    func testConfigurationAddsMissingScheme() {
+        func baseURL(_ string: String) -> String? {
+            QuickAIConfiguration(baseURLString: string, model: "gpt", apiKey: nil)?.baseURL.absoluteString
+        }
+        XCTAssertEqual(baseURL("api.openai.com/v1"), "https://api.openai.com/v1")
+        XCTAssertEqual(baseURL(" localhost:11434/v1 "), "http://localhost:11434/v1")
+        XCTAssertEqual(baseURL("127.0.0.1:11434/v1"), "http://127.0.0.1:11434/v1")
+        XCTAssertEqual(baseURL("192.168.1.8:11434/v1"), "http://192.168.1.8:11434/v1")
+        XCTAssertEqual(baseURL("HTTPS://api.openai.com/v1"), "HTTPS://api.openai.com/v1")
     }
 
     // MARK: - OpenAI compatible client
@@ -130,6 +140,16 @@ final class QuickAITests: XCTestCase {
         ])
     }
 
+    func testMarkdownTrimsExtraSpacesAfterBullet() {
+        XCTAssertEqual(
+            QuickAIMarkdown.blocks(from: "-   苹果\n*  香蕉"),
+            [
+                .listItem(marker: "•", text: "苹果", indent: 0),
+                .listItem(marker: "•", text: "香蕉", indent: 0),
+            ]
+        )
+    }
+
     func testMarkdownRendersUnclosedCodeFenceWhileStreaming() {
         XCTAssertEqual(
             QuickAIMarkdown.blocks(from: "示例：\n```\nprint(1)"),
@@ -188,6 +208,16 @@ final class QuickAITests: XCTestCase {
         )
         XCTAssertEqual(QuickAIMarkdown.removingThinking(from: "<think>\n还在想"), "")
         XCTAssertEqual(QuickAIMarkdown.removingThinking(from: "没有思考"), "没有思考")
+        XCTAssertEqual(
+            QuickAIMarkdown.removingThinking(from: "<think> 标签用于包裹推理过程。"),
+            "",
+            "以 <think> 开头且未闭合时按推理中处理"
+        )
+        XCTAssertEqual(
+            QuickAIMarkdown.removingThinking(from: "DeepSeek 用 <think> 标签包裹推理过程。"),
+            "DeepSeek 用 <think> 标签包裹推理过程。",
+            "正文中提到的 <think> 不应被截断"
+        )
     }
 
     // MARK: - Use case
