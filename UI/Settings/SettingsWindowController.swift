@@ -27,6 +27,8 @@ final class SettingsWindowController {
         // 窗口只会排在本应用内最前、被其他应用压住。推迟到菜单收起后再激活，
         // 并用 orderFrontRegardless 保证激活未获批准时窗口也位于所有应用之上。
         DispatchQueue.main.async {
+            // 窗口已在此期间关闭（如紧接着调用了 close()）时不再重新展示。
+            guard window.isVisible else { return }
             NSApp.activate()
             window.orderFrontRegardless()
             window.makeKey()
