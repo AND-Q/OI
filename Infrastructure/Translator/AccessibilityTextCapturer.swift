@@ -214,7 +214,7 @@ struct AccessibilityTextCapturer: TextCapturing {
         let word = (text as NSString).substring(with: match)
         let bounds = axValue(range: CFRange(location: textStart + match.location, length: match.length))
             .flatMap { rect(attribute(element, kAXBoundsForRangeParameterizedAttribute, parameter: $0)) }
-        return hitWord(word, bounds: bounds, point: point)
+        return hitWord(word, bounds: bounds, point: point, method: "character range")
     }
 
     /// 读取 `location` 两侧的一小段文字及其起始位置。
@@ -240,22 +240,41 @@ struct AccessibilityTextCapturer: TextCapturing {
                   let word = attribute(element, "AXStringForTextMarkerRange", parameter: markerRange) as? String
             else { continue }
             let bounds = rect(attribute(element, "AXBoundsForTextMarkerRange", parameter: markerRange))
-            if let captured = hitWord(word, bounds: bounds, point: point) {
+            if let captured = hitWord(word, bounds: bounds, point: point, method: "text marker") {
                 return captured
             }
         }
         return nil
     }
 
-    /// 点在空白处时系统也会返回最近的字符：要求单词区域确实覆盖点按位置，且至少含一个字母或数字。
-    private static func hitWord(_ word: String, bounds: CGRect?, point: CGPoint) -> CapturedText? {
+    /// 坐标反查得到的位置并不总在点按处：点在空白处时系统会返回最近的字符，部分网页实现
+    /// 只能定位到文字节点开头。因此要求取到单词的位置并确实覆盖点按位置，取不到位置就无法核对，
+    /// 宁可放弃也不翻错词；单词还须至少含一个字母或数字。
+    private static func hitWord(_ word: String, bounds: CGRect?, point: CGPoint, method: String) -> CapturedText? {
         guard let cleaned = cleaned(word),
               cleaned.unicodeScalars.contains(where: CharacterSet.alphanumerics.contains) else { return nil }
-        let bounds = usable(bounds)
-        if let bounds, !bounds.insetBy(dx: -hitTolerance, dy: -hitTolerance).contains(point) {
+        guard let bounds = usable(bounds) else {
+            logger.debug("Rejected word via \(method, privacy: .public): no bounds, point \(Self.describe(point), privacy: .public)")
             return nil
         }
+        guard bounds.insetBy(dx: -hitTolerance, dy: -hitTolerance).contains(point) else {
+            logger.debug(
+                "Rejected word via \(method, privacy: .public): bounds \(Self.describe(bounds), privacy: .public) miss point \(Self.describe(point), privacy: .public)"
+            )
+            return nil
+        }
+        logger.debug(
+            "Captured word via \(method, privacy: .public): bounds \(Self.describe(bounds), privacy: .public), point \(Self.describe(point), privacy: .public)"
+        )
         return CapturedText(text: cleaned, source: .word, screenRect: bounds)
+    }
+
+    private static func describe(_ point: CGPoint) -> String {
+        String(format: "(%.0f, %.0f)", point.x, point.y)
+    }
+
+    private static func describe(_ rect: CGRect) -> String {
+        String(format: "(%.0f, %.0f, %.0f×%.0f)", rect.minX, rect.minY, rect.width, rect.height)
     }
 
     // MARK: - Accessibility helpers
