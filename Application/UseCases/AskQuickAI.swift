@@ -2,6 +2,9 @@ import Foundation
 
 @MainActor
 struct AskQuickAI {
+    static let systemPrompt =
+        "你是 macOS 启动器里的快速问答助手。请直接、简洁地回答，使用与提问相同的语言，需要时使用 Markdown。"
+
     private let answerer: any QuickAIAnswering
     private let settingsStore: any AppSettingsStoring
     private let keyStore: any QuickAIKeyStoring
@@ -29,7 +32,11 @@ struct AskQuickAI {
         }
 
         do {
-            for try await delta in answerer.streamAnswer(to: question, configuration: configuration) {
+            for try await delta in answerer.streamAnswer(
+                to: question,
+                systemPrompt: Self.systemPrompt,
+                configuration: configuration
+            ) {
                 onDelta(delta)
             }
         } catch is CancellationError {

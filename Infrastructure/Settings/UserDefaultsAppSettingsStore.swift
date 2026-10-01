@@ -11,6 +11,11 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
     private static let shortcutModifiersKey = "settings.launcherShortcut.modifiers"
     private static let quickAIBaseURLKey = "settings.quickAI.baseURL"
     private static let quickAIModelKey = "settings.quickAI.model"
+    private static let forceTouchTranslationKey = "settings.translator.isForceTouchEnabled"
+    private static let translatorShortcutKeyCodeKey = "settings.translator.shortcut.keyCode"
+    private static let translatorShortcutModifiersKey = "settings.translator.shortcut.modifiers"
+    private static let translationTargetLanguageKey = "settings.translator.targetLanguage"
+    private static let translationAlternateLanguageKey = "settings.translator.alternateLanguage"
 
     private let defaults: UserDefaults
 
@@ -20,20 +25,6 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
 
     func load() -> AppSettings {
         let fallback = AppSettings()
-        // 快捷键两个键视为整体：仅保存其一时按未配置处理；外部写入的脏数据
-        // （负数、越界、无修饰键的非法组合）一律回退默认，避免启动崩溃或
-        // 注册出拦截正常输入的全局热键。
-        let rawKeyCode = defaults.object(forKey: Self.shortcutKeyCodeKey) as? Int
-        let rawModifiers = defaults.object(forKey: Self.shortcutModifiersKey) as? Int
-        let launcherShortcut: LauncherShortcut
-        if let rawKeyCode, let rawModifiers,
-           let keyCode = UInt32(exactly: rawKeyCode),
-           let modifiers = UInt32(exactly: rawModifiers) {
-            let loaded = LauncherShortcut(keyCode: keyCode, modifiers: modifiers)
-            launcherShortcut = loaded.isValid ? loaded : fallback.launcherShortcut
-        } else {
-            launcherShortcut = fallback.launcherShortcut
-        }
         return AppSettings(
             isSilentLaunchEnabled: defaults.object(forKey: Self.silentLaunchKey) as? Bool
                 ?? fallback.isSilentLaunchEnabled,
@@ -41,9 +32,22 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
                 ?? fallback.isFileSearchEnabled,
             isUsageRankingEnabled: defaults.object(forKey: Self.usageRankingKey) as? Bool
                 ?? fallback.isUsageRankingEnabled,
-            launcherShortcut: launcherShortcut,
+            launcherShortcut: loadShortcut(
+                keyCodeKey: Self.shortcutKeyCodeKey,
+                modifiersKey: Self.shortcutModifiersKey
+            ) ?? fallback.launcherShortcut,
             quickAIBaseURL: defaults.string(forKey: Self.quickAIBaseURLKey) ?? fallback.quickAIBaseURL,
-            quickAIModel: defaults.string(forKey: Self.quickAIModelKey) ?? fallback.quickAIModel
+            quickAIModel: defaults.string(forKey: Self.quickAIModelKey) ?? fallback.quickAIModel,
+            isForceTouchTranslationEnabled: defaults.object(forKey: Self.forceTouchTranslationKey) as? Bool
+                ?? fallback.isForceTouchTranslationEnabled,
+            translatorShortcut: loadShortcut(
+                keyCodeKey: Self.translatorShortcutKeyCodeKey,
+                modifiersKey: Self.translatorShortcutModifiersKey
+            ) ?? fallback.translatorShortcut,
+            translationTargetLanguage: loadLanguage(forKey: Self.translationTargetLanguageKey)
+                ?? fallback.translationTargetLanguage,
+            translationAlternateLanguage: loadLanguage(forKey: Self.translationAlternateLanguageKey)
+                ?? fallback.translationAlternateLanguage
         )
     }
 
@@ -55,5 +59,27 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
         defaults.set(Int(settings.launcherShortcut.modifiers), forKey: Self.shortcutModifiersKey)
         defaults.set(settings.quickAIBaseURL, forKey: Self.quickAIBaseURLKey)
         defaults.set(settings.quickAIModel, forKey: Self.quickAIModelKey)
+        defaults.set(settings.isForceTouchTranslationEnabled, forKey: Self.forceTouchTranslationKey)
+        defaults.set(Int(settings.translatorShortcut.keyCode), forKey: Self.translatorShortcutKeyCodeKey)
+        defaults.set(Int(settings.translatorShortcut.modifiers), forKey: Self.translatorShortcutModifiersKey)
+        defaults.set(settings.translationTargetLanguage.rawValue, forKey: Self.translationTargetLanguageKey)
+        defaults.set(settings.translationAlternateLanguage.rawValue, forKey: Self.translationAlternateLanguageKey)
+    }
+
+    /// 快捷键两个键视为整体：仅保存其一时按未配置处理；外部写入的脏数据
+    /// （负数、越界、无修饰键的非法组合）一律回退默认，避免启动崩溃或
+    /// 注册出拦截正常输入的全局热键。
+    private func loadShortcut(keyCodeKey: String, modifiersKey: String) -> LauncherShortcut? {
+        guard let rawKeyCode = defaults.object(forKey: keyCodeKey) as? Int,
+              let rawModifiers = defaults.object(forKey: modifiersKey) as? Int,
+              let keyCode = UInt32(exactly: rawKeyCode),
+              let modifiers = UInt32(exactly: rawModifiers) else { return nil }
+        let shortcut = LauncherShortcut(keyCode: keyCode, modifiers: modifiers)
+        return shortcut.isValid ? shortcut : nil
+    }
+
+    /// 未知的语言代码（如旧版本写入、手工改动）按未配置处理。
+    private func loadLanguage(forKey key: String) -> TranslationLanguage? {
+        defaults.string(forKey: key).flatMap(TranslationLanguage.init(rawValue:))
     }
 }

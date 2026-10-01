@@ -37,7 +37,7 @@ struct SettingsView: View {
                     Text("呼出快捷键")
                 }
                 if let notice = viewModel.launcherShortcutNotice {
-                    launcherShortcutNoticeRow(notice)
+                    shortcutNoticeRow(notice)
                 }
             } header: {
                 Text("快捷键")
@@ -74,12 +74,100 @@ struct SettingsView: View {
             } footer: {
                 Text("在启动器中按 Tab 进入 Quick AI，输入问题后按回车提问。兼容 OpenAI Chat Completions 接口，也可填写 Ollama 等本地服务（如 http://localhost:11434/v1）。提问内容会发送到所填地址，API Key 保存在钥匙串中。")
             }
+
+            Section {
+                Toggle("触控板用力点按取词", isOn: $viewModel.settings.isForceTouchTranslationEnabled)
+                LabeledContent {
+                    HStack(spacing: 12) {
+                        ShortcutRecorderField(shortcut: viewModel.settings.translatorShortcut) {
+                            viewModel.applyTranslatorShortcut($0)
+                        }
+                        Button("恢复默认") {
+                            viewModel.applyTranslatorShortcut(.standardTranslator)
+                        }
+                        .disabled(
+                            viewModel.settings.translatorShortcut == .standardTranslator
+                                && viewModel.translatorShortcutNotice == nil
+                        )
+                    }
+                } label: {
+                    Text("翻译快捷键")
+                }
+                if let notice = viewModel.translatorShortcutNotice {
+                    shortcutNoticeRow(notice)
+                }
+                Picker("目标语言", selection: $viewModel.settings.translationTargetLanguage) {
+                    languageOptions
+                }
+                Picker("原文已是目标语言时译为", selection: $viewModel.settings.translationAlternateLanguage) {
+                    languageOptions
+                }
+            } header: {
+                Text("划词翻译")
+            } footer: {
+                Text("选中文字后按翻译快捷键，或在触控板上用力点按，即在原处弹出译文；未选中时用力点按会取光标所在的单词，按快捷键则翻译剪贴板内容。默认外文译为简体中文、中文译为英语，气泡中可临时切换目标语言。翻译使用上方 Quick AI 的接口，原文会发送到所填地址。")
+            }
+
+            Section {
+                LabeledContent {
+                    if viewModel.isAccessibilityTrusted {
+                        Label("已开启", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    } else {
+                        Button("去开启…") {
+                            viewModel.requestAccessibilityAccess()
+                        }
+                    }
+                } label: {
+                    guideRow(
+                        "开启辅助功能权限",
+                        "用于读取其他应用中选中的文字与光标所在的单词，仅在触发翻译时读取"
+                    )
+                }
+                LabeledContent {
+                    Button("打开触控板设置…") {
+                        viewModel.openTrackpadSettings()
+                    }
+                } label: {
+                    guideRow(
+                        "关闭系统查询的用力点按",
+                        "在「光标与点按」中把「查询与数据检测器」改为「用三个手指轻点」或关闭，避免系统词典与翻译气泡同时弹出"
+                    )
+                }
+                guideRow(
+                    "保持开启「用力点按和触感反馈」",
+                    "位于同一页面；关闭后触控板无法识别用力点按"
+                )
+            } header: {
+                Text("取词环境")
+            } footer: {
+                Text("未开启辅助功能权限时，翻译快捷键只能翻译剪贴板内容。重新编译或更新 OI 后若取词失效，请在辅助功能列表中移除 OI 后重新添加。")
+            }
         }
         .formStyle(.grouped)
         // 固定高度、内容在表单内滚动：窗口按 preferredContentSize 跟随理想高度时，
         // 分组增多后理想高度超出屏幕，窗口被压回又被撑大，会触发约束更新死循环崩溃。
         .frame(width: 480, height: 560)
-        .onAppear { viewModel.refreshLaunchAtLoginStatus() }
+        .onAppear {
+            viewModel.refreshLaunchAtLoginStatus()
+            viewModel.refreshAccessibilityStatus()
+        }
+    }
+
+    private var languageOptions: some View {
+        ForEach(TranslationLanguage.allCases) { language in
+            Text(language.displayName).tag(language)
+        }
+    }
+
+    private func guideRow(_ title: String, _ detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+            Text(detail)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     /// 开机自启动的状态由系统登录项决定，注册失败时需要回退开关，因此不走存储绑定。
@@ -99,7 +187,7 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private func launcherShortcutNoticeRow(_ notice: LauncherShortcutNotice) -> some View {
+    private func shortcutNoticeRow(_ notice: LauncherShortcutNotice) -> some View {
         switch notice {
         case .failure(let reason):
             Label("快捷键注册失败：\(reason)", systemImage: "exclamationmark.triangle.fill")

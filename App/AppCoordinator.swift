@@ -8,6 +8,7 @@ final class AppCoordinator {
     private let viewModel: LauncherViewModel
     private let shortcutService: any GlobalShortcutHandling
     private let panelController: LauncherPanelController
+    private let translatorPanelController: TranslatorPanelController?
     private lazy var statusBarController = StatusBarController(
         onShowLauncher: { [weak self] in self?.panelController.show() },
         onSettings: { [weak self] in self?.showSettings() },
@@ -39,6 +40,9 @@ final class AppCoordinator {
             viewModel: dependencies.launcherViewModel,
             iconProvider: dependencies.applicationIconProvider
         )
+        self.translatorPanelController = dependencies.translator.map {
+            TranslatorPanelController(viewModel: $0.viewModel)
+        }
         // 设置面板切换呼出快捷键时经由同一注册路径生效。直接强引用服务与面板：
         // 闭包被调用时面板必须存在（否则注册出的热键呼不出任何东西），
         // 也避免弱引用失效时「正常返回」被调用方误判为注册成功。
@@ -57,6 +61,21 @@ final class AppCoordinator {
                 }
             )
         }
+        // 翻译快捷键沿用同样的注册路径与强引用约定。
+        if let translatorShortcutService = dependencies.translator?.shortcutService,
+           let translatorPanelController {
+            dependencies.settingsViewModel.translatorShortcutActivator = { shortcut in
+                try translatorShortcutService.register(
+                    keyCode: shortcut.keyCode,
+                    modifiers: shortcut.modifiers,
+                    handler: {
+                        Task { @MainActor in
+                            translatorPanelController.toggleShortcutTranslation()
+                        }
+                    }
+                )
+            }
+        }
     }
 
     func start() {
@@ -65,6 +84,12 @@ final class AppCoordinator {
         NSApp.setActivationPolicy(.accessory)
         statusBarController.start()
         registerLauncherShortcut()
+        registerTranslatorShortcut()
+        if let translatorPanelController {
+            dependencies.translator?.forceTouchMonitor.start { point in
+                translatorPanelController.translateText(at: point)
+            }
+        }
         viewModel.loadApps()
         // 静默启动关闭时，启动后自动呼出启动器面板。
         if !dependencies.settingsStore.load().isSilentLaunchEnabled {
@@ -76,7 +101,10 @@ final class AppCoordinator {
         guard didStart else { return }
         didStart = false
         shortcutService.unregister()
+        dependencies.translator?.shortcutService.unregister()
+        dependencies.translator?.forceTouchMonitor.stop()
         panelController.stop()
+        translatorPanelController?.stop()
         statusBarController.stop()
         settingsWindowController.close()
     }
@@ -94,6 +122,20 @@ final class AppCoordinator {
         } catch {
             logger.error("Global shortcut registration failed: \(error.localizedDescription, privacy: .public)")
             dependencies.settingsViewModel.reportShortcutRegistrationFailure(error)
+        }
+    }
+
+    /// 按用户设置注册翻译快捷键；失败处理与呼出快捷键一致。
+    private func registerTranslatorShortcut() {
+        guard let activator = dependencies.settingsViewModel.translatorShortcutActivator else {
+            return
+        }
+        let shortcut = dependencies.settingsStore.load().translatorShortcut
+        do {
+            try activator(shortcut)
+        } catch {
+            logger.error("Translator shortcut registration failed: \(error.localizedDescription, privacy: .public)")
+            dependencies.settingsViewModel.reportTranslatorShortcutRegistrationFailure(error)
         }
     }
 

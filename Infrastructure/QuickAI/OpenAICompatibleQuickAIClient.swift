@@ -3,9 +3,6 @@ import Foundation
 /// 基于 OpenAI Chat Completions 流式接口（SSE）的问答实现，
 /// 兼容 OpenAI、Ollama（`/v1`）及各类兼容网关。
 struct OpenAICompatibleQuickAIClient: QuickAIAnswering {
-    static let systemPrompt =
-        "你是 macOS 启动器里的快速问答助手。请直接、简洁地回答，使用与提问相同的语言，需要时使用 Markdown。"
-
     private let session: URLSession
 
     init(session: URLSession = .shared) {
@@ -14,9 +11,14 @@ struct OpenAICompatibleQuickAIClient: QuickAIAnswering {
 
     func streamAnswer(
         to question: String,
+        systemPrompt: String,
         configuration: QuickAIConfiguration
     ) -> AsyncThrowingStream<String, Error> {
-        let request = Self.makeRequest(question: question, configuration: configuration)
+        let request = Self.makeRequest(
+            question: question,
+            systemPrompt: systemPrompt,
+            configuration: configuration
+        )
         let session = self.session
         return AsyncThrowingStream { continuation in
             let task = Task {
@@ -66,7 +68,11 @@ struct OpenAICompatibleQuickAIClient: QuickAIAnswering {
         return baseURL.appending(path: "chat/completions")
     }
 
-    static func makeRequest(question: String, configuration: QuickAIConfiguration) -> URLRequest {
+    static func makeRequest(
+        question: String,
+        systemPrompt: String,
+        configuration: QuickAIConfiguration
+    ) -> URLRequest {
         // 用户可能直接粘贴完整的 chat/completions 地址，此时不再重复拼接。
         let endpoint = endpointURL(for: configuration.baseURL)
         var request = URLRequest(url: endpoint)

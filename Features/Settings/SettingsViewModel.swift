@@ -8,7 +8,7 @@ enum LaunchAtLoginNotice: Equatable {
     case failure(String)
 }
 
-/// 呼出快捷键切换需要注意的用户可见状态。
+/// 全局快捷键（呼出启动器、划词翻译）切换需要注意的用户可见状态。
 enum LauncherShortcutNotice: Equatable {
     /// 新快捷键注册失败（如被其他应用占用），携带原因。
     case failure(String)
@@ -24,30 +24,39 @@ final class SettingsViewModel: ObservableObject {
     @Published private(set) var isLaunchAtLoginEnabled: Bool
     @Published private(set) var launchAtLoginNotice: LaunchAtLoginNotice?
     @Published private(set) var launcherShortcutNotice: LauncherShortcutNotice?
+    @Published private(set) var translatorShortcutNotice: LauncherShortcutNotice?
     /// Quick AI API Key 存于独立的密钥存储，设置窗口展示时才读取，不在启动期访问钥匙串。
     @Published private(set) var quickAIAPIKey = ""
+    /// 辅助功能权限由系统持有，设置窗口展示或重新获得焦点时刷新（用户可能刚在系统设置中授权）。
+    @Published private(set) var isAccessibilityTrusted: Bool
 
     /// 由 AppCoordinator 注入：把呼出快捷键切换为给定组合并接管按键处理，
     /// 注册失败时抛错，不产生部分生效的状态。
     var launcherShortcutActivator: ((LauncherShortcut) throws -> Void)?
+    /// 由 AppCoordinator 注入：翻译快捷键的激活闭包，约定同上。
+    var translatorShortcutActivator: ((LauncherShortcut) throws -> Void)?
 
     private let settingsStore: any AppSettingsStoring
     private let loginItemController: any LoginItemControlling
     private let quickAIKeyStore: any QuickAIKeyStoring
+    private let translatorEnvironment: any TranslatorEnvironmentHandling
     private var savedQuickAIAPIKey = ""
 
     init(
         settingsStore: any AppSettingsStoring,
         loginItemController: any LoginItemControlling,
-        quickAIKeyStore: any QuickAIKeyStoring = MemoryQuickAIKeyStore()
+        quickAIKeyStore: any QuickAIKeyStoring = MemoryQuickAIKeyStore(),
+        translatorEnvironment: any TranslatorEnvironmentHandling = MemoryTranslatorEnvironment()
     ) {
         self.settingsStore = settingsStore
         self.loginItemController = loginItemController
         self.quickAIKeyStore = quickAIKeyStore
+        self.translatorEnvironment = translatorEnvironment
         self.settings = settingsStore.load()
         let status = loginItemController.status
         self.isLaunchAtLoginEnabled = status != .notRegistered
         self.launchAtLoginNotice = status == .requiresApproval ? .approvalPending : nil
+        self.isAccessibilityTrusted = translatorEnvironment.isAccessibilityTrusted
     }
 
     /// 注册或移除登录项。失败时回读系统真实状态并给出失败提示，
@@ -71,36 +80,14 @@ final class SettingsViewModel: ObservableObject {
             enabled && loginItemController.status == .requiresApproval ? .approvalPending : nil
     }
 
-    /// 应用新的呼出快捷键：先试注册，成功才持久化；
-    /// 失败时回滚注册到原快捷键并提示原因，保证呼出热键始终可用。
-    /// 重申当前快捷键（冲突后按原键确认、重试默认键）仍执行激活——
-    /// 既是重试入口也能自愈回滚失败的场景，仅在无失败提示可清理时跳过。
+    /// 应用新的呼出快捷键，规则见 `applyShortcut(_:to:)`。
     func applyLauncherShortcut(_ shortcut: LauncherShortcut) {
-        guard shortcut.isValid else {
-            launcherShortcutNotice = .failure("快捷键需包含 ⌘、⌥ 或 ⌃ 修饰键")
-            return
-        }
-        if shortcut == settings.launcherShortcut, launcherShortcutNotice == nil {
-            return
-        }
-        guard let activator = launcherShortcutActivator else { return }
-        do {
-            try activator(shortcut)
-            settings.launcherShortcut = shortcut
-            launcherShortcutNotice = nil
-        } catch {
-            // 注册服务在尝试注册前会先注销旧热键，任何失败路径此刻都处于零热键状态，
-            // 全靠回滚恢复；回滚也失败（如原组合在间隙被抢占）时必须告知严重后果。
-            let reason = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            do {
-                try activator(settings.launcherShortcut)
-                launcherShortcutNotice = .failure(reason)
-            } catch {
-                launcherShortcutNotice = .failure(
-                    "原快捷键重新注册也失败，当前没有可用的呼出快捷键（新组合原因：\(reason)）。请重新录制组合或重启 OI"
-                )
-            }
-        }
+        applyShortcut(shortcut, to: .launcher)
+    }
+
+    /// 应用新的翻译快捷键，规则见 `applyShortcut(_:to:)`。
+    func applyTranslatorShortcut(_ shortcut: LauncherShortcut) {
+        applyShortcut(shortcut, to: .translator)
     }
 
     /// 由 App 层在启动期注册失败时同步状态（如组合被其他应用占用），
@@ -108,6 +95,24 @@ final class SettingsViewModel: ObservableObject {
     func reportShortcutRegistrationFailure(_ error: Error) {
         let reason = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         launcherShortcutNotice = .failure(reason)
+    }
+
+    /// 翻译快捷键启动期注册失败时同步状态，约定同上。
+    func reportTranslatorShortcutRegistrationFailure(_ error: Error) {
+        let reason = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        translatorShortcutNotice = .failure(reason)
+    }
+
+    func refreshAccessibilityStatus() {
+        isAccessibilityTrusted = translatorEnvironment.isAccessibilityTrusted
+    }
+
+    func requestAccessibilityAccess() {
+        translatorEnvironment.requestAccessibilityAccess()
+    }
+
+    func openTrackpadSettings() {
+        translatorEnvironment.openTrackpadSettings()
     }
 
     /// 输入过程只更新界面，不逐字写钥匙串；由 `commitQuickAIAPIKey()` 统一保存。
@@ -137,6 +142,93 @@ final class SettingsViewModel: ObservableObject {
             launchAtLoginNotice = .approvalPending
         } else if launchAtLoginNotice == .approvalPending {
             launchAtLoginNotice = nil
+        }
+    }
+
+    /// 两个全局快捷键：各自有设置值、提示与激活闭包，组合不可相同。
+    private enum ShortcutTarget {
+        case launcher
+        case translator
+
+        var setting: WritableKeyPath<AppSettings, LauncherShortcut> {
+            switch self {
+            case .launcher: \.launcherShortcut
+            case .translator: \.translatorShortcut
+            }
+        }
+
+        var other: ShortcutTarget {
+            switch self {
+            case .launcher: .translator
+            case .translator: .launcher
+            }
+        }
+
+        var name: String {
+            switch self {
+            case .launcher: "呼出"
+            case .translator: "翻译"
+            }
+        }
+    }
+
+    /// 应用新的全局快捷键：先试注册，成功才持久化；失败时回滚注册到原快捷键并提示原因，
+    /// 保证原快捷键始终可用。与另一个快捷键相同的组合直接拒绝，不尝试注册。
+    /// 重申当前快捷键（冲突后按原键确认、重试默认键）仍执行激活——
+    /// 既是重试入口也能自愈回滚失败的场景，仅在无失败提示可清理时跳过。
+    private func applyShortcut(_ shortcut: LauncherShortcut, to target: ShortcutTarget) {
+        guard shortcut.isValid else {
+            setNotice(.failure("快捷键需包含 ⌘、⌥ 或 ⌃ 修饰键"), for: target)
+            return
+        }
+        guard shortcut != settings[keyPath: target.other.setting] else {
+            setNotice(.failure("与\(target.other.name)快捷键相同，请换一个组合"), for: target)
+            return
+        }
+        if shortcut == settings[keyPath: target.setting], notice(for: target) == nil {
+            return
+        }
+        guard let activator = activator(for: target) else { return }
+        do {
+            try activator(shortcut)
+            settings[keyPath: target.setting] = shortcut
+            setNotice(nil, for: target)
+        } catch {
+            // 注册服务在尝试注册前会先注销旧热键，任何失败路径此刻都处于零热键状态，
+            // 全靠回滚恢复；回滚也失败（如原组合在间隙被抢占）时必须告知严重后果。
+            let reason = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            do {
+                try activator(settings[keyPath: target.setting])
+                setNotice(.failure(reason), for: target)
+            } catch {
+                setNotice(
+                    .failure(
+                        "原快捷键重新注册也失败，当前没有可用的\(target.name)快捷键（新组合原因：\(reason)）。请重新录制组合或重启 OI"
+                    ),
+                    for: target
+                )
+            }
+        }
+    }
+
+    private func activator(for target: ShortcutTarget) -> ((LauncherShortcut) throws -> Void)? {
+        switch target {
+        case .launcher: launcherShortcutActivator
+        case .translator: translatorShortcutActivator
+        }
+    }
+
+    private func notice(for target: ShortcutTarget) -> LauncherShortcutNotice? {
+        switch target {
+        case .launcher: launcherShortcutNotice
+        case .translator: translatorShortcutNotice
+        }
+    }
+
+    private func setNotice(_ notice: LauncherShortcutNotice?, for target: ShortcutTarget) {
+        switch target {
+        case .launcher: launcherShortcutNotice = notice
+        case .translator: translatorShortcutNotice = notice
         }
     }
 }

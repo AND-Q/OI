@@ -72,7 +72,11 @@ final class QuickAITests: XCTestCase {
             apiKey: "sk-test"
         ))
 
-        let request = OpenAICompatibleQuickAIClient.makeRequest(question: "1+1?", configuration: configuration)
+        let request = OpenAICompatibleQuickAIClient.makeRequest(
+            question: "1+1?",
+            systemPrompt: AskQuickAI.systemPrompt,
+            configuration: configuration
+        )
 
         XCTAssertEqual(request.url?.absoluteString, "https://api.openai.com/v1/chat/completions")
         XCTAssertEqual(request.httpMethod, "POST")
@@ -82,6 +86,7 @@ final class QuickAITests: XCTestCase {
         XCTAssertEqual(json["model"] as? String, "gpt-4o-mini")
         XCTAssertEqual(json["stream"] as? Bool, true)
         let messages = try XCTUnwrap(json["messages"] as? [[String: String]])
+        XCTAssertEqual(messages.first, ["role": "system", "content": AskQuickAI.systemPrompt])
         XCTAssertEqual(messages.last, ["role": "user", "content": "1+1?"])
     }
 
@@ -92,7 +97,11 @@ final class QuickAITests: XCTestCase {
             apiKey: nil
         ))
 
-        let request = OpenAICompatibleQuickAIClient.makeRequest(question: "hi", configuration: configuration)
+        let request = OpenAICompatibleQuickAIClient.makeRequest(
+            question: "hi",
+            systemPrompt: AskQuickAI.systemPrompt,
+            configuration: configuration
+        )
 
         XCTAssertEqual(request.url?.absoluteString, "http://localhost:11434/v1/chat/completions")
         XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
@@ -105,7 +114,11 @@ final class QuickAITests: XCTestCase {
             apiKey: nil
         ))
 
-        let request = OpenAICompatibleQuickAIClient.makeRequest(question: "hi", configuration: configuration)
+        let request = OpenAICompatibleQuickAIClient.makeRequest(
+            question: "hi",
+            systemPrompt: AskQuickAI.systemPrompt,
+            configuration: configuration
+        )
         XCTAssertEqual(request.url?.absoluteString, "https://api.openai.com/v1/chat/completions")
     }
 
@@ -571,6 +584,7 @@ private struct StubQuickAIAnswerer: QuickAIAnswering {
 
     func streamAnswer(
         to question: String,
+        systemPrompt: String,
         configuration: QuickAIConfiguration
     ) -> AsyncThrowingStream<String, Error> {
         recorder.record(configuration)
@@ -591,6 +605,7 @@ private final class HangingQuickAIAnswerer: QuickAIAnswering, @unchecked Sendabl
 
     func streamAnswer(
         to question: String,
+        systemPrompt: String,
         configuration: QuickAIConfiguration
     ) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in

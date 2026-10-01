@@ -8,6 +8,7 @@ final class SettingsWindowController {
     private let viewModel: SettingsViewModel
     private var window: NSWindow?
     private var commitObservers: [any NSObjectProtocol] = []
+    private var accessibilityObserver: (any NSObjectProtocol)?
 
     init(viewModel: SettingsViewModel) {
         self.viewModel = viewModel
@@ -17,6 +18,7 @@ final class SettingsWindowController {
         // 窗口关闭后实例常驻内存（isReleasedWhenClosed = false），重新展示时 SwiftUI 的
         // onAppear 未必重新触发，必须在展示入口主动同步系统登录项状态。
         viewModel.refreshLaunchAtLoginStatus()
+        viewModel.refreshAccessibilityStatus()
         viewModel.reloadQuickAIAPIKey()
         let window = self.window ?? makeWindow()
         self.window = window
@@ -54,6 +56,16 @@ final class SettingsWindowController {
                 MainActor.assumeIsolated {
                     self?.viewModel.commitQuickAIAPIKey()
                 }
+            }
+        }
+        // 从系统设置授权辅助功能后回到设置窗口，权限状态随之更新。
+        accessibilityObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeKeyNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.viewModel.refreshAccessibilityStatus()
             }
         }
         return window

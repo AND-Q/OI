@@ -37,10 +37,11 @@ struct QuickAIConfiguration: Sendable, Equatable {
 }
 
 /// 流式问答端口：按到达顺序逐段产出回答文本增量。
-/// 取消消费方任务即中断底层请求。
+/// `systemPrompt` 由用例给出（Quick AI 问答与划词翻译各有指令）；取消消费方任务即中断底层请求。
 protocol QuickAIAnswering: Sendable {
     func streamAnswer(
         to question: String,
+        systemPrompt: String,
         configuration: QuickAIConfiguration
     ) -> AsyncThrowingStream<String, Error>
 }

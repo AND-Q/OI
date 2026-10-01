@@ -16,11 +16,18 @@ enum GlobalShortcutError: LocalizedError {
     }
 }
 
+/// 每个实例注册一个全局热键。同一进程内所有实例的事件处理器都会收到任一热键的按下事件，
+/// 因此各实例使用不同的热键 ID，只认领自己的那一个。
 @MainActor
 final class CarbonGlobalShortcutService: GlobalShortcutHandling {
+    private let hotKeyIdentifier: UInt32
     private var hotKeyRef: EventHotKeyRef?
     private var eventHandlerRef: EventHandlerRef?
     private var handler: (() -> Void)?
+
+    init(hotKeyIdentifier: UInt32 = 1) {
+        self.hotKeyIdentifier = hotKeyIdentifier
+    }
 
     func register(keyCode: UInt32, modifiers: UInt32, handler: @escaping () -> Void) throws {
         unregister()
@@ -33,11 +40,25 @@ final class CarbonGlobalShortcutService: GlobalShortcutHandling {
 
         let installStatus = InstallEventHandler(
             GetApplicationEventTarget(),
-            { _, _, userData in
-                guard let userData else { return noErr }
+            { _, event, userData in
+                guard let event, let userData else { return OSStatus(eventNotHandledErr) }
+                var pressedHotKeyID = EventHotKeyID()
+                let status = GetEventParameter(
+                    event,
+                    EventParamName(kEventParamDirectObject),
+                    EventParamType(typeEventHotKeyID),
+                    nil,
+                    MemoryLayout<EventHotKeyID>.size,
+                    nil,
+                    &pressedHotKeyID
+                )
                 let service = Unmanaged<CarbonGlobalShortcutService>
                     .fromOpaque(userData)
                     .takeUnretainedValue()
+                // 其他实例的热键交还给下一个处理器。
+                guard status == noErr, pressedHotKeyID.id == service.hotKeyIdentifier else {
+                    return OSStatus(eventNotHandledErr)
+                }
                 service.handler?()
                 return noErr
             },
@@ -52,7 +73,7 @@ final class CarbonGlobalShortcutService: GlobalShortcutHandling {
             throw GlobalShortcutError.eventHandlerInstallationFailed(installStatus)
         }
 
-        let hotKeyID = EventHotKeyID(signature: 0x41504C53, id: 1)
+        let hotKeyID = EventHotKeyID(signature: 0x41504C53, id: hotKeyIdentifier)
         let registerStatus = RegisterEventHotKey(
             keyCode,
             modifiers,
