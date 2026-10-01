@@ -44,6 +44,20 @@ struct QuickAISession: Equatable, Sendable {
     var isAnswerCopied = false
 
     var isStreaming: Bool { state == .streaming }
+
+    /// 回车在当前状态下的作用，面板按键与页脚提示共用同一判断。
+    enum ReturnAction: Equatable, Sendable {
+        case none
+        case copyAndClose
+        case retry
+    }
+
+    /// 输出期间不响应；失败（含输出到一半失败）或没有可复制的内容时重试；否则复制并关闭。
+    var returnAction: ReturnAction {
+        if isStreaming { return .none }
+        if case .failed = state { return .retry }
+        return QuickAIMarkdown.removingThinking(from: answer).isEmpty ? .retry : .copyAndClose
+    }
 }
 
 /// `↑` / `↓` 滚动 Quick AI 回答区的请求；`serial` 递增保证连续同向按键也会触发。

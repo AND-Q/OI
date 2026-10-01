@@ -367,6 +367,38 @@ final class QuickAITests: XCTestCase {
         XCTAssertEqual(viewModel.quickAIScrollRequest, QuickAIScrollRequest(direction: 1, serial: 2))
     }
 
+    func testReturnActionFollowsSessionState() {
+        var session = QuickAISession(question: "问题")
+        XCTAssertEqual(session.returnAction, .none)
+
+        session.state = .finished
+        XCTAssertEqual(session.returnAction, .retry, "空回答应提示重试")
+
+        session.answer = "<think>推理</think>"
+        XCTAssertEqual(session.returnAction, .retry, "只有思考内容视为空回答")
+
+        session.answer = "答案"
+        XCTAssertEqual(session.returnAction, .copyAndClose)
+
+        session.state = .failed("超时")
+        XCTAssertEqual(session.returnAction, .retry, "输出到一半失败也应重试")
+    }
+
+    func testRetryAfterFailureStartsNewSession() async throws {
+        let viewModel = makeQuickAIViewModel(
+            answerer: StubQuickAIAnswerer(deltas: []),
+            settingsStore: MemoryAppSettingsStore()
+        )
+        viewModel.toggleQuickAIMode()
+        viewModel.query = "问题"
+        try await XCTUnwrap(viewModel.startQuickAI()).value
+        XCTAssertEqual(viewModel.quickAISession?.returnAction, .retry)
+
+        let retry = try XCTUnwrap(viewModel.startQuickAI())
+        XCTAssertEqual(viewModel.quickAISession?.state, .streaming)
+        await retry.value
+    }
+
     func testMarkQuickAIAnswerCopied() async throws {
         let viewModel = makeQuickAIViewModel(answerer: StubQuickAIAnswerer(deltas: ["答案"]))
         viewModel.toggleQuickAIMode()

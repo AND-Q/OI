@@ -178,9 +178,14 @@ struct QuickAIAnswerView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            // 输出完成前 Enter 不复制半截回答，提示也随之隐藏。
-            if !session.isStreaming {
+            // 与面板的 Enter 处理一致：输出期间不提示，失败或无内容时提示重试。
+            switch session.returnAction {
+            case .copyAndClose:
                 shortcutHint("↩", "复制并关闭")
+            case .retry:
+                shortcutHint("↩", "重试")
+            case .none:
+                EmptyView()
             }
             shortcutHint("⌘C", "复制")
             shortcutHint("⇥", "返回搜索")

@@ -275,10 +275,17 @@ final class LauncherPanelController {
             if event.modifierFlags.contains(.command) {
                 searchWebAndDismiss()
             } else if viewModel.isQuickAIModeActive {
-                // 输入态 Enter 发起提问；输出完成后复制并关闭，输出期间不复制半截回答。
+                // 输入态 Enter 发起提问；有回答时按会话状态复制并关闭或重试，输出期间不响应。
                 if let session = viewModel.quickAISession {
-                    if !session.isStreaming, let answer = viewModel.quickAIAnswerToCopy {
-                        copyText(answer)
+                    switch session.returnAction {
+                    case .copyAndClose:
+                        if let answer = viewModel.quickAIAnswerToCopy {
+                            copyText(answer)
+                        }
+                    case .retry:
+                        viewModel.startQuickAI()
+                    case .none:
+                        break
                     }
                 } else {
                     viewModel.startQuickAI()
@@ -330,11 +337,18 @@ final class LauncherPanelController {
             if viewModel.quickAISession != nil,
                event.modifierFlags.contains(.command),
                !event.modifierFlags.contains(.option) {
-                // Quick AI 中 Cmd+C 优先复制回答区里选中的文字；没有选中时复制整段回答并保留面板，
-                // 流式输出期间复制当前已到达的部分。
-                if !isSearchFieldFocused, copySelectionFromFirstResponder() {
+                // Quick AI 中 Cmd+C 优先复制选中的文字（输入框或回答区）；都没有选中时复制整段回答
+                // 并保留面板，流式输出期间复制当前已到达的部分。
+                if isSearchFieldFocused {
+                    // 输入框选区直接交给系统复制；按选区长度判断，不依赖空选区时 copy: 的行为。
+                    if let editor = panel.firstResponder as? NSTextView, editor.selectedRange().length > 0 {
+                        return event
+                    }
+                } else if copySelectionFromFirstResponder() {
                     viewModel.markQuickAIAnswerCopied()
-                } else if let answer = viewModel.quickAIAnswerToCopy {
+                    return markHandled(event)
+                }
+                if let answer = viewModel.quickAIAnswerToCopy {
                     writeToPasteboard(answer)
                     viewModel.markQuickAIAnswerCopied()
                 }
