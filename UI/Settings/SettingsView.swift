@@ -3,6 +3,7 @@ import SwiftUI
 @MainActor
 struct SettingsView: View {
     @ObservedObject var viewModel: SettingsViewModel
+    @FocusState private var isAPIKeyFocused: Bool
 
     var body: some View {
         Form {
@@ -63,10 +64,15 @@ struct SettingsView: View {
                 TextField("模型", text: $viewModel.settings.quickAIModel, prompt: Text("gpt-4o-mini"))
                     .autocorrectionDisabled()
                 SecureField("API Key", text: quickAIAPIKey, prompt: Text("本地模型可留空"))
+                    .focused($isAPIKeyFocused)
+                    .onSubmit { viewModel.commitQuickAIAPIKey() }
+                    .onChange(of: isAPIKeyFocused) { _, isFocused in
+                        if !isFocused { viewModel.commitQuickAIAPIKey() }
+                    }
             } header: {
                 Text("Quick AI")
             } footer: {
-                Text("在启动器中输入问题后按 Tab 提问。兼容 OpenAI Chat Completions 接口，也可填写 Ollama 等本地服务（如 http://localhost:11434/v1）。提问内容会发送到所填地址，API Key 保存在钥匙串中。")
+                Text("在启动器中按 Tab 进入 Quick AI，输入问题后按回车提问。兼容 OpenAI Chat Completions 接口，也可填写 Ollama 等本地服务（如 http://localhost:11434/v1）。提问内容会发送到所填地址，API Key 保存在钥匙串中。")
             }
         }
         .formStyle(.grouped)

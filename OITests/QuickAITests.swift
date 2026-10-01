@@ -357,9 +357,12 @@ final class QuickAITests: XCTestCase {
         XCTAssertEqual(viewModel.quickAIAPIKey, "sk-old")
 
         viewModel.setQuickAIAPIKey(" sk-new ")
+        XCTAssertEqual(keyStore.load(), "sk-old", "输入过程中不应写入")
+        viewModel.commitQuickAIAPIKey()
         XCTAssertEqual(keyStore.load(), "sk-new")
 
         viewModel.setQuickAIAPIKey("")
+        viewModel.commitQuickAIAPIKey()
         XCTAssertNil(keyStore.load())
     }
 
@@ -372,6 +375,9 @@ final class QuickAITests: XCTestCase {
 
         store.save("sk-keychain-test")
         XCTAssertEqual(store.load(), "sk-keychain-test")
+
+        store.save("sk-keychain-updated")
+        XCTAssertEqual(store.load(), "sk-keychain-updated")
 
         store.save("  ")
         XCTAssertNil(store.load())

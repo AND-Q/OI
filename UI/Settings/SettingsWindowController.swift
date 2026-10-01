@@ -7,6 +7,7 @@ import SwiftUI
 final class SettingsWindowController {
     private let viewModel: SettingsViewModel
     private var window: NSWindow?
+    private var closeObserver: (any NSObjectProtocol)?
 
     init(viewModel: SettingsViewModel) {
         self.viewModel = viewModel
@@ -40,6 +41,16 @@ final class SettingsWindowController {
         controller.sizingOptions = [.preferredContentSize]
         window.contentViewController = controller
         window.center()
+        // 输入 API Key 后直接点关闭按钮时输入框未必先失焦，关闭前补一次保存。
+        closeObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.viewModel.commitQuickAIAPIKey()
+            }
+        }
         return window
     }
 }

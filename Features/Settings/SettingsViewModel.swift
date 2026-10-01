@@ -34,6 +34,7 @@ final class SettingsViewModel: ObservableObject {
     private let settingsStore: any AppSettingsStoring
     private let loginItemController: any LoginItemControlling
     private let quickAIKeyStore: any QuickAIKeyStoring
+    private var savedQuickAIAPIKey = ""
 
     init(
         settingsStore: any AppSettingsStoring,
@@ -109,14 +110,23 @@ final class SettingsViewModel: ObservableObject {
         launcherShortcutNotice = .failure(reason)
     }
 
+    /// 输入过程只更新界面，不逐字写钥匙串；由 `commitQuickAIAPIKey()` 统一保存。
     func setQuickAIAPIKey(_ apiKey: String) {
         quickAIAPIKey = apiKey
-        quickAIKeyStore.save(apiKey.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    /// 回车、离开输入框或关闭设置窗口时保存；与已保存的值相同则不写入。
+    func commitQuickAIAPIKey() {
+        let trimmed = quickAIAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed != savedQuickAIAPIKey else { return }
+        quickAIKeyStore.save(trimmed)
+        savedQuickAIAPIKey = trimmed
     }
 
     /// 设置窗口展示时读取已保存的 API Key。
     func reloadQuickAIAPIKey() {
         quickAIAPIKey = quickAIKeyStore.load() ?? ""
+        savedQuickAIAPIKey = quickAIAPIKey
     }
 
     /// 设置窗口打开时同步系统真实状态：用户可能直接在系统设置中批准或移除了登录项。
