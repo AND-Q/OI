@@ -8,6 +8,7 @@ enum QuickAIMarkdownBlock: Equatable {
     case listItem(marker: String, text: String, indent: Int)
     case quote(String)
     case code(language: String, code: String)
+    case table(header: [String], rows: [[String]])
     case rule
 }
 
@@ -17,12 +18,30 @@ enum QuickAIMarkdown {
     static func blocks(from markdown: String) -> [QuickAIMarkdownBlock] {
         var blocks: [QuickAIMarkdownBlock] = []
         var paragraph: [String] = []
-        var code: (language: String, lines: [String])?
+        var tableLines: [String] = []
+        var code: (fence: String, language: String, lines: [String])?
 
         func flushParagraph() {
             guard !paragraph.isEmpty else { return }
             blocks.append(.paragraph(paragraph.joined(separator: "\n")))
             paragraph = []
+        }
+
+        // 表头下一行是分隔行才按表格渲染；流式输出中分隔行尚未到达时先按段落显示。
+        func flushTable() {
+            guard !tableLines.isEmpty else { return }
+            if tableLines.count >= 2, isTableSeparator(tableLines[1]) {
+                let header = tableCells(in: tableLines[0])
+                let rows = tableLines.dropFirst(2).map { line in
+                    let cells = tableCells(in: line)
+                    return Array((cells + Array(repeating: "", count: max(header.count - cells.count, 0)))
+                        .prefix(header.count))
+                }
+                blocks.append(.table(header: header, rows: rows))
+            } else {
+                blocks.append(.paragraph(tableLines.joined(separator: "\n")))
+            }
+            tableLines = []
         }
 
         let normalized = markdown
@@ -32,20 +51,29 @@ enum QuickAIMarkdown {
         for line in normalized.components(separatedBy: "\n") {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
 
-            if trimmed.hasPrefix("```") {
-                if let open = code {
+            if let open = code {
+                // 只有与开头相同的围栏（``` 或 ~~~）才能闭合代码块。
+                if trimmed.hasPrefix(open.fence) {
                     blocks.append(.code(language: open.language, code: open.lines.joined(separator: "\n")))
                     code = nil
                 } else {
-                    flushParagraph()
-                    code = (String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces), [])
+                    code?.lines.append(line)
                 }
                 continue
             }
-            if code != nil {
-                code?.lines.append(line)
+            if let fence = ["```", "~~~"].first(where: { trimmed.hasPrefix($0) }) {
+                flushParagraph()
+                flushTable()
+                code = (fence, String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces), [])
                 continue
             }
+
+            if trimmed.hasPrefix("|") {
+                flushParagraph()
+                tableLines.append(trimmed)
+                continue
+            }
+            flushTable()
 
             if trimmed.isEmpty {
                 flushParagraph()
@@ -73,10 +101,28 @@ enum QuickAIMarkdown {
         }
 
         flushParagraph()
+        flushTable()
         if let open = code {
             blocks.append(.code(language: open.language, code: open.lines.joined(separator: "\n")))
         }
         return blocks
+    }
+
+    /// Removes `<think>…</think>` reasoning that some models (e.g. via Ollama) put in
+    /// the answer. While streaming, an unclosed `<think>` hides everything after it.
+    static func removingThinking(from answer: String) -> String {
+        var visible = ""
+        var remaining = answer[...]
+        while let start = remaining.range(of: "<think>") {
+            visible += remaining[..<start.lowerBound]
+            guard let end = remaining[start.upperBound...].range(of: "</think>") else {
+                remaining = ""
+                break
+            }
+            remaining = remaining[end.upperBound...]
+        }
+        visible += remaining
+        return visible.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Inline Markdown (bold, italic, `code`, links) with line breaks preserved.
@@ -85,6 +131,22 @@ enum QuickAIMarkdown {
             markdown: text,
             options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         )) ?? AttributedString(text)
+    }
+
+    /// `|---|:---:|` 形式的表头分隔行。
+    private static func isTableSeparator(_ line: String) -> Bool {
+        let cells = tableCells(in: line)
+        return !cells.isEmpty && cells.allSatisfy { cell in
+            cell.contains("-") && cell.allSatisfy { $0 == "-" || $0 == ":" }
+        }
+    }
+
+    private static func tableCells(in line: String) -> [String] {
+        var content = Substring(line.trimmingCharacters(in: .whitespaces))
+        if content.hasPrefix("|") { content = content.dropFirst() }
+        if content.hasSuffix("|") { content = content.dropLast() }
+        return content.split(separator: "|", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
     }
 
     private static func heading(in trimmed: String) -> QuickAIMarkdownBlock? {

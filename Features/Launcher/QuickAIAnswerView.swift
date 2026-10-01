@@ -4,27 +4,52 @@ import SwiftUI
 @MainActor
 struct QuickAIAnswerView: View {
     let session: QuickAISession
+    let scrollRequest: QuickAIScrollRequest
 
-    private static let bottomAnchor = "quick-ai-bottom"
+    /// `↑` / `↓` 每次滚动的距离。
+    private static let keyboardScrollStep: CGFloat = 60
+
+    @State private var position = ScrollPosition(edge: .top)
+    @State private var metrics = ScrollMetrics()
+    @State private var isPinnedToBottom = true
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 10) {
-                        content
-                        Color.clear
-                            .frame(height: 1)
-                            .id(Self.bottomAnchor)
-                    }
-                    .padding(.horizontal, 22)
-                    .padding(.vertical, 14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    content
                 }
-                // 流式输出期间跟随最新内容；结束后不再抢夺用户的滚动位置。
-                .onChange(of: session.answer) {
-                    guard session.isStreaming else { return }
-                    proxy.scrollTo(Self.bottomAnchor, anchor: .bottom)
+                .textSelection(.enabled)
+                .padding(.horizontal, 22)
+                .padding(.vertical, 14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .scrollPosition($position)
+            .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
+                ScrollMetrics(
+                    offset: geometry.contentOffset.y,
+                    maxOffset: max(geometry.contentSize.height - geometry.containerSize.height, 0),
+                    isAtBottom: geometry.visibleRect.maxY >= geometry.contentSize.height - 8
+                )
+            } action: { old, new in
+                metrics = new
+                // 只有滚动位置变化（手动、键盘或自动跟随）才更新贴底状态；内容增长不算离开底部。
+                if new.offset != old.offset {
+                    isPinnedToBottom = new.isAtBottom
+                }
+            }
+            // 流式输出期间仅在停留底部时跟随最新内容；往上翻看时不再被拉回。
+            .onChange(of: session.answer) {
+                guard session.isStreaming, isPinnedToBottom else { return }
+                position.scrollTo(edge: .bottom)
+            }
+            .onChange(of: scrollRequest) { _, request in
+                let target = min(
+                    max(metrics.offset + CGFloat(request.direction) * Self.keyboardScrollStep, 0),
+                    metrics.maxOffset
+                )
+                withAnimation(.easeOut(duration: 0.15)) {
+                    position.scrollTo(y: target)
                 }
             }
 
@@ -35,7 +60,8 @@ struct QuickAIAnswerView: View {
 
     @ViewBuilder
     private var content: some View {
-        if session.answer.isEmpty {
+        let visibleAnswer = QuickAIMarkdown.removingThinking(from: session.answer)
+        if visibleAnswer.isEmpty {
             switch session.state {
             case .streaming:
                 HStack(spacing: 8) {
@@ -51,7 +77,7 @@ struct QuickAIAnswerView: View {
                 errorLabel(message)
             }
         } else {
-            ForEach(Array(QuickAIMarkdown.blocks(from: session.answer).enumerated()), id: \.offset) { _, block in
+            ForEach(Array(QuickAIMarkdown.blocks(from: visibleAnswer).enumerated()), id: \.offset) { _, block in
                 blockView(block)
             }
             if case .failed(let message) = session.state {
@@ -104,10 +130,36 @@ struct QuickAIAnswerView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.primary.opacity(0.06))
             .clipShape(RoundedRectangle(cornerRadius: 8))
+        case .table(let header, let rows):
+            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+                GridRow {
+                    ForEach(Array(header.enumerated()), id: \.offset) { _, cell in
+                        tableCell(cell)
+                            .fontWeight(.semibold)
+                    }
+                }
+                Divider()
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                    GridRow {
+                        ForEach(Array(row.enumerated()), id: \.offset) { _, cell in
+                            tableCell(cell)
+                        }
+                    }
+                }
+            }
+            .font(.system(size: 13))
+            .padding(10)
+            .background(Color.primary.opacity(0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         case .rule:
             Color.primary.opacity(0.1)
                 .frame(height: 1)
         }
+    }
+
+    private func tableCell(_ text: String) -> some View {
+        Text(QuickAIMarkdown.inline(text))
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private func errorLabel(_ message: String) -> some View {
@@ -126,7 +178,10 @@ struct QuickAIAnswerView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            shortcutHint("↩", "复制并关闭")
+            // 输出完成前 Enter 不复制半截回答，提示也随之隐藏。
+            if !session.isStreaming {
+                shortcutHint("↩", "复制并关闭")
+            }
             shortcutHint("⌘C", "复制")
             shortcutHint("⇥", "返回搜索")
             shortcutHint("esc", session.isStreaming ? "中断并关闭" : "关闭")
@@ -148,4 +203,11 @@ struct QuickAIAnswerView: View {
         }
         .foregroundStyle(.secondary)
     }
+}
+
+/// 回答区滚动状态：当前偏移、可滚动的最大偏移与是否停在底部。
+private struct ScrollMetrics: Equatable {
+    var offset: CGFloat = 0
+    var maxOffset: CGFloat = 0
+    var isAtBottom = true
 }

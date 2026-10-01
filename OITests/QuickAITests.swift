@@ -153,6 +153,43 @@ final class QuickAITests: XCTestCase {
         ])
     }
 
+    func testMarkdownParsesTableAndPadsShortRows() {
+        let markdown = """
+        | 名称 | 价格 |
+        | :--- | ---: |
+        | 苹果 | 3 |
+        | 香蕉 |
+        后记
+        """
+        XCTAssertEqual(QuickAIMarkdown.blocks(from: markdown), [
+            .table(header: ["名称", "价格"], rows: [["苹果", "3"], ["香蕉", ""]]),
+            .paragraph("后记"),
+        ])
+    }
+
+    func testMarkdownShowsTableHeaderAsParagraphUntilSeparatorArrives() {
+        XCTAssertEqual(
+            QuickAIMarkdown.blocks(from: "| 名称 | 价格 |"),
+            [.paragraph("| 名称 | 价格 |")]
+        )
+    }
+
+    func testMarkdownSupportsTildeFenceAndOnlyMatchingFenceCloses() {
+        let markdown = "~~~python\n```\nprint(1)\n~~~"
+        XCTAssertEqual(QuickAIMarkdown.blocks(from: markdown), [
+            .code(language: "python", code: "```\nprint(1)"),
+        ])
+    }
+
+    func testRemovingThinkingHidesClosedAndUnclosedReasoning() {
+        XCTAssertEqual(
+            QuickAIMarkdown.removingThinking(from: "<think>\n先想想\n</think>\n\n答案是 2"),
+            "答案是 2"
+        )
+        XCTAssertEqual(QuickAIMarkdown.removingThinking(from: "<think>\n还在想"), "")
+        XCTAssertEqual(QuickAIMarkdown.removingThinking(from: "没有思考"), "没有思考")
+    }
+
     // MARK: - Use case
 
     func testAskQuickAIThrowsNotConfiguredWithoutRequesting() async {
@@ -302,6 +339,32 @@ final class QuickAITests: XCTestCase {
         XCTAssertNil(viewModel.quickAISession)
         XCTAssertTrue(viewModel.isQuickAIModeActive)
         XCTAssertFalse(viewModel.isExpanded)
+    }
+
+    func testAnswerToCopyExcludesThinking() async throws {
+        let viewModel = makeQuickAIViewModel(
+            answerer: StubQuickAIAnswerer(deltas: ["<think>推理", "</think>", "答案"])
+        )
+        viewModel.toggleQuickAIMode()
+        viewModel.query = "问题"
+        try await XCTUnwrap(viewModel.startQuickAI()).value
+
+        XCTAssertEqual(viewModel.quickAISession?.answer, "<think>推理</think>答案")
+        XCTAssertEqual(viewModel.quickAIAnswerToCopy, "答案")
+    }
+
+    func testScrollQuickAIAnswerOnlyWithSession() async throws {
+        let viewModel = makeQuickAIViewModel(answerer: StubQuickAIAnswerer(deltas: ["回答"]))
+        viewModel.toggleQuickAIMode()
+        viewModel.scrollQuickAIAnswer(by: 1)
+        XCTAssertEqual(viewModel.quickAIScrollRequest, QuickAIScrollRequest())
+
+        viewModel.query = "问题"
+        try await XCTUnwrap(viewModel.startQuickAI()).value
+        viewModel.scrollQuickAIAnswer(by: 1)
+        viewModel.scrollQuickAIAnswer(by: 1)
+
+        XCTAssertEqual(viewModel.quickAIScrollRequest, QuickAIScrollRequest(direction: 1, serial: 2))
     }
 
     func testMarkQuickAIAnswerCopied() async throws {

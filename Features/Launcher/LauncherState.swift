@@ -45,3 +45,9 @@ struct QuickAISession: Equatable, Sendable {
 
     var isStreaming: Bool { state == .streaming }
 }
+
+/// `↑` / `↓` 滚动 Quick AI 回答区的请求；`serial` 递增保证连续同向按键也会触发。
+struct QuickAIScrollRequest: Equatable, Sendable {
+    var direction = 0
+    var serial = 0
+}

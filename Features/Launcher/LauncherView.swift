@@ -71,7 +71,7 @@ struct LauncherView: View {
                 divider
                 Group {
                     if let session = viewModel.quickAISession {
-                        QuickAIAnswerView(session: session)
+                        QuickAIAnswerView(session: session, scrollRequest: viewModel.quickAIScrollRequest)
                     } else {
                         results
                     }

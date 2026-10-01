@@ -275,11 +275,13 @@ final class LauncherPanelController {
             if event.modifierFlags.contains(.command) {
                 searchWebAndDismiss()
             } else if viewModel.isQuickAIModeActive {
-                // 输入态 Enter 发起提问；已有回答时复制并关闭，回答尚未到达时不复制空内容。
-                if viewModel.quickAISession == nil {
+                // 输入态 Enter 发起提问；输出完成后复制并关闭，输出期间不复制半截回答。
+                if let session = viewModel.quickAISession {
+                    if !session.isStreaming, let answer = viewModel.quickAIAnswerToCopy {
+                        copyText(answer)
+                    }
+                } else {
                     viewModel.startQuickAI()
-                } else if let answer = viewModel.quickAIAnswerToCopy {
-                    copyText(answer)
                 }
             } else if viewModel.isActionSheetVisible {
                 // 菜单展开时独占回车；选中项暂不可用时也不穿透启动底层应用。
@@ -328,8 +330,11 @@ final class LauncherPanelController {
             if viewModel.quickAISession != nil,
                event.modifierFlags.contains(.command),
                !event.modifierFlags.contains(.option) {
-                // Quick AI 中 Cmd+C 复制整段回答并保留面板，流式输出期间复制当前已到达的部分。
-                if let answer = viewModel.quickAIAnswerToCopy {
+                // Quick AI 中 Cmd+C 优先复制回答区里选中的文字；没有选中时复制整段回答并保留面板，
+                // 流式输出期间复制当前已到达的部分。
+                if !isSearchFieldFocused, copySelectionFromFirstResponder() {
+                    viewModel.markQuickAIAnswerCopied()
+                } else if let answer = viewModel.quickAIAnswerToCopy {
                     writeToPasteboard(answer)
                     viewModel.markQuickAIAnswerCopied()
                 }
@@ -346,6 +351,8 @@ final class LauncherPanelController {
         case UInt16(kVK_UpArrow):
             if viewModel.isActionSheetVisible {
                 viewModel.moveActionSelection(by: -1)
+            } else if viewModel.quickAISession != nil {
+                viewModel.scrollQuickAIAnswer(by: -1)
             } else {
                 viewModel.moveSelection(by: -1)
                 updateQuickLookPreviewForCurrentSelection()
@@ -354,12 +361,20 @@ final class LauncherPanelController {
         case UInt16(kVK_DownArrow):
             if viewModel.isActionSheetVisible {
                 viewModel.moveActionSelection(by: 1)
+            } else if viewModel.quickAISession != nil {
+                viewModel.scrollQuickAIAnswer(by: 1)
             } else {
                 viewModel.moveSelection(by: 1)
                 updateQuickLookPreviewForCurrentSelection()
             }
             return markHandled(event)
         default:
+            // 在回答区点选文字后焦点离开了输入框：继续打字时先把焦点交回输入框，按键照常输入。
+            if viewModel.quickAISession != nil,
+               !event.modifierFlags.contains(.command),
+               !isSearchFieldFocused {
+                focusSearchFieldAtEnd()
+            }
             return event
         }
     }
@@ -517,6 +532,26 @@ final class LauncherPanelController {
         NSPasteboard.general.setString(value, forType: .string)
     }
 
+    /// 面板里唯一的文本输入是检索框，字段编辑器为第一响应者即表示焦点在输入框。
+    private var isSearchFieldFocused: Bool {
+        (panel.firstResponder as? NSTextView)?.isFieldEditor == true
+    }
+
+    /// 让第一响应者（回答区的可选中文字）执行复制；剪贴板有变化才算复制成功。
+    private func copySelectionFromFirstResponder() -> Bool {
+        let changeCount = NSPasteboard.general.changeCount
+        NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: panel)
+        return NSPasteboard.general.changeCount != changeCount
+    }
+
+    /// 焦点交回检索框并把光标放到末尾，避免默认全选后下一个按键覆盖整个问题。
+    private func focusSearchFieldAtEnd() {
+        guard let input = panel.contentView?.firstDescendant(of: LauncherSearchInputView.self) else { return }
+        panel.makeFirstResponder(input.textField)
+        let end = (input.textField.stringValue as NSString).length
+        input.textField.currentEditor()?.selectedRange = NSRange(location: end, length: 0)
+    }
+
     private var hasActiveMarkedText: Bool {
         if let client = panel.firstResponder as? NSTextInputClient, client.hasMarkedText() {
             return true
@@ -558,5 +593,16 @@ final class LauncherPanel: NSPanel {
 
     nonisolated override func endPreviewPanelControl(_ panel: QLPreviewPanel!) {
         MainActor.assumeIsolated { quickLookPresenter?.endControl() }
+    }
+}
+
+private extension NSView {
+    func firstDescendant<T: NSView>(of type: T.Type) -> T? {
+        for subview in subviews {
+            if let match = subview as? T ?? subview.firstDescendant(of: type) {
+                return match
+            }
+        }
+        return nil
     }
 }
