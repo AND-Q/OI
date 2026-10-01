@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import os
 
 /// 用辅助功能 API 读取其他应用中的文字，用剪贴板兜底。
 /// 原生文本控件走字符区间属性（`AXSelectedText`、`AXRangeForPosition` 等）；WebKit 与 Chromium
@@ -15,6 +16,7 @@ struct AccessibilityTextCapturer: TextCapturing {
     private static let hitTolerance: CGFloat = 3
     /// 网页选区所在的 AXWebArea 可能在焦点元素（如链接）之上，向上查找的最大层数。
     private static let maximumAncestorDepth = 8
+    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "OI", category: "Translator")
 
     func selectedText() async -> CapturedText? {
         guard let processID = await MainActor.run(body: { Self.frontmostForeignProcessID() }) else {
@@ -124,15 +126,23 @@ struct AccessibilityTextCapturer: TextCapturing {
         let systemWide = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(systemWide, messagingTimeout)
         var hit: AXUIElement?
-        guard AXUIElementCopyElementAtPosition(systemWide, Float(point.x), Float(point.y), &hit) == .success,
-              let hit else { return nil }
+        let hitResult = AXUIElementCopyElementAtPosition(systemWide, Float(point.x), Float(point.y), &hit)
+        guard hitResult == .success, let hit else {
+            logger.debug("No accessibility element under force click (AXError \(hitResult.rawValue, privacy: .public))")
+            return nil
+        }
         var processID: pid_t = 0
         guard AXUIElementGetPid(hit, &processID) == .success,
               processID != ownProcessID,
               !isSecureTextField(hit) else { return nil }
         enableAccessibilityTree(of: AXUIElementCreateApplication(processID))
         AXUIElementSetMessagingTimeout(hit, messagingTimeout)
-        return wordUsingCharacterRange(in: hit, at: point) ?? wordUsingTextMarkers(in: hit, at: point)
+        if let word = wordUsingCharacterRange(in: hit, at: point) ?? wordUsingTextMarkers(in: hit, at: point) {
+            return word
+        }
+        let role = attribute(hit, kAXRoleAttribute) as? String ?? "unknown"
+        logger.debug("No word under force click in \(role, privacy: .public) of process \(processID, privacy: .public)")
+        return nil
     }
 
     private static func wordUsingCharacterRange(in element: AXUIElement, at point: CGPoint) -> CapturedText? {
