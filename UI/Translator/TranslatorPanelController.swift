@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import os
 import SwiftUI
 
 /// 划词翻译气泡的 AppKit 壳：不激活 OI 的浮动面板，弹在原文旁边。
@@ -14,14 +15,30 @@ final class TranslatorPanelController {
         static let initialHeight: CGFloat = 120
         /// 高亮比单词区域向外扩展的距离。
         static let highlightPadding: CGFloat = 2
+        /// 等待鼠标按键松开时的检查间隔。
+        static let mouseReleasePollInterval: Duration = .milliseconds(10)
+        /// 松开后等原应用处理完这次点击，再让气泡接管键盘。
+        static let keyFocusDelayAfterRelease: Duration = .milliseconds(100)
+    }
+
+    /// 气泡收起的原因，记入日志以便排查气泡意外收起。
+    private enum DismissReason: String {
+        case lostKeyFocus = "lost key focus"
+        case clickOutside = "click outside"
+        case escapeKey = "escape key"
+        case returnKey = "return key"
+        case shortcut = "shortcut"
     }
 
     private let viewModel: TranslatorViewModel
     let panel: TranslatorPanel
     private let highlight: NSPanel
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "OI", category: "Translator")
     private var keyMonitor: Any?
     private var clickMonitor: Any?
     private var scrollMonitor: Any?
+    /// 鼠标按键松开后让气泡接管键盘的等待任务。
+    private var keyFocusTask: Task<Void, Never>?
     private var placement: TranslatorPlacement?
     private var contentHeight = Layout.initialHeight
     /// 每次弹出递增：淡出完成时据此判断期间是否又弹出了新的气泡。
@@ -79,7 +96,7 @@ final class TranslatorPanelController {
         highlight.contentView = highlightView
 
         // 点到其他应用（包括原应用）时面板失去 key，气泡随之收起。
-        panel.onResignKey = { [weak self] in self?.hide() }
+        panel.onResignKey = { [weak self] in self?.hide(reason: .lostKeyFocus) }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
             return self.handleKeyDown(event)
@@ -96,6 +113,7 @@ final class TranslatorPanelController {
         if let scrollMonitor {
             NSEvent.removeMonitor(scrollMonitor)
         }
+        keyFocusTask?.cancel()
     }
 
     var isVisible: Bool { panel.isVisible && !isDismissing }
@@ -103,7 +121,7 @@ final class TranslatorPanelController {
     /// 翻译快捷键：气泡已显示时收起，否则翻译选中的文字或剪贴板。
     func toggleShortcutTranslation() {
         if isVisible {
-            hide()
+            hide(reason: .shortcut)
             return
         }
         Task { [weak self] in
@@ -120,10 +138,12 @@ final class TranslatorPanelController {
         }
     }
 
-    func hide() {
+    private func hide(reason: DismissReason) {
         guard panel.isVisible, !isDismissing else { return }
+        logger.debug("Translator bubble hidden: \(reason.rawValue, privacy: .public)")
         isDismissing = true
         viewModel.stopTranslation()
+        cancelKeyFocusTask()
         removeClickMonitor()
         removeScrollMonitor()
         let generation = presentationGeneration
@@ -149,6 +169,7 @@ final class TranslatorPanelController {
         }
         removeClickMonitor()
         removeHighlight()
+        cancelKeyFocusTask()
         presentationGeneration += 1
         // 标记为收起中：下屏触发的 resignKey 不再走淡出流程。
         isDismissing = true
@@ -207,7 +228,7 @@ final class TranslatorPanelController {
             removeHighlight()
         }
         panel.orderFrontRegardless()
-        panel.makeKey()
+        makeKeyAfterMouseRelease()
         panel.invalidateShadow()
         installClickMonitor()
 
@@ -221,6 +242,33 @@ final class TranslatorPanelController {
                 self.highlight.animator().alphaValue = 1
             }
         }
+    }
+
+    /// 用力点按时气泡在手指仍按着时弹出，原应用可能在按住期间（把轻微位移当作开始拖动选中的文字）
+    /// 或松开时（处理点在选区上的点击）拿回键盘焦点；气泡此时若已接管键盘，会因失去 key 而收起。
+    /// 因此按键按着时只显示气泡，松开后稍等原应用处理完这次点击再接管键盘。
+    private func makeKeyAfterMouseRelease() {
+        cancelKeyFocusTask()
+        guard NSEvent.pressedMouseButtons & 1 != 0 else {
+            panel.makeKey()
+            return
+        }
+        let generation = presentationGeneration
+        keyFocusTask = Task { [weak self] in
+            while NSEvent.pressedMouseButtons & 1 != 0 {
+                try? await Task.sleep(for: Layout.mouseReleasePollInterval)
+                guard !Task.isCancelled else { return }
+            }
+            try? await Task.sleep(for: Layout.keyFocusDelayAfterRelease)
+            guard let self, !Task.isCancelled, generation == self.presentationGeneration,
+                  self.panel.isVisible, !self.isDismissing else { return }
+            self.panel.makeKey()
+        }
+    }
+
+    private func cancelKeyFocusTask() {
+        keyFocusTask?.cancel()
+        keyFocusTask = nil
     }
 
     private func finishHiding(generation: Int) {
@@ -257,7 +305,7 @@ final class TranslatorPanelController {
         clickMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
         ) { [weak self] _ in
-            self?.hide()
+            self?.hide(reason: .clickOutside)
         }
     }
 
@@ -301,7 +349,7 @@ final class TranslatorPanelController {
         let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
         switch Int(event.keyCode) {
         case kVK_Escape:
-            hide()
+            hide(reason: .escapeKey)
             return nil
         case kVK_Return, kVK_ANSI_KeypadEnter:
             // 带修饰键的回车（如 ⌥↩ 换行）交给原文输入框。
@@ -319,7 +367,7 @@ final class TranslatorPanelController {
     private func performReturn() {
         guard let session = viewModel.session else {
             // 只有提示时回车即关闭。
-            hide()
+            hide(reason: .returnKey)
             return
         }
         switch session.returnAction {
@@ -328,7 +376,7 @@ final class TranslatorPanelController {
         case .copyAndClose:
             if let translation = viewModel.translationToCopy {
                 writeToPasteboard(translation)
-                hide()
+                hide(reason: .returnKey)
             }
         case .none:
             break
