@@ -79,6 +79,19 @@ final class WebURLResolverTests: XCTestCase {
         XCTAssertNil(WebURLResolver.recognize("   "))
     }
 
+    /// 回归测试：与文件扩展名同形的顶级域，裸「名称.后缀」按文件名处理；带 www.、端口或路径时仍是网址。
+    func testWebURLRecognizerTreatsFileExtensionLikeTLDsAsFileNames() {
+        XCTAssertNil(WebURLResolver.recognize("Xcode.app"))
+        XCTAssertNil(WebURLResolver.recognize("install.sh"))
+        XCTAssertNil(WebURLResolver.recognize("logo.ai"))
+        XCTAssertNil(WebURLResolver.recognize("main.cc"))
+        XCTAssertNil(WebURLResolver.recognize("libfoo.so"))
+        XCTAssertEqual(WebURLResolver.recognize("claude.ai/"), URL(string: "https://claude.ai/"))
+        XCTAssertEqual(WebURLResolver.recognize("www.example.app"), URL(string: "https://www.example.app"))
+        XCTAssertEqual(WebURLResolver.recognize("example.sh:8080"), URL(string: "https://example.sh:8080"))
+        XCTAssertEqual(WebURLResolver.recognize("https://claude.ai"), URL(string: "https://claude.ai"))
+    }
+
     func testWebURLResolverBuildsSearchURLWithEncoding() throws {
         let url = try XCTUnwrap(WebURLResolver.searchURL(for: "swift 并发"))
         XCTAssertEqual(url.absoluteString, "https://www.bing.com/search?q=swift%20%E5%B9%B6%E5%8F%91")

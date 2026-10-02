@@ -48,8 +48,17 @@ enum WebURLResolver {
               !parts.contains(where: \.isEmpty),
               let tld = parts.last,
               knownTLDs.contains(String(tld)) else { return nil }
+        // 与常见文件扩展名同形的顶级域：裸「名称.后缀」更可能是在找文件（Xcode.app、install.sh），
+        // 带 www.、端口、路径或查询参数时才按网址识别。
+        if fileExtensionLikeTLDs.contains(String(tld)),
+           !host.hasPrefix("www."), url.port == nil, url.path().isEmpty, url.query() == nil {
+            return nil
+        }
         return url
     }
+
+    /// 与常见文件扩展名同形的顶级域（应用包、Illustrator、Shell 脚本、C++ 源码、动态库）。
+    private static let fileExtensionLikeTLDs: Set<String> = ["app", "ai", "sh", "cc", "so"]
 
     private static let knownTLDs: Set<String> = [
         "com", "org", "net", "edu", "gov", "int", "mil",
