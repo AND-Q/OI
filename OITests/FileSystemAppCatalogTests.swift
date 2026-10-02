@@ -104,6 +104,30 @@ final class FileSystemAppCatalogTests: XCTestCase {
         XCTAssertEqual(descriptors.first?.url.path, root.appendingPathComponent("Demo.app").path)
     }
 
+    /// 回归测试：Xcode 与 Xcode-beta 共用 Bundle Identifier，但它们是有意并存的两份安装，都要保留。
+    func testFileSystemAppCatalogKeepsDifferentlyNamedBundlesWithSameIdentifier() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        try makeApplicationBundle(
+            directoryName: "Xcode.app",
+            displayName: "Xcode",
+            bundleIdentifier: "com.apple.dt.Xcode",
+            in: root
+        )
+        try makeApplicationBundle(
+            directoryName: "Xcode-beta.app",
+            displayName: "Xcode-beta",
+            bundleIdentifier: "com.apple.dt.Xcode",
+            in: root
+        )
+
+        let catalog = FileSystemAppCatalog(searchDirectories: [root])
+        let descriptors = try await catalog.scan()
+
+        XCTAssertEqual(Set(descriptors.map(\.url.lastPathComponent)), ["Xcode.app", "Xcode-beta.app"])
+    }
+
     func testFileSystemAppCatalogDeduplicatesSymlinkedBundles() async throws {
         let root = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: root) }

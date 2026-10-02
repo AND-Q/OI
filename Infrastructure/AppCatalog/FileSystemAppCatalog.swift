@@ -135,10 +135,13 @@ struct FileSystemAppCatalog: AppCatalog, Sendable {
         return fallback.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Keeps one entry per bundle identifier: the copy with the shallower path
-    /// wins, with the path itself as the stable tie-break.
+    /// Keeps one entry per bundle identifier and bundle file name, i.e. the same
+    /// app found in several directories: the copy with the shallower path wins,
+    /// with the path itself as the stable tie-break. Copies with different file
+    /// names (Xcode.app and Xcode-beta.app share one identifier) are separate
+    /// installs kept on purpose, so all of them stay.
     private static func deduplicateByIdentifier(_ descriptors: [AppDescriptor]) -> [AppDescriptor] {
-        var bestByIdentifier: [String: AppDescriptor] = [:]
+        var bestByKey: [String: AppDescriptor] = [:]
         var unkeyed: [AppDescriptor] = []
 
         for descriptor in descriptors {
@@ -146,14 +149,15 @@ struct FileSystemAppCatalog: AppCatalog, Sendable {
                 unkeyed.append(descriptor)
                 continue
             }
-            if let current = bestByIdentifier[identifier],
+            let key = identifier + "/" + descriptor.url.lastPathComponent
+            if let current = bestByKey[key],
                !preferred(descriptor, over: current) {
                 continue
             }
-            bestByIdentifier[identifier] = descriptor
+            bestByKey[key] = descriptor
         }
 
-        return unkeyed + bestByIdentifier.values
+        return unkeyed + bestByKey.values
     }
 
     private static func preferred(_ candidate: AppDescriptor, over current: AppDescriptor) -> Bool {
