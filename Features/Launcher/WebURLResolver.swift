@@ -1,6 +1,6 @@
 import Foundation
 
-/// 识别输入框中的网址与 localhost，并构造默认浏览器的搜索地址。
+/// 识别输入框中的网址与 localhost。
 enum WebURLResolver {
     /// 识别可直达打开的网址：显式 scheme、常见顶级域域名，或 localhost / 127.0.0.1（可含端口与路径）。
     static func recognize(_ query: String) -> URL? {
@@ -19,13 +19,6 @@ enum WebURLResolver {
             return url
         }
         return recognizeSchemeless(trimmedQuery)
-    }
-
-    /// 构造默认浏览器的搜索地址。
-    static func searchURL(for query: String) -> URL? {
-        var components = URLComponents(string: "https://www.bing.com/search")
-        components?.queryItems = [URLQueryItem(name: "q", value: query)]
-        return components?.url
     }
 
     /// 无 scheme 的输入补全 `https://`（localhost / 127.0.0.1 补 `http://`，适配纯 http 的本地

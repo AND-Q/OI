@@ -16,6 +16,7 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
     private static let translatorShortcutModifiersKey = "settings.translator.shortcut.modifiers"
     private static let translationTargetLanguageKey = "settings.translator.targetLanguage"
     private static let translationAlternateLanguageKey = "settings.translator.alternateLanguage"
+    private static let webSearchEngineKey = "settings.webSearchEngine"
 
     private let defaults: UserDefaults
 
@@ -47,7 +48,9 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
             translationTargetLanguage: loadLanguage(forKey: Self.translationTargetLanguageKey)
                 ?? fallback.translationTargetLanguage,
             translationAlternateLanguage: loadLanguage(forKey: Self.translationAlternateLanguageKey)
-                ?? fallback.translationAlternateLanguage
+                ?? fallback.translationAlternateLanguage,
+            webSearchEngine: defaults.string(forKey: Self.webSearchEngineKey)
+                .flatMap(WebSearchEngine.init(rawValue:)) ?? fallback.webSearchEngine
         )
     }
 
@@ -64,6 +67,7 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
         defaults.set(Int(settings.translatorShortcut.modifiers), forKey: Self.translatorShortcutModifiersKey)
         defaults.set(settings.translationTargetLanguage.rawValue, forKey: Self.translationTargetLanguageKey)
         defaults.set(settings.translationAlternateLanguage.rawValue, forKey: Self.translationAlternateLanguageKey)
+        defaults.set(settings.webSearchEngine.rawValue, forKey: Self.webSearchEngineKey)
     }
 
     /// 快捷键两个键视为整体：仅保存其一时按未配置处理；外部写入的脏数据

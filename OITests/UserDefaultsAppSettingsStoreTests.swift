@@ -26,6 +26,21 @@ final class UserDefaultsAppSettingsStoreTests: XCTestCase {
         XCTAssertEqual(context.store.load(), settings)
     }
 
+    /// 网页搜索引擎随设置持久化；未知取值（如旧版本或手工改动）回退默认引擎。
+    func testWebSearchEngineRoundTripsAndFallsBackForUnknownValue() throws {
+        let context = try makeStore()
+        defer { context.cleanup() }
+
+        context.store.save(AppSettings(webSearchEngine: .duckDuckGo))
+        XCTAssertEqual(
+            UserDefaultsAppSettingsStore(defaults: context.defaults).load().webSearchEngine,
+            .duckDuckGo
+        )
+
+        context.defaults.set("altavista", forKey: "settings.webSearchEngine")
+        XCTAssertEqual(context.store.load().webSearchEngine, .bing)
+    }
+
     func testSavePersistsAcrossStoreInstances() throws {
         let context = try makeStore()
         defer { context.cleanup() }

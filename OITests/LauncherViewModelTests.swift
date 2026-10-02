@@ -529,8 +529,23 @@ final class LauncherViewModelTests: XCTestCase {
 
         viewModel.query = "swift arrays"
         await viewModel.searchWeb()?.value
-        XCTAssertEqual(opener.openedURLs, [WebURLResolver.searchURL(for: "swift arrays")])
+        XCTAssertEqual(opener.openedURLs, [WebSearchEngine.bing.searchURL(for: "swift arrays")])
         XCTAssertFalse(viewModel.isLaunching)
+    }
+
+    func testViewModelSearchWebUsesSearchEngineFromSettings() async {
+        let opener = StubURLOpener()
+        let viewModel = makeViewModel(
+            with: [],
+            settingsStore: MemoryAppSettingsStore(initial: AppSettings(webSearchEngine: .baidu)),
+            urlOpener: OpenURL(opener: opener)
+        )
+        await viewModel.loadApps()?.value
+
+        viewModel.query = "swift arrays"
+        await viewModel.searchWeb()?.value
+
+        XCTAssertEqual(opener.openedURLs, [WebSearchEngine.baidu.searchURL(for: "swift arrays")])
     }
 
     // MARK: - 动作面板

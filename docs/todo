@@ -35,7 +35,7 @@
   - 网址与 localhost 自动识别首行直达；
   - `Cmd+Enter` 快速调用默认浏览器搜索。
 - **实现说明**：
-  - 新增 [Features/Launcher/WebURLResolver.swift](Features/Launcher/WebURLResolver.swift)：识别显式 `http` / `https` / `ftp` 地址、常见顶级域裸域名（`github.com`、`example.io:8443`）与 `localhost` / `127.0.0.1`（可含端口、路径）；以顶级域白名单排除文件名、算式、邮箱、普通搜索词误判；`searchURL` 构造 Bing 搜索地址；
+  - 新增 [Features/Launcher/WebURLResolver.swift](Features/Launcher/WebURLResolver.swift)：识别显式 `http` / `https` / `ftp` 地址、常见顶级域裸域名（`github.com`、`example.io:8443`）与 `localhost` / `127.0.0.1`（可含端口、路径）；以顶级域白名单排除文件名、算式、邮箱、普通搜索词误判；`Cmd+Enter` 的搜索地址由设置中选择的 [WebSearchEngine](Domain/Models/WebSearchEngine.swift)（必应 / Google / 百度 / DuckDuckGo，默认必应）构造；
   - 新增 `SearchResult.webURL` 结果类型：识别成功时置顶展示（地球图标 + 「按回车在浏览器中打开」副标题），`Enter` 经新增的 `URLOpening` 端口、`OpenURL` 用例与 `WorkspaceURLOpener` 调用默认浏览器打开并关闭面板；
   - `Cmd+Enter` 由 [UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift) 捕获（原先预留空置），用默认浏览器搜索当前输入，空输入安全静默，完成后自动关闭面板；
   - `Cmd+F` 在网址行上复制链接（与快速查询行行为一致）。

@@ -92,8 +92,13 @@ final class WebURLResolverTests: XCTestCase {
         XCTAssertEqual(WebURLResolver.recognize("https://claude.ai"), URL(string: "https://claude.ai"))
     }
 
-    func testWebURLResolverBuildsSearchURLWithEncoding() throws {
-        let url = try XCTUnwrap(WebURLResolver.searchURL(for: "swift 并发"))
-        XCTAssertEqual(url.absoluteString, "https://www.bing.com/search?q=swift%20%E5%B9%B6%E5%8F%91")
+    func testWebSearchEnginesBuildEncodedSearchURLs() {
+        func url(_ engine: WebSearchEngine) -> String? {
+            engine.searchURL(for: "swift 并发")?.absoluteString
+        }
+        XCTAssertEqual(url(.bing), "https://www.bing.com/search?q=swift%20%E5%B9%B6%E5%8F%91")
+        XCTAssertEqual(url(.google), "https://www.google.com/search?q=swift%20%E5%B9%B6%E5%8F%91")
+        XCTAssertEqual(url(.baidu), "https://www.baidu.com/s?wd=swift%20%E5%B9%B6%E5%8F%91")
+        XCTAssertEqual(url(.duckDuckGo), "https://duckduckgo.com/?q=swift%20%E5%B9%B6%E5%8F%91")
     }
 }

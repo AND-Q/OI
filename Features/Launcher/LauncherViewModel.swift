@@ -290,11 +290,12 @@ final class LauncherViewModel: ObservableObject {
         }
     }
 
-    /// Searches the current query with the default browser (`Cmd+Enter`).
+    /// Searches the current query with the chosen search engine in the default browser (`Cmd+Enter`).
     @discardableResult
     func searchWeb() -> Task<Void, Never>? {
         let text = normalizedQuery
-        guard !text.isEmpty, let searchURL = WebURLResolver.searchURL(for: text) else { return nil }
+        guard !text.isEmpty,
+              let searchURL = settingsStore.load().webSearchEngine.searchURL(for: text) else { return nil }
         return openExternalURL(searchURL)
     }
 

@@ -248,7 +248,7 @@ final class LauncherPanelControllerTests: XCTestCase {
             try await Task.sleep(nanoseconds: 10_000_000)
         }
         XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
-        XCTAssertEqual(opener.openedURLs, [WebURLResolver.searchURL(for: "swift arrays")])
+        XCTAssertEqual(opener.openedURLs, [WebSearchEngine.bing.searchURL(for: "swift arrays")])
     }
 
     func testLauncherPanelControllerCommandReturnWithEmptyQueryDoesNothing() throws {

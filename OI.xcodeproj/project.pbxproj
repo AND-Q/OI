@@ -112,6 +112,7 @@
 		A100000100000061 /* LauncherActionSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000061 /* LauncherActionSheetView.swift */; };
 		A100000100000062 /* QuickAIStreaming.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000062 /* QuickAIStreaming.swift */; };
 		A100000100000063 /* StreamingTextBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000063 /* StreamingTextBuffer.swift */; };
+		A100000100000064 /* WebSearchEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000064 /* WebSearchEngine.swift */; };
 		B10000010000001D /* TranslatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001E /* TranslatorTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -234,6 +235,7 @@
 		A200000100000061 /* LauncherActionSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherActionSheetView.swift; sourceTree = "<group>"; };
 		A200000100000062 /* QuickAIStreaming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAIStreaming.swift; sourceTree = "<group>"; };
 		A200000100000063 /* StreamingTextBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingTextBuffer.swift; sourceTree = "<group>"; };
+		A200000100000064 /* WebSearchEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSearchEngine.swift; sourceTree = "<group>"; };
 		B20000010000001E /* TranslatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -377,6 +379,7 @@
 				A200000100000031 /* SearchResult.swift */,
 				A200000100000038 /* QuickQueryResult.swift */,
 				A200000100000050 /* TranslationLanguage.swift */,
+				A200000100000064 /* WebSearchEngine.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -800,6 +803,7 @@
 				A100000100000061 /* LauncherActionSheetView.swift in Sources */,
 				A100000100000062 /* QuickAIStreaming.swift in Sources */,
 				A100000100000063 /* StreamingTextBuffer.swift in Sources */,
+				A100000100000064 /* WebSearchEngine.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -48,10 +48,15 @@ struct SettingsView: View {
             Section {
                 Toggle("文件与文件夹搜索", isOn: $viewModel.settings.isFileSearchEnabled)
                 Toggle("启动历史排序", isOn: $viewModel.settings.isUsageRankingEnabled)
+                Picker("网页搜索引擎", selection: $viewModel.settings.webSearchEngine) {
+                    ForEach(WebSearchEngine.allCases) { engine in
+                        Text(engine.displayName).tag(engine)
+                    }
+                }
             } header: {
                 Text("搜索")
             } footer: {
-                Text("启动历史排序会记录应用的启动次数与最近使用时间，用于优化常用应用的排序，数据仅保存在本机。")
+                Text("启动历史排序会记录应用的启动次数与最近使用时间，用于优化常用应用的排序，数据仅保存在本机。在启动器中按 ⌘↩ 会用所选搜索引擎在默认浏览器中搜索输入内容。")
             }
 
             Section {

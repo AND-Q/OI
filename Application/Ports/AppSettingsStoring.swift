@@ -68,6 +68,8 @@ struct AppSettings: Sendable, Equatable {
     var translationTargetLanguage: TranslationLanguage = .simplifiedChinese
     /// 原文已是目标语言时改译为此语言，默认组合即中文与外文双向互译。
     var translationAlternateLanguage: TranslationLanguage = .english
+    /// `⌘↩` 网页搜索使用的搜索引擎。
+    var webSearchEngine: WebSearchEngine = .bing
 }
 
 /// 应用级设置的持久化端口。设置值极小且只在主线程读写，端口按同步设计。
