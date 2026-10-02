@@ -89,10 +89,21 @@ struct AccessibilityTextCapturer: TextCapturing {
         let application = AXUIElementCreateApplication(processID)
         AXUIElementSetMessagingTimeout(application, messagingTimeout)
         enableAccessibilityTree(of: application)
-        guard let focused = uiElement(attribute(application, kAXFocusedUIElementAttribute)),
-              !isSecureTextField(focused) else { return nil }
+        let applicationName = attribute(application, kAXTitleAttribute) as? String ?? "process \(processID)"
+        guard let focused = uiElement(attribute(application, kAXFocusedUIElementAttribute)) else {
+            logger.debug("Selection in \(applicationName, privacy: .public): no focused element")
+            return nil
+        }
+        guard !isSecureTextField(focused) else { return nil }
         AXUIElementSetMessagingTimeout(focused, messagingTimeout)
-        return selectionUsingCharacterRange(in: focused) ?? selectionUsingTextMarkers(startingAt: focused)
+        let selection = selectionUsingCharacterRange(in: focused) ?? selectionUsingTextMarkers(startingAt: focused)
+        // 诊断：只记字数与位置，不记选中的文字。
+        let role = attribute(focused, kAXRoleAttribute) as? String ?? "unknown"
+        let summary = selection.map { "\(($0.text as NSString).length) chars, bounds \(describe($0.screenRect))" } ?? "none"
+        logger.debug(
+            "Selection in \(applicationName, privacy: .public), focused \(role, privacy: .public): \(summary, privacy: .public)"
+        )
+        return selection
     }
 
     private static func selectionUsingCharacterRange(in element: AXUIElement) -> CapturedText? {
@@ -102,20 +113,27 @@ struct AccessibilityTextCapturer: TextCapturing {
             .flatMap { axValue(range: $0) }
             .flatMap { rect(attribute(element, kAXBoundsForRangeParameterizedAttribute, parameter: $0)) }
         // WebKit 的网页区域给出选中文字却不支持按字符区间取位置，改用文本标记取位置。
-        let bounds = characterRangeBounds ?? attribute(element, "AXSelectedTextMarkerRange")
+        let textMarkerBounds = attribute(element, "AXSelectedTextMarkerRange")
             .flatMap { rect(attribute(element, "AXBoundsForTextMarkerRange", parameter: $0)) }
-        return CapturedText(text: cleaned, source: .selection, screenRect: usable(bounds))
+        logger.debug(
+            "Selection via character range: character range bounds \(Self.describe(characterRangeBounds), privacy: .public), text marker bounds \(Self.describe(textMarkerBounds), privacy: .public)"
+        )
+        return CapturedText(text: cleaned, source: .selection, screenRect: usable(characterRangeBounds ?? textMarkerBounds))
     }
 
     private static func selectionUsingTextMarkers(startingAt element: AXUIElement) -> CapturedText? {
         var candidate: AXUIElement? = element
-        for _ in 0..<maximumAncestorDepth {
+        for depth in 0..<maximumAncestorDepth {
             guard let current = candidate else { return nil }
             if let markerRange = attribute(current, "AXSelectedTextMarkerRange"),
                let text = attribute(current, "AXStringForTextMarkerRange", parameter: markerRange) as? String {
+                let bounds = rect(attribute(current, "AXBoundsForTextMarkerRange", parameter: markerRange))
+                let role = attribute(current, kAXRoleAttribute) as? String ?? "unknown"
+                logger.debug(
+                    "Selection via text marker in \(role, privacy: .public) \(depth, privacy: .public) level(s) above focus: bounds \(Self.describe(bounds), privacy: .public)"
+                )
                 // 找到了提供选区的元素但选区为空：就是没有选中文字。
                 guard let cleaned = cleaned(text) else { return nil }
-                let bounds = rect(attribute(current, "AXBoundsForTextMarkerRange", parameter: markerRange))
                 return CapturedText(text: cleaned, source: .selection, screenRect: usable(bounds))
             }
             candidate = uiElement(attribute(current, kAXParentAttribute))
@@ -313,6 +331,10 @@ struct AccessibilityTextCapturer: TextCapturing {
 
     private static func describe(_ rect: CGRect) -> String {
         String(format: "(%.0f, %.0f, %.0f×%.0f)", rect.minX, rect.minY, rect.width, rect.height)
+    }
+
+    private static func describe(_ rect: CGRect?) -> String {
+        rect.map { describe($0) } ?? "none"
     }
 
     // MARK: - Accessibility helpers
