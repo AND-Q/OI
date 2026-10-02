@@ -75,6 +75,7 @@ final class TranslatorViewModel: ObservableObject {
     /// 先用辅助功能接口取词，应用不提供该处的文字位置时（如 VS Code、Chrome）再模拟双击选词。
     /// 读不到选区位置时无法判断是否点在选区上，先取单词，取不到再用选区：
     /// 点按未激活的窗口时前台应用尚未切换，读到的可能是上一个应用的选区。
+    /// 应用已核实点按处不是文字（如空白处）时不再用选区，以免气泡凭空翻译别处的选区。
     /// 该处不是文字、功能已关闭或未获辅助功能权限时返回 nil，不弹出气泡，避免在桌面、图片等位置误弹。
     func captureFromForceTouch(at point: CGPoint) async -> TranslatorPresentation? {
         guard settingsStore.load().isForceTouchTranslationEnabled, environment.isAccessibilityTrusted else {
@@ -92,7 +93,7 @@ final class TranslatorViewModel: ObservableObject {
             case .found(let word):
                 captured = word
             case .notOnText:
-                break
+                return nil
             case .unavailable:
                 // 双击会改动目标应用的选区，已被更新的一次触发取代时不再进行。
                 if generation == captureGeneration {

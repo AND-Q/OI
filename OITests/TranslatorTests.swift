@@ -240,13 +240,30 @@ final class TranslatorTests: XCTestCase {
                 wordAtPoint: CapturedText(text: "word", source: .word, screenRect: nil)
             )
         )
-        let withoutWord = makeTranslatorViewModel(capturer: StubTextCapturer(selection: selection))
+        let withoutWord = makeTranslatorViewModel(
+            capturer: StubTextCapturer(selection: selection, lookupWithoutWord: .unavailable)
+        )
 
         _ = await withWord.captureFromForceTouch(at: CGPoint(x: 500, y: 500))
         _ = await withoutWord.captureFromForceTouch(at: CGPoint(x: 500, y: 500))
 
         XCTAssertEqual(withWord.session?.sourceText, "word")
         XCTAssertEqual(withoutWord.session?.sourceText, "selected text")
+    }
+
+    /// 应用已核实点按处不是文字（如空白处）时，不翻译位置未知的选区，以免气泡凭空出现。
+    func testForceTouchOnVerifiedNonTextIgnoresSelectionWithoutPosition() async {
+        let viewModel = makeTranslatorViewModel(
+            capturer: StubTextCapturer(
+                selection: CapturedText(text: "selected text", source: .selection, screenRect: nil),
+                lookupWithoutWord: .notOnText
+            )
+        )
+
+        let presentation = await viewModel.captureFromForceTouch(at: CGPoint(x: 500, y: 500))
+
+        XCTAssertNil(presentation)
+        XCTAssertNil(viewModel.session)
     }
 
     /// 选区位置已知且不在点按处时，点在非文字位置也不应翻译别处的选区。
