@@ -83,27 +83,7 @@
 - **涉及文件**：
   - [Application/Ports/AppSettingsStoring.swift](Application/Ports/AppSettingsStoring.swift)、[Infrastructure/Settings/UserDefaultsAppSettingsStore.swift](Infrastructure/Settings/UserDefaultsAppSettingsStore.swift)、[Infrastructure/Shortcut/CarbonGlobalShortcutService.swift](Infrastructure/Shortcut/CarbonGlobalShortcutService.swift)、[Features/Settings/SettingsViewModel.swift](Features/Settings/SettingsViewModel.swift)、[UI/Settings/SettingsView.swift](UI/Settings/SettingsView.swift)、[UI/Settings/ShortcutRecorderField.swift](UI/Settings/ShortcutRecorderField.swift)、[Features/Settings/ShortcutFormatter.swift](Features/Settings/ShortcutFormatter.swift)、[App/AppCoordinator.swift](App/AppCoordinator.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[App/AppConfiguration.swift](App/AppConfiguration.swift)、[OITests/LauncherShortcutTests.swift](OITests/LauncherShortcutTests.swift)、[OITests/ShortcutFormatterTests.swift](OITests/ShortcutFormatterTests.swift)、[OITests/AppCoordinatorTests.swift](OITests/AppCoordinatorTests.swift)、[OITests/SettingsViewModelTests.swift](OITests/SettingsViewModelTests.swift)、[OITests/UserDefaultsAppSettingsStoreTests.swift](OITests/UserDefaultsAppSettingsStoreTests.swift)
 
-## [ ] 7. 开发者实用工具
-
-- **需求描述**：
-  - 输入 `uuid` 快速生成并拷贝、按进程名或端口号快速结束进程。
-
-## [ ] 8. 系统设置项直达
-
-- **需求描述**：
-  - 快速检索并定位 macOS 系统设置子面板（蓝牙、网络、声音、显示器等）。
-
-## [ ] 9. 系统控制快捷命令
-
-- **需求描述**：
-  - 输入指令快速执行锁定屏幕、睡眠、重启、关机、清空废纸篓、切换外观模式。
-
-## [ ] 10. 轻量剪贴板历史
-
-- **需求描述**：
-  - 本地无感记录剪贴板内容，支持模糊搜索过滤与回车自动粘贴。
-
-## [x] 11. 即时快速问答 (Quick AI)
+## [x] 7. 即时快速问答 (Quick AI)
 
 - **需求描述**：
   - 按 `Tab` 键切入 Quick AI 模式，再输入问题并按 `Enter` 提问；
@@ -119,7 +99,7 @@
 - **涉及文件**：
   - [Application/Ports/QuickAIAnswering.swift](Application/Ports/QuickAIAnswering.swift)、[Application/Ports/QuickAIKeyStoring.swift](Application/Ports/QuickAIKeyStoring.swift)、[Application/UseCases/AskQuickAI.swift](Application/UseCases/AskQuickAI.swift)、[Application/Errors/ApplicationError.swift](Application/Errors/ApplicationError.swift)、[Application/Ports/AppSettingsStoring.swift](Application/Ports/AppSettingsStoring.swift)、[Infrastructure/QuickAI/OpenAICompatibleQuickAIClient.swift](Infrastructure/QuickAI/OpenAICompatibleQuickAIClient.swift)、[Infrastructure/QuickAI/KeychainQuickAIKeyStore.swift](Infrastructure/QuickAI/KeychainQuickAIKeyStore.swift)、[Infrastructure/Settings/UserDefaultsAppSettingsStore.swift](Infrastructure/Settings/UserDefaultsAppSettingsStore.swift)、[Features/Launcher/LauncherState.swift](Features/Launcher/LauncherState.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Features/Launcher/LauncherView.swift](Features/Launcher/LauncherView.swift)、[Features/Launcher/QuickAIMarkdown.swift](Features/Launcher/QuickAIMarkdown.swift)、[Features/Launcher/QuickAIAnswerView.swift](Features/Launcher/QuickAIAnswerView.swift)、[Features/Settings/SettingsViewModel.swift](Features/Settings/SettingsViewModel.swift)、[UI/Settings/SettingsView.swift](UI/Settings/SettingsView.swift)、[UI/Settings/SettingsWindowController.swift](UI/Settings/SettingsWindowController.swift)、[UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[OITests/QuickAITests.swift](OITests/QuickAITests.swift)
 
-## [x] 12. 全局划词与触控板重按取词 (Force Touch Translator)
+## [x] 8. 全局划词与触控板重按取词 (Force Touch Translator)
 
 - **需求描述**：
   - **多模式取词触发**：
@@ -144,3 +124,23 @@
   - 设置：[AppSettings](Application/Ports/AppSettingsStoring.swift) 新增用力点按开关（默认开）、翻译快捷键与两个语言（UserDefaults 持久化，未知语言代码与非法快捷键回退默认）；[SettingsViewModel](Features/Settings/SettingsViewModel.swift) 两个快捷键共用「先试注册、成功才持久化、失败回滚原键」流程，并互相拒绝相同组合；设置窗口新增「划词翻译」与「取词环境」分组：辅助功能权限的实时状态与授权入口（[TranslatorEnvironmentHandling](Application/Ports/TranslatorEnvironmentHandling.swift) 端口，设置窗口重新获得焦点时刷新），「查询与数据检测器」改用三指轻点或关闭、保持开启「用力点按和触感反馈」的引导与触控板设置入口。
 - **涉及文件**：
   - [Domain/Models/TranslationLanguage.swift](Domain/Models/TranslationLanguage.swift)、[Application/Ports/TextCapturing.swift](Application/Ports/TextCapturing.swift)、[Application/Ports/ForceTouchMonitoring.swift](Application/Ports/ForceTouchMonitoring.swift)、[Application/Ports/LanguageDetecting.swift](Application/Ports/LanguageDetecting.swift)、[Application/Ports/WordSelecting.swift](Application/Ports/WordSelecting.swift)、[Application/Ports/TranslatorEnvironmentHandling.swift](Application/Ports/TranslatorEnvironmentHandling.swift)、[Application/Ports/QuickAIAnswering.swift](Application/Ports/QuickAIAnswering.swift)、[Application/Ports/AppSettingsStoring.swift](Application/Ports/AppSettingsStoring.swift)、[Application/UseCases/TranslateText.swift](Application/UseCases/TranslateText.swift)、[Application/UseCases/AskQuickAI.swift](Application/UseCases/AskQuickAI.swift)、[Infrastructure/Translator/](Infrastructure/Translator/)、[Infrastructure/QuickAI/OpenAICompatibleQuickAIClient.swift](Infrastructure/QuickAI/OpenAICompatibleQuickAIClient.swift)、[Infrastructure/Shortcut/CarbonGlobalShortcutService.swift](Infrastructure/Shortcut/CarbonGlobalShortcutService.swift)、[Infrastructure/Settings/UserDefaultsAppSettingsStore.swift](Infrastructure/Settings/UserDefaultsAppSettingsStore.swift)、[Features/Translator/](Features/Translator/)、[Features/Settings/SettingsViewModel.swift](Features/Settings/SettingsViewModel.swift)、[UI/Translator/TranslatorPanelController.swift](UI/Translator/TranslatorPanelController.swift)、[UI/Settings/SettingsView.swift](UI/Settings/SettingsView.swift)、[UI/Settings/SettingsWindowController.swift](UI/Settings/SettingsWindowController.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[App/AppCoordinator.swift](App/AppCoordinator.swift)、[OITests/TranslatorTests.swift](OITests/TranslatorTests.swift)、[OITests/QuickAITests.swift](OITests/QuickAITests.swift)
+
+## [ ] 9. 开发者实用工具
+
+- **需求描述**：
+  - 输入 `uuid` 快速生成并拷贝、按进程名或端口号快速结束进程。
+
+## [ ] 10. 系统设置项直达
+
+- **需求描述**：
+  - 快速检索并定位 macOS 系统设置子面板（蓝牙、网络、声音、显示器等）。
+
+## [ ] 11. 系统控制快捷命令
+
+- **需求描述**：
+  - 输入指令快速执行锁定屏幕、睡眠、重启、关机、清空废纸篓、切换外观模式。
+
+## [ ] 12. 轻量剪贴板历史
+
+- **需求描述**：
+  - 本地无感记录剪贴板内容，支持模糊搜索过滤与回车自动粘贴。
