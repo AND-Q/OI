@@ -3,6 +3,10 @@ import Foundation
 /// 基于 OpenAI Chat Completions 流式接口（SSE）的问答实现，
 /// 兼容 OpenAI、Ollama（`/v1`）及各类兼容网关。
 struct OpenAICompatibleQuickAIClient: QuickAIAnswering {
+    /// 两次收到数据之间最长的等待（不是整次回答的总时长）：本机大模型首次加载可能一分钟以上
+    /// 才开始输出，放宽到 3 分钟；等不及时按 Esc 中断。
+    static let idleTimeout: TimeInterval = 180
+
     private let session: URLSession
 
     init(session: URLSession = .shared) {
@@ -77,7 +81,7 @@ struct OpenAICompatibleQuickAIClient: QuickAIAnswering {
         let endpoint = endpointURL(for: configuration.baseURL)
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
-        request.timeoutInterval = 60
+        request.timeoutInterval = idleTimeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         if let apiKey = configuration.apiKey {

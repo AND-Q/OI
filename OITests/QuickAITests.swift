@@ -31,6 +31,11 @@ final class QuickAITests: XCTestCase {
         XCTAssertEqual(baseURL("127.0.0.1:11434/v1"), "http://127.0.0.1:11434/v1")
         XCTAssertEqual(baseURL("192.168.1.8:11434/v1"), "http://192.168.1.8:11434/v1")
         XCTAssertEqual(baseURL("HTTPS://api.openai.com/v1"), "HTTPS://api.openai.com/v1")
+        XCTAssertEqual(baseURL("172.20.10.2:11434/v1"), "http://172.20.10.2:11434/v1")
+        XCTAssertEqual(baseURL("172.32.0.1/v1"), "https://172.32.0.1/v1")
+        XCTAssertEqual(baseURL("[::1]:11434/v1"), "http://[::1]:11434/v1")
+        // 以数字开头的域名不是局域网地址。
+        XCTAssertEqual(baseURL("10.example.com/v1"), "https://10.example.com/v1")
     }
 
     func testPlaintextOverPublicNetworkOnlyForHTTPToNonLocalHosts() {
@@ -45,6 +50,11 @@ final class QuickAITests: XCTestCase {
         XCTAssertFalse(isPlaintext("http://127.0.0.1:11434/v1"))
         XCTAssertFalse(isPlaintext("http://192.168.1.8:11434/v1"))
         XCTAssertFalse(isPlaintext("http://mac-mini.local:11434/v1"))
+        XCTAssertFalse(isPlaintext("http://172.20.10.2:11434/v1"))
+        XCTAssertFalse(isPlaintext("http://169.254.10.20:11434/v1"))
+        XCTAssertFalse(isPlaintext("http://[::1]:11434/v1"))
+        XCTAssertFalse(isPlaintext("http://[fd12:3456::5]:11434/v1"))
+        XCTAssertTrue(isPlaintext("http://172.32.0.1/v1"))
         XCTAssertFalse(isPlaintext(""))
     }
 
@@ -95,6 +105,7 @@ final class QuickAITests: XCTestCase {
 
         XCTAssertEqual(request.url?.absoluteString, "https://api.openai.com/v1/chat/completions")
         XCTAssertEqual(request.httpMethod, "POST")
+        XCTAssertEqual(request.timeoutInterval, OpenAICompatibleQuickAIClient.idleTimeout)
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer sk-test")
         let body = try XCTUnwrap(request.httpBody)
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
