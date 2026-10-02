@@ -25,8 +25,9 @@ Application/                 用例边界和外部端口
 Features/Launcher/           用户功能和状态
   LauncherState.swift        可测试的加载与启动状态
   LauncherViewModel.swift    搜索、选择和异步任务协调
-  LauncherView.swift         SwiftUI 界面
+  LauncherLayout.swift       面板布局尺寸与展开高度
 Features/Settings/           设置面板（设置状态与 SwiftUI 表单）
+Features/Shared/             多个功能共用的呈现逻辑（Quick AI 回答的 Markdown 解析）
 
 Infrastructure/              系统能力实现
   AppCatalog/                文件系统扫描
@@ -36,7 +37,7 @@ Infrastructure/              系统能力实现
 
 UI/                          AppKit/SwiftUI 桥接
   Icons/                     NSImage 图标提供与缓存
-  Panel/                     NSPanel 和键盘事件适配
+  Panel/                     NSPanel、启动器界面与键盘事件适配
   StatusBar/                 NSStatusItem 适配
   Settings/                  设置窗口壳
 

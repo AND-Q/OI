@@ -108,6 +108,8 @@
 		A10000010000005D /* TranslatorPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000005D /* TranslatorPanelController.swift */; };
 		A10000010000005E /* WordSelecting.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000005E /* WordSelecting.swift */; };
 		A10000010000005F /* DoubleClickWordSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000005F /* DoubleClickWordSelector.swift */; };
+		A100000100000060 /* LauncherLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000060 /* LauncherLayout.swift */; };
+		A100000100000061 /* LauncherActionSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000061 /* LauncherActionSheetView.swift */; };
 		B10000010000001D /* TranslatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001E /* TranslatorTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -226,6 +228,8 @@
 		A20000010000005D /* TranslatorPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorPanelController.swift; sourceTree = "<group>"; };
 		A20000010000005E /* WordSelecting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordSelecting.swift; sourceTree = "<group>"; };
 		A20000010000005F /* DoubleClickWordSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoubleClickWordSelector.swift; sourceTree = "<group>"; };
+		A200000100000060 /* LauncherLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherLayout.swift; sourceTree = "<group>"; };
+		A200000100000061 /* LauncherActionSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherActionSheetView.swift; sourceTree = "<group>"; };
 		B20000010000001E /* TranslatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -291,6 +295,7 @@
 				A40000010000000B /* Launcher */,
 				A40000010000001D /* Settings */,
 				A400000100000021 /* Translator */,
+				A400000100000023 /* Shared */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -398,14 +403,12 @@
 		A40000010000000B /* Launcher */ = {
 			isa = PBXGroup;
 			children = (
-				A20000010000000D /* LauncherView.swift */,
-				A200000100000019 /* LauncherResultsList.swift */,
 				A20000010000000E /* LauncherViewModel.swift */,
 				A200000100000018 /* LauncherState.swift */,
+				A200000100000060 /* LauncherLayout.swift */,
 				A200000100000039 /* QuickQueryResolver.swift */,
 				A20000010000003D /* WebURLResolver.swift */,
 				A20000010000003F /* LauncherActionMenu.swift */,
-				A20000010000004E /* QuickAIMarkdown.swift */,
 				A20000010000004F /* QuickAIAnswerView.swift */,
 			);
 			path = Launcher;
@@ -450,6 +453,9 @@
 			isa = PBXGroup;
 			children = (
 				A20000010000000F /* LauncherPanelController.swift */,
+				A20000010000000D /* LauncherView.swift */,
+				A200000100000019 /* LauncherResultsList.swift */,
+				A200000100000061 /* LauncherActionSheetView.swift */,
 				A20000010000003E /* QuickLookPresenter.swift */,
 				A20000010000001A /* VisualEffectBackground.swift */,
 				A200000100000021 /* LauncherSearchInput.swift */,
@@ -605,6 +611,14 @@
 				A20000010000005D /* TranslatorPanelController.swift */,
 			);
 			path = Translator;
+			sourceTree = "<group>";
+		};
+		A400000100000023 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				A20000010000004E /* QuickAIMarkdown.swift */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -776,6 +790,8 @@
 				A10000010000005D /* TranslatorPanelController.swift in Sources */,
 				A10000010000005E /* WordSelecting.swift in Sources */,
 				A10000010000005F /* DoubleClickWordSelector.swift in Sources */,
+				A100000100000060 /* LauncherLayout.swift in Sources */,
+				A100000100000061 /* LauncherActionSheetView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
