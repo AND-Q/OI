@@ -81,9 +81,9 @@ struct ApplicationSearchIndex: Sendable {
             || document.initials.hasPrefix(query) {
             tier = 4
             textScore = 0
-        } else if document.pinyin.hasPrefix(query) {
+        } else if let position = pinyinPosition(document, query: query) {
             tier = 5
-            textScore = 0
+            textScore = position
         } else if let range = document.normalizedName.range(of: query) {
             tier = 6
             textScore = document.normalizedName.distance(
@@ -133,6 +133,17 @@ struct ApplicationSearchIndex: Sendable {
             }
         }
         return best
+    }
+
+    /// 全拼从名字中某个字开始以查询为前缀时，返回该字在全拼中的位置；
+    /// 从开头匹配为 0，凭借更小的位置值优先于从中间某个字开始的匹配。
+    private func pinyinPosition(
+        _ document: ApplicationSearchDocument,
+        query: String
+    ) -> Int? {
+        document.pinyinSuffixes
+            .first { $0.hasPrefix(query) }
+            .map { document.pinyin.count - $0.count }
     }
 
     /// 子序列匹配代价：沿名称行走时跳过的字符总数。

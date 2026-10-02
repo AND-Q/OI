@@ -17,14 +17,31 @@ enum SearchTextNormalizer {
             .filter { !$0.isEmpty }
     }
 
-    /// 将中日韩文本转写为无声调拼音（"微信" -> "wei xin"）；拉丁文本
+    /// 将中日韩文本转写为无声调拼音（"微信" -> "weixin"）；拉丁文本
     /// 原样通过。拼音仅作为匹配字段存在，展示的仍是原始名称。
     static func pinyin(of text: String) -> String {
+        pinyinSyllables(of: text).joined()
+    }
+
+    /// 按字切分的拼音音节（"QQ音乐" -> ["qq", "yin", "le"]）：每个汉字单独转写为一个音节，
+    /// 其余文字按分隔符切分，因此每个汉字的拼音起点都确定；不含汉字时为空。
+    static func pinyinSyllables(of text: String) -> [String] {
         guard text.unicodeScalars.contains(where: { $0.properties.isIdeographic == true }) else {
-            return ""
+            return []
         }
+        var result: [String] = []
+        var run = ""
+        for character in text {
+            if character.unicodeScalars.contains(where: { $0.properties.isIdeographic == true }) {
+                result += syllables(of: run) + syllables(of: String(character))
+                run = ""
+            } else {
+                run.append(character)
+            }
+        }
+        result += syllables(of: run)
         // 与 query 归一化域对齐：统一小写（文档 §7.2）。
-        return syllables(of: text).joined().lowercased()
+        return result.map { $0.lowercased() }
     }
 
     /// 取每段以空白分隔的转写结果的首字母，因此拉丁名称得到 "vsc"，
@@ -74,6 +91,9 @@ struct ApplicationSearchDocument: Sendable {
     let aliases: [String]
     let initials: String
     let pinyin: String
+    /// 从每个字开始的全拼（"网易云音乐" -> wangyiyunyinle、yiyunyinle、yunyinle…），
+    /// 用于从名字中任意一个字开始匹配全拼；按起点先后排列，第一项即 `pinyin`。
+    let pinyinSuffixes: [String]
 
     init(app: AppDescriptor, aliases: [String] = []) {
         let tokens = SearchTextNormalizer.tokenize(app.name)
@@ -97,6 +117,8 @@ struct ApplicationSearchDocument: Sendable {
         )
         self.aliases = aliases.map(SearchTextNormalizer.normalize)
         self.initials = SearchTextNormalizer.initials(of: app.name)
-        self.pinyin = SearchTextNormalizer.pinyin(of: app.name)
+        let pinyinSyllables = SearchTextNormalizer.pinyinSyllables(of: app.name)
+        self.pinyin = pinyinSyllables.joined()
+        self.pinyinSuffixes = pinyinSyllables.indices.map { pinyinSyllables[$0...].joined() }
     }
 }

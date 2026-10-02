@@ -269,7 +269,7 @@ Bundle ID：com.microsoft.VSCode
 2  normalizedName 单词前缀匹配（如 "code" 命中 "Visual Studio Code" 的单词 "Code"）
 3  normalizedBundleName / 去掉「顶级域.厂商」的 Bundle Identifier 前缀或包含匹配；完整 Bundle Identifier 前缀匹配（须越过顶级域段）
 4  aliases 前缀或包含匹配；initials 前缀匹配
-5  pinyin 前缀匹配
+5  pinyin 前缀匹配（可从任意一个字的拼音开始，起点越靠前越优先）
 6  normalizedName 连续包含匹配
 7  normalizedName 模糊子序列匹配
 ```

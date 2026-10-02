@@ -130,6 +130,7 @@ OI 的所有快捷键如下。除全局快捷键外，其余快捷键只在**启
 | `Safari` | Safari | 英文原名，忽略大小写 |
 | `code` | Visual Studio Code | 按单词前缀匹配 |
 | `weixin` | 微信 | 汉字无声调全拼 |
+| `yinle` | 网易云音乐 | 从名字中任意一个字开始的全拼 |
 | `wx` | 微信 | 中文名首字母缩写 |
 | `vsc` | Visual Studio Code | 英文名首字母缩写 |
 | `vscode` | Visual Studio Code | 内置别名（Bundle ID 级别名） |

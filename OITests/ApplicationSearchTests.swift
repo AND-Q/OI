@@ -143,6 +143,22 @@ final class ApplicationSearchTests: XCTestCase {
         XCTAssertEqual(index.search(query: "wx").map(\.name), ["微信"])
     }
 
+    func testPinyinSyllablesSplitEachHanCharacter() {
+        XCTAssertEqual(SearchTextNormalizer.pinyinSyllables(of: "网易云音乐"), ["wang", "yi", "yun", "yin", "le"])
+        XCTAssertEqual(SearchTextNormalizer.pinyinSyllables(of: "QQ音乐"), ["qq", "yin", "le"])
+        XCTAssertEqual(SearchTextNormalizer.pinyinSyllables(of: "剪映-专业版"), ["jian", "ying", "zhuan", "ye", "ban"])
+        XCTAssertEqual(SearchTextNormalizer.pinyinSyllables(of: "Safari"), [])
+    }
+
+    /// 全拼可从名字中任意一个字开始匹配，从开头匹配的排在前面；不从一个字的拼音中间开始匹配。
+    func testPinyinMatchesFromAnyCharacter() {
+        let index = makeIndex(["网易云音乐", "微信", "云盘"])
+        XCTAssertEqual(index.search(query: "yun").map(\.name), ["云盘", "网易云音乐"])
+        XCTAssertEqual(index.search(query: "yinle").map(\.name), ["网易云音乐"])
+        XCTAssertEqual(index.search(query: "xin").map(\.name), ["微信"])
+        XCTAssertTrue(index.search(query: "angyi").isEmpty)
+    }
+
     func testFuzzySubsequenceMatchRanksLast() {
         let index = makeIndex(["Google Chrome", "Google Drive"])
         let results = index.search(query: "gchrme")
