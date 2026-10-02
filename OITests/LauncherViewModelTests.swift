@@ -355,6 +355,40 @@ final class LauncherViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.apps.map(\.name), ["Alpha", "Beta"])
     }
 
+    /// 回归测试：后台目录刷新完成时，选中的结果仍在就保持选中与操作菜单，不把用户拉回第一项；
+    /// 选中的应用已不在时才归零并滚回顶部。
+    func testBackgroundRefreshKeepsSelectionWhileSelectedResultRemains() async {
+        let safari = AppDescriptor(name: "Safari", url: URL(fileURLWithPath: "/Applications/Safari.app"))
+        let preview = AppDescriptor(
+            name: "Safari Technology Preview",
+            url: URL(fileURLWithPath: "/Applications/Safari Technology Preview.app")
+        )
+        let viewModel = LauncherViewModel(
+            discoverApplications: DiscoverApplications(
+                catalog: SequencedAppCatalog(results: [[safari, preview], [safari, preview], [safari]])
+            ),
+            launchApplication: LaunchApplication(launcher: StubApplicationLauncher())
+        )
+        await viewModel.loadApps()?.value
+        viewModel.query = "safari"
+        viewModel.moveSelection(by: 1)
+        viewModel.toggleActionSheet()
+        let resetRequest = viewModel.listResetRequest
+
+        await viewModel.refreshApplications(force: true)?.value
+
+        XCTAssertEqual(viewModel.selectedApp?.name, "Safari Technology Preview")
+        XCTAssertTrue(viewModel.isActionSheetVisible)
+        XCTAssertEqual(viewModel.listResetRequest, resetRequest)
+
+        await viewModel.refreshApplications(force: true)?.value
+
+        XCTAssertEqual(viewModel.selectedIndex, 0)
+        XCTAssertEqual(viewModel.selectedApp?.name, "Safari")
+        XCTAssertFalse(viewModel.isActionSheetVisible)
+        XCTAssertGreaterThan(viewModel.listResetRequest, resetRequest)
+    }
+
     /// 回归测试：空扫描结果（如目录临时异常）不得清空使用历史。
     func testViewModelKeepsUsageHistoryWhenScanReturnsEmpty() async {
         let demo = AppDescriptor(

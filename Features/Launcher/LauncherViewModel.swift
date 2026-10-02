@@ -249,8 +249,10 @@ final class LauncherViewModel: ObservableObject {
                 self.lastRefreshedAt = self.now()
                 self.catalogIsDirty = false
                 self.loadState = .loaded
-                self.updateFilteredApps()
-                self.requestListReset()
+                // 选中的结果仍在就保持选中，选中项已不在时才归零并滚回顶部。
+                if !self.updateFilteredApps(preservingSelection: true) {
+                    self.requestListReset()
+                }
                 // 空扫描结果（如目录临时异常）不作为清理依据，防止误清全部使用历史。
                 // 不能用 guard-return：会跳过下方 loadTask 清理，阻塞后续刷新。
                 if !descriptors.isEmpty {
@@ -610,17 +612,28 @@ final class LauncherViewModel: ObservableObject {
         }
     }
 
-    private func updateFilteredApps() {
+    /// 重新筛选应用；返回是否保留了原选择，未保留时选择归零。`preservingSelection` 用于后台目录刷新：
+    /// 选中的结果仍在时保持选中与操作菜单，避免用户正用方向键挑选时被拉回第一项、回车打开别的应用。
+    @discardableResult
+    private func updateFilteredApps(preservingSelection: Bool = false) -> Bool {
+        let previousSelectionID = preservingSelection ? selectedResult?.id : nil
         let normalizedQuery = self.normalizedQuery
         let effectiveUsage = settingsStore.load().isUsageRankingEnabled ? usageRecords : [:]
         filteredApps = normalizedQuery.isEmpty
             ? apps
             : searchIndex.search(query: normalizedQuery, usage: effectiveUsage, now: now())
 
-        // 选择归零会让展开中的操作菜单目标漂移，必须同步收起（后台目录刷新路径）。
+        if let previousSelectionID,
+           let index = results.firstIndex(where: { $0.id == previousSelectionID }) {
+            selectedIndex = index
+            updatePanelHeight()
+            return true
+        }
+        // 选择归零会让展开中的操作菜单目标漂移，必须同步收起。
         isActionSheetVisible = false
         selectedIndex = 0
         updatePanelHeight()
+        return false
     }
 
     /// Debounced file lookup; stale results are dropped by generation so the
