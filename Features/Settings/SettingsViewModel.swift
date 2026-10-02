@@ -90,6 +90,27 @@ final class SettingsViewModel: ObservableObject {
         applyShortcut(shortcut, to: .translator)
     }
 
+    /// 设置翻译目标语言。选成与「原文已是目标语言时译为」相同的语言时两者互换：
+    /// 两者相同会让已是目标语言的原文被「翻译」成同一种语言。
+    func setTranslationTargetLanguage(_ language: TranslationLanguage) {
+        var updated = settings
+        if language == updated.translationAlternateLanguage {
+            updated.translationAlternateLanguage = updated.translationTargetLanguage
+        }
+        updated.translationTargetLanguage = language
+        settings = updated
+    }
+
+    /// 设置「原文已是目标语言时译为」，选成与目标语言相同时两者互换，规则同上。
+    func setTranslationAlternateLanguage(_ language: TranslationLanguage) {
+        var updated = settings
+        if language == updated.translationTargetLanguage {
+            updated.translationTargetLanguage = updated.translationAlternateLanguage
+        }
+        updated.translationAlternateLanguage = language
+        settings = updated
+    }
+
     /// 由 App 层在启动期注册失败时同步状态（如组合被其他应用占用），
     /// 让设置面板能看到失败原因，而不是平静地展示一个实际无效的快捷键。
     func reportShortcutRegistrationFailure(_ error: Error) {

@@ -697,6 +697,26 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(viewModel.settings.launcherShortcut, .standard)
     }
 
+    /// 两个翻译语言不会相同：选成另一项的语言时两者互换，否则只改这一项。
+    func testTranslationLanguagesSwapInsteadOfBecomingTheSame() {
+        let settingsStore = MemoryAppSettingsStore()
+        let viewModel = makeSettingsViewModel(settingsStore: settingsStore)
+
+        viewModel.setTranslationTargetLanguage(.english)
+        XCTAssertEqual(viewModel.settings.translationTargetLanguage, .english)
+        XCTAssertEqual(viewModel.settings.translationAlternateLanguage, .simplifiedChinese)
+
+        viewModel.setTranslationAlternateLanguage(.english)
+        XCTAssertEqual(viewModel.settings.translationTargetLanguage, .simplifiedChinese)
+        XCTAssertEqual(viewModel.settings.translationAlternateLanguage, .english)
+
+        viewModel.setTranslationTargetLanguage(.japanese)
+        XCTAssertEqual(viewModel.settings.translationTargetLanguage, .japanese)
+        XCTAssertEqual(viewModel.settings.translationAlternateLanguage, .english, "不冲突时只改这一项")
+        XCTAssertEqual(settingsStore.load().translationTargetLanguage, .japanese)
+        XCTAssertEqual(settingsStore.load().translationAlternateLanguage, .english)
+    }
+
     func testSettingsViewModelRefreshesPermissionsAndForwardsRequests() {
         let environment = MemoryTranslatorEnvironment(isAccessibilityTrusted: false)
         let viewModel = makeSettingsViewModel(environment: environment)

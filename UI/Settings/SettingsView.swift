@@ -96,10 +96,10 @@ struct SettingsView: View {
                 if let notice = viewModel.translatorShortcutNotice {
                     shortcutNoticeRow(notice)
                 }
-                Picker("目标语言", selection: $viewModel.settings.translationTargetLanguage) {
+                Picker("目标语言", selection: translationTargetLanguage) {
                     languageOptions
                 }
-                Picker("原文已是目标语言时译为", selection: $viewModel.settings.translationAlternateLanguage) {
+                Picker("原文已是目标语言时译为", selection: translationAlternateLanguage) {
                     languageOptions
                 }
             } header: {
@@ -175,6 +175,21 @@ struct SettingsView: View {
         Binding(
             get: { viewModel.isLaunchAtLoginEnabled },
             set: { viewModel.setLaunchAtLogin($0) }
+        )
+    }
+
+    /// 两个翻译语言选成相同时需要互换，因此不走 settings 绑定。
+    private var translationTargetLanguage: Binding<TranslationLanguage> {
+        Binding(
+            get: { viewModel.settings.translationTargetLanguage },
+            set: { viewModel.setTranslationTargetLanguage($0) }
+        )
+    }
+
+    private var translationAlternateLanguage: Binding<TranslationLanguage> {
+        Binding(
+            get: { viewModel.settings.translationAlternateLanguage },
+            set: { viewModel.setTranslationAlternateLanguage($0) }
         )
     }
 
