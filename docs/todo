@@ -161,7 +161,7 @@
 - **需要做到**：
   - 快捷链接由名称、关键词与 URL 模板组成，模板可用 `{query}` 占位：输入 `gh swiftui` 置顶「在 GitHub 搜索 swiftui」，`Enter` 打开；不含占位的模板作为书签直接打开；支持任意 URL scheme（如 `obsidian://`）；
   - 预置百度、Google、GitHub、B 站等常用链接，可在设置中新增、编辑、删除；
-  - 默认搜索引擎可选（Bing / Google / 百度 / DuckDuckGo），`Cmd+Enter` 按所选引擎搜索；
+  - [x] 默认搜索引擎可选（Bing / Google / 百度 / DuckDuckGo），`Cmd+Enter` 按所选引擎搜索；
   - 没有匹配结果时显示「用 <默认引擎> 搜索 xxx」与「问 Quick AI」两行，`Enter` 执行（未配置 Quick AI 时不显示后者）。
 
 ## [ ] 13. 路径直达
