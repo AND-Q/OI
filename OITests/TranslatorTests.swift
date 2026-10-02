@@ -187,12 +187,17 @@ final class TranslatorTests: XCTestCase {
     }
 
     func testForceTouchRequiresSettingAndPermission() async {
-        let word = CapturedText(text: "word", source: .word, screenRect: nil)
+        let selector = RecordingWordSelector(selected: CapturedText(text: "word", source: .word, screenRect: nil))
         var disabled = Self.configuredSettings
         disabled.isForceTouchTranslationEnabled = false
-        let disabledViewModel = makeTranslatorViewModel(capturer: StubTextCapturer(wordAtPoint: word), settings: disabled)
+        let disabledViewModel = makeTranslatorViewModel(
+            capturer: StubTextCapturer(lookupWithoutWord: .unavailable),
+            wordSelector: selector,
+            settings: disabled
+        )
         let untrustedViewModel = makeTranslatorViewModel(
-            capturer: StubTextCapturer(wordAtPoint: word),
+            capturer: StubTextCapturer(lookupWithoutWord: .unavailable),
+            wordSelector: selector,
             environment: MemoryTranslatorEnvironment(isAccessibilityTrusted: false)
         )
 
@@ -203,6 +208,7 @@ final class TranslatorTests: XCTestCase {
         XCTAssertNil(untrustedResult)
         XCTAssertNil(disabledViewModel.session)
         XCTAssertNil(untrustedViewModel.session)
+        XCTAssertEqual(selector.points, [], "功能关闭或未获授权时不模拟双击")
     }
 
     func testForceTouchPrefersSelectionUnderPointerOtherwiseWord() async {
@@ -271,74 +277,116 @@ final class TranslatorTests: XCTestCase {
         XCTAssertNil(viewModel.notice)
     }
 
-    /// 辅助功能取不到词（如 VS Code、Chrome）时截图识字兜底；未获屏幕录制权限时不截图。
-    func testForceTouchFallsBackToScreenRecognitionWhenAllowed() async {
-        let recognized = CapturedText(text: "模型", source: .word, screenRect: CGRect(x: 90, y: 95, width: 30, height: 18))
-        let allowed = makeTranslatorViewModel(
-            recognizer: StubScreenWordRecognizer(recognized: recognized),
-            environment: MemoryTranslatorEnvironment(isAccessibilityTrusted: true, isScreenCaptureAllowed: true)
-        )
-        let denied = makeTranslatorViewModel(
-            recognizer: StubScreenWordRecognizer(recognized: recognized),
-            environment: MemoryTranslatorEnvironment(isAccessibilityTrusted: true, isScreenCaptureAllowed: false)
+    /// 应用不提供点按处的文字位置（如 VS Code、Chrome）时模拟双击选词，气泡贴着选中的单词。
+    func testForceTouchSelectsWordByDoubleClickWhenTextPositionIsUnavailable() async {
+        let selected = CapturedText(text: "模型", source: .word, screenRect: CGRect(x: 90, y: 95, width: 30, height: 18))
+        let selector = RecordingWordSelector(selected: selected)
+        let viewModel = makeTranslatorViewModel(
+            capturer: StubTextCapturer(lookupWithoutWord: .unavailable),
+            wordSelector: selector
         )
 
-        let allowedPresentation = await allowed.captureFromForceTouch(at: CGPoint(x: 100, y: 100))
-        let deniedPresentation = await denied.captureFromForceTouch(at: CGPoint(x: 100, y: 100))
+        let presentation = await viewModel.captureFromForceTouch(at: CGPoint(x: 100, y: 100))
 
-        XCTAssertEqual(allowedPresentation, TranslatorPresentation(anchorRect: recognized.screenRect))
-        XCTAssertEqual(allowed.session?.sourceText, "模型")
-        XCTAssertNil(deniedPresentation)
-        XCTAssertNil(denied.session)
+        XCTAssertEqual(presentation, TranslatorPresentation(anchorRect: selected.screenRect))
+        XCTAssertEqual(viewModel.session?.sourceText, "模型")
+        XCTAssertEqual(viewModel.session?.source, .word)
+        XCTAssertEqual(selector.points, [CGPoint(x: 100, y: 100)])
     }
 
-    func testForceTouchPrefersAccessibilityWordOverScreenRecognition() async {
+    /// 应用能核对位置、点按处却不是文字（如空白处）时不双击，以免选中附近的词。
+    func testForceTouchDoesNotDoubleClickWhenPointIsNotOnText() async {
+        let selector = RecordingWordSelector(selected: CapturedText(text: "nearby", source: .word, screenRect: nil))
+        let viewModel = makeTranslatorViewModel(
+            capturer: StubTextCapturer(lookupWithoutWord: .notOnText),
+            wordSelector: selector
+        )
+
+        let presentation = await viewModel.captureFromForceTouch(at: CGPoint(x: 100, y: 100))
+
+        XCTAssertNil(presentation)
+        XCTAssertNil(viewModel.session)
+        XCTAssertEqual(selector.points, [])
+    }
+
+    func testForceTouchPrefersAccessibilityWordOverDoubleClick() async {
+        let selector = RecordingWordSelector(selected: CapturedText(text: "selected", source: .word, screenRect: nil))
         let viewModel = makeTranslatorViewModel(
             capturer: StubTextCapturer(wordAtPoint: CapturedText(text: "word", source: .word, screenRect: nil)),
-            recognizer: StubScreenWordRecognizer(recognized: CapturedText(text: "ocr", source: .word, screenRect: nil)),
-            environment: MemoryTranslatorEnvironment(isAccessibilityTrusted: true, isScreenCaptureAllowed: true)
+            wordSelector: selector
         )
 
         _ = await viewModel.captureFromForceTouch(at: .zero)
 
         XCTAssertEqual(viewModel.session?.sourceText, "word")
+        XCTAssertEqual(selector.points, [])
     }
 
-    func testForceTouchWithOnlyScreenCapturePermissionUsesScreenRecognition() async {
+    /// 双击没有选中单词时，仍可退回读不到位置的选区。
+    func testForceTouchFallsBackToSelectionWhenDoubleClickSelectsNothing() async {
+        let selector = RecordingWordSelector()
         let viewModel = makeTranslatorViewModel(
-            capturer: StubTextCapturer(wordAtPoint: CapturedText(text: "word", source: .word, screenRect: nil)),
-            recognizer: StubScreenWordRecognizer(recognized: CapturedText(text: "ocr", source: .word, screenRect: nil)),
-            environment: MemoryTranslatorEnvironment(isAccessibilityTrusted: false, isScreenCaptureAllowed: true)
+            capturer: StubTextCapturer(
+                selection: CapturedText(text: "selected text", source: .selection, screenRect: nil),
+                lookupWithoutWord: .unavailable
+            ),
+            wordSelector: selector
         )
 
         _ = await viewModel.captureFromForceTouch(at: .zero)
 
-        XCTAssertEqual(viewModel.session?.sourceText, "ocr", "未获辅助功能授权时不读取应用中的文字")
+        XCTAssertEqual(selector.points, [.zero])
+        XCTAssertEqual(viewModel.session?.sourceText, "selected text")
     }
 
-    // MARK: - Screen recognition
+    // MARK: - Double click word selection
 
-    func testScreenRectConvertsVisionCoordinates() {
-        let region = CGRect(x: 100, y: 200, width: 640, height: 120)
+    func testAcceptedWordRequiresNewSingleWordUnderPointer() {
+        let point = CGPoint(x: 100, y: 100)
+        let rect = CGRect(x: 90, y: 95, width: 30, height: 18)
+        func selection(_ text: String, _ rect: CGRect? = nil) -> CapturedText {
+            CapturedText(text: text, source: .selection, screenRect: rect)
+        }
+        func accepted(_ selected: CapturedText?, previous: CapturedText? = nil) -> CapturedText? {
+            DoubleClickWordSelector.acceptedWord(selected, previous: previous, at: point)
+        }
 
-        XCTAssertEqual(
-            VisionScreenWordRecognizer.screenRect(
-                fromNormalized: CGRect(x: 0.25, y: 0.5, width: 0.5, height: 0.25),
-                in: region
-            ),
-            CGRect(x: 260, y: 230, width: 320, height: 30)
+        XCTAssertEqual(accepted(selection("model", rect)), CapturedText(text: "model", source: .word, screenRect: rect))
+        XCTAssertEqual(accepted(selection("模型"))?.text, "模型", "取不到选区位置时不核对位置")
+        XCTAssertNil(accepted(nil))
+        XCTAssertNil(accepted(selection("model", rect), previous: selection("model", rect)), "选区没有变化说明双击没有选中新的词")
+        XCTAssertNil(accepted(selection("first\nsecond")), "含换行的不是单个词")
+        XCTAssertNil(accepted(selection("——")), "纯标点")
+        XCTAssertNil(
+            accepted(selection(String(repeating: "a", count: DoubleClickWordSelector.maximumWordLength + 1))),
+            "过长的多半是整段"
         )
+        XCTAssertNil(accepted(selection("model", CGRect(x: 300, y: 95, width: 30, height: 18))), "选区不在点按处")
     }
 
-    func testWordIndexPicksWordUnderPointerOrNearestWithinGap() {
-        let rects = [
-            CGRect(x: 0, y: 0, width: 40, height: 18),
-            CGRect(x: 46, y: 0, width: 30, height: 18),
-        ]
+    func testCanDoubleClickSkipsFinderControlsAndListRows() {
+        func canDoubleClick(_ bundleIdentifier: String, _ roles: [String]) -> Bool {
+            DoubleClickWordSelector.canDoubleClick(bundleIdentifier: bundleIdentifier, roles: roles)
+        }
 
-        XCTAssertEqual(VisionScreenWordRecognizer.wordIndex(containing: 50, in: rects), 1)
-        XCTAssertEqual(VisionScreenWordRecognizer.wordIndex(containing: 42, in: rects), 0, "落在词间空隙时取最近的词")
-        XCTAssertNil(VisionScreenWordRecognizer.wordIndex(containing: 120, in: rects), "离所有词都太远时不取词")
+        XCTAssertTrue(canDoubleClick("com.google.Chrome", ["AXStaticText", "AXGroup", "AXWebArea", "AXWindow"]))
+        XCTAssertTrue(canDoubleClick("com.microsoft.VSCode", ["AXGroup", "AXGroup", "AXWebArea", "AXWindow"]), "自绘区域不是控件")
+        XCTAssertTrue(
+            canDoubleClick("com.google.Chrome", ["AXStaticText", "AXCell", "AXRow", "AXTable", "AXWebArea"]),
+            "网页表格中的文字"
+        )
+        XCTAssertFalse(canDoubleClick("com.apple.finder", ["AXTextField", "AXGroup"]), "Finder 双击会打开文件")
+        XCTAssertFalse(canDoubleClick("com.apple.dock", ["AXGroup"]))
+        XCTAssertFalse(canDoubleClick("com.google.Chrome", ["AXStaticText", "AXLink", "AXGroup", "AXWebArea"]), "链接中的文字")
+        XCTAssertFalse(canDoubleClick("com.google.Chrome", ["AXButton", "AXGroup", "AXWindow"]))
+        XCTAssertFalse(
+            canDoubleClick("com.microsoft.VSCode", ["AXStaticText", "AXRow", "AXOutline", "AXWebArea"]),
+            "树形列表的行"
+        )
+        XCTAssertFalse(
+            canDoubleClick("com.apple.mail", ["AXStaticText", "AXCell", "AXRow", "AXTable", "AXScrollArea"]),
+            "原生列表与表格的行"
+        )
     }
 
     // MARK: - View model: editing and languages
@@ -633,22 +681,17 @@ final class TranslatorTests: XCTestCase {
     }
 
     func testSettingsViewModelRefreshesPermissionsAndForwardsRequests() {
-        let environment = MemoryTranslatorEnvironment(isAccessibilityTrusted: false, isScreenCaptureAllowed: false)
+        let environment = MemoryTranslatorEnvironment(isAccessibilityTrusted: false)
         let viewModel = makeSettingsViewModel(environment: environment)
         XCTAssertFalse(viewModel.isAccessibilityTrusted)
-        XCTAssertFalse(viewModel.isScreenCaptureAllowed)
 
         environment.isAccessibilityTrusted = true
-        environment.isScreenCaptureAllowed = true
         viewModel.refreshPermissionStatus()
         viewModel.requestAccessibilityAccess()
-        viewModel.requestScreenCaptureAccess()
         viewModel.openTrackpadSettings()
 
         XCTAssertTrue(viewModel.isAccessibilityTrusted)
-        XCTAssertTrue(viewModel.isScreenCaptureAllowed)
         XCTAssertEqual(environment.accessibilityRequestCount, 1)
-        XCTAssertEqual(environment.screenCaptureRequestCount, 1)
         XCTAssertEqual(environment.trackpadSettingsOpenCount, 1)
     }
 
@@ -716,7 +759,7 @@ final class TranslatorTests: XCTestCase {
 
     private func makeTranslatorViewModel(
         capturer: StubTextCapturer = StubTextCapturer(),
-        recognizer: StubScreenWordRecognizer = StubScreenWordRecognizer(),
+        wordSelector: RecordingWordSelector = RecordingWordSelector(),
         answerer: any QuickAIAnswering = RecordingAnswerer(deltas: ["你好"]),
         detector: StubLanguageDetector = StubLanguageDetector(code: "en"),
         environment: MemoryTranslatorEnvironment? = nil,
@@ -731,7 +774,7 @@ final class TranslatorTests: XCTestCase {
                 keyStore: MemoryQuickAIKeyStore()
             ),
             textCapturer: capturer,
-            screenWordRecognizer: recognizer,
+            wordSelector: wordSelector,
             environment: environment ?? MemoryTranslatorEnvironment(isAccessibilityTrusted: true),
             settingsStore: settingsStore
         )
@@ -780,14 +823,16 @@ private struct StubLanguageDetector: LanguageDetecting {
 private struct StubTextCapturer: TextCapturing {
     var selection: CapturedText?
     var wordAtPoint: CapturedText?
+    /// The lookup result when there is no word at the point.
+    var lookupWithoutWord: WordLookup = .notOnText
     var clipboard: CapturedText?
 
     func selectedText() async -> CapturedText? {
         selection
     }
 
-    func word(at point: CGPoint) async -> CapturedText? {
-        wordAtPoint
+    func word(at point: CGPoint) async -> WordLookup {
+        wordAtPoint.map(WordLookup.found) ?? lookupWithoutWord
     }
 
     @MainActor
@@ -796,11 +841,23 @@ private struct StubTextCapturer: TextCapturing {
     }
 }
 
-private struct StubScreenWordRecognizer: ScreenWordRecognizing {
-    var recognized: CapturedText?
+/// Returns the given word and records the points it was asked to select at.
+private final class RecordingWordSelector: WordSelecting, @unchecked Sendable {
+    private let lock = NSLock()
+    private let selected: CapturedText?
+    private var storedPoints: [CGPoint] = []
 
-    func word(at point: CGPoint) async -> CapturedText? {
-        recognized
+    init(selected: CapturedText? = nil) {
+        self.selected = selected
+    }
+
+    var points: [CGPoint] {
+        lock.withLock { storedPoints }
+    }
+
+    func selectWord(at point: CGPoint) async -> CapturedText? {
+        lock.withLock { storedPoints.append(point) }
+        return selected
     }
 }
 

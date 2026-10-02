@@ -61,7 +61,7 @@ final class SettingsWindowController {
                 }
             }
         }
-        // 从系统设置授权辅助功能或屏幕录制后回到设置窗口，权限状态随之更新。
+        // 从系统设置授权辅助功能后回到设置窗口，权限状态随之更新。
         permissionObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didBecomeKeyNotification,
             object: window,

@@ -30,7 +30,7 @@ struct AccessibilityTextCapturer: TextCapturing {
         }.value
     }
 
-    func word(at point: CGPoint) async -> CapturedText? {
+    func word(at point: CGPoint) async -> WordLookup {
         let ownProcessID = ProcessInfo.processInfo.processIdentifier
         return await Task.detached(priority: .userInitiated) {
             Self.readWord(at: point, excludingProcessID: ownProcessID)
@@ -125,48 +125,66 @@ struct AccessibilityTextCapturer: TextCapturing {
 
     // MARK: - Word at point
 
-    private static func readWord(at point: CGPoint, excludingProcessID ownProcessID: pid_t) -> CapturedText? {
+    private static func readWord(at point: CGPoint, excludingProcessID ownProcessID: pid_t) -> WordLookup {
         let systemWide = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(systemWide, messagingTimeout)
         var hit: AXUIElement?
         let hitResult = AXUIElementCopyElementAtPosition(systemWide, Float(point.x), Float(point.y), &hit)
         guard hitResult == .success, let hit else {
             logger.debug("No accessibility element under force click (AXError \(hitResult.rawValue, privacy: .public))")
-            return nil
+            return .unavailable
         }
         var processID: pid_t = 0
         guard AXUIElementGetPid(hit, &processID) == .success,
               processID != ownProcessID,
-              !isSecureTextField(hit) else { return nil }
+              !isSecureTextField(hit) else { return .notOnText }
         let application = AXUIElementCreateApplication(processID)
         enableAccessibilityTree(of: application)
         AXUIElementSetMessagingTimeout(hit, messagingTimeout)
-        if let captured = word(in: hit, at: point) {
-            return captured
+        var lookup = word(in: hit, at: point)
+        if case .found = lookup {
+            return lookup
         }
         // 命中的常是不直接提供文字的容器（如 AXGroup）：先找覆盖该点的子元素（由深到浅），
         // 再找祖先元素——网页的文本标记查询由 AXWebArea 等祖先提供。
         let candidates = Array(descendants(of: hit, containing: point).reversed()) + ancestors(of: hit)
         for candidate in candidates {
-            guard !isSecureTextField(candidate) else { return nil }
+            guard !isSecureTextField(candidate) else { return .notOnText }
             AXUIElementSetMessagingTimeout(candidate, messagingTimeout)
-            if let captured = word(in: candidate, at: point) {
-                return captured
+            lookup = merged(lookup, word(in: candidate, at: point))
+            if case .found = lookup {
+                return lookup
             }
         }
         let role = attribute(hit, kAXRoleAttribute) as? String ?? "unknown"
         let applicationName = attribute(application, kAXTitleAttribute) as? String ?? "process \(processID)"
+        let reason = lookup == .notOnText ? "not on text" : "no text positions"
         var parameterizedNames: CFArray?
         AXUIElementCopyParameterizedAttributeNames(hit, &parameterizedNames)
         let supported = (parameterizedNames as? [String])?.joined(separator: ", ") ?? "none"
         logger.debug(
-            "No word under force click in \(role, privacy: .public) of \(applicationName, privacy: .public); parameterized attributes: \(supported, privacy: .public)"
+            "No word under force click (\(reason, privacy: .public)) in \(role, privacy: .public) of \(applicationName, privacy: .public); parameterized attributes: \(supported, privacy: .public)"
         )
-        return nil
+        return lookup
     }
 
-    private static func word(in element: AXUIElement, at point: CGPoint) -> CapturedText? {
-        wordUsingCharacterRange(in: element, at: point) ?? wordUsingTextMarkers(in: element, at: point)
+    private static func word(in element: AXUIElement, at point: CGPoint) -> WordLookup {
+        let lookup = wordUsingCharacterRange(in: element, at: point)
+        if case .found = lookup {
+            return lookup
+        }
+        return merged(lookup, wordUsingTextMarkers(in: element, at: point))
+    }
+
+    /// 合并两次取词的结果：取到单词优先；其次是能核对位置的「不是文字」，
+    /// 只要有一处能核对位置就以它为准；都不能核对时才是无法判断。
+    private static func merged(_ first: WordLookup, _ second: WordLookup) -> WordLookup {
+        switch (first, second) {
+        case (.found, _): first
+        case (_, .found): second
+        case (.notOnText, _), (_, .notOnText): .notOnText
+        default: .unavailable
+        }
     }
 
     /// 从 `element` 逐层向下，每层取第一个覆盖 `point` 的子元素，按由浅到深返回。
@@ -201,16 +219,24 @@ struct AccessibilityTextCapturer: TextCapturing {
         return CGRect(origin: origin, size: size)
     }
 
-    private static func wordUsingCharacterRange(in element: AXUIElement, at point: CGPoint) -> CapturedText? {
+    private static func wordUsingCharacterRange(in element: AXUIElement, at point: CGPoint) -> WordLookup {
         guard let pointValue = axValue(point: point),
               let hitRange = range(attribute(element, kAXRangeForPositionParameterizedAttribute, parameter: pointValue)),
-              hitRange.location >= 0 else { return nil }
+              hitRange.location >= 0 else { return .unavailable }
 
         guard let window = textWindow(in: element, around: hitRange.location)
-                ?? (attribute(element, kAXValueAttribute) as? String).map({ ($0, 0) }) else { return nil }
+                ?? (attribute(element, kAXValueAttribute) as? String).map({ ($0, 0) }) else { return .unavailable }
         let (text, textStart) = window
 
-        guard let match = wordRange(in: text, containing: hitRange.location - textStart) else { return nil }
+        guard let match = wordRange(in: text, containing: hitRange.location - textStart) else {
+            // 点在空白、标点或文字末尾之后：能取到该处字符的位置，说明应用能核对位置，按不是文字处理。
+            let length = (text as NSString).length
+            guard length > 0 else { return .unavailable }
+            let location = min(max(hitRange.location, textStart), textStart + length - 1)
+            let characterBounds = axValue(range: CFRange(location: location, length: 1))
+                .flatMap { rect(attribute(element, kAXBoundsForRangeParameterizedAttribute, parameter: $0)) }
+            return usable(characterBounds) == nil ? .unavailable : .notOnText
+        }
         let word = (text as NSString).substring(with: match)
         let bounds = axValue(range: CFRange(location: textStart + match.location, length: match.length))
             .flatMap { rect(attribute(element, kAXBoundsForRangeParameterizedAttribute, parameter: $0)) }
@@ -231,10 +257,10 @@ struct AccessibilityTextCapturer: TextCapturing {
         return (text, start)
     }
 
-    /// 按坐标取文本标记（WebKit 支持；Chrome 声明支持却取不到，由截图识字兜底）。
-    private static func wordUsingTextMarkers(in element: AXUIElement, at point: CGPoint) -> CapturedText? {
+    /// 按坐标取文本标记（WebKit 支持；Chrome 声明支持却取不到，由双击选词兜底）。
+    private static func wordUsingTextMarkers(in element: AXUIElement, at point: CGPoint) -> WordLookup {
         guard let pointValue = axValue(point: point),
-              let marker = attribute(element, "AXTextMarkerForPosition", parameter: pointValue) else { return nil }
+              let marker = attribute(element, "AXTextMarkerForPosition", parameter: pointValue) else { return .unavailable }
         return word(aroundMarker: marker, in: element, at: point, method: "text marker")
     }
 
@@ -243,40 +269,42 @@ struct AccessibilityTextCapturer: TextCapturing {
         in element: AXUIElement,
         at point: CGPoint,
         method: String
-    ) -> CapturedText? {
+    ) -> WordLookup {
+        var lookup = WordLookup.unavailable
         // 点在单词中间时右侧单词区间即该单词；点在词尾边界时再看左侧单词。
         for wordAttribute in ["AXRightWordTextMarkerRangeForTextMarker", "AXLeftWordTextMarkerRangeForTextMarker"] {
             guard let markerRange = attribute(element, wordAttribute, parameter: marker),
                   let word = attribute(element, "AXStringForTextMarkerRange", parameter: markerRange) as? String
             else { continue }
             let bounds = rect(attribute(element, "AXBoundsForTextMarkerRange", parameter: markerRange))
-            if let captured = hitWord(word, bounds: bounds, point: point, method: method) {
-                return captured
+            lookup = merged(lookup, hitWord(word, bounds: bounds, point: point, method: method))
+            if case .found = lookup {
+                return lookup
             }
         }
-        return nil
+        return lookup
     }
 
     /// 坐标反查得到的位置并不总在点按处：点在空白处时系统会返回最近的字符，部分网页实现
-    /// 只能定位到文字节点开头。因此要求取到单词的位置并确实覆盖点按位置，取不到位置就无法核对，
-    /// 宁可放弃也不翻错词；单词还须至少含一个字母或数字。
-    private static func hitWord(_ word: String, bounds: CGRect?, point: CGPoint, method: String) -> CapturedText? {
-        guard let cleaned = cleaned(word),
-              cleaned.unicodeScalars.contains(where: CharacterSet.alphanumerics.contains) else { return nil }
+    /// 只能定位到文字节点开头。因此要求取到单词的位置并确实覆盖点按位置：取不到位置就无法核对，
+    /// 宁可交给双击选词也不翻错词；位置不覆盖点按处或单词不含字母、数字时按不是文字处理。
+    private static func hitWord(_ word: String, bounds: CGRect?, point: CGPoint, method: String) -> WordLookup {
         guard let bounds = usable(bounds) else {
             logger.debug("Rejected word via \(method, privacy: .public): no bounds, point \(Self.describe(point), privacy: .public)")
-            return nil
+            return .unavailable
         }
         guard bounds.insetBy(dx: -hitTolerance, dy: -hitTolerance).contains(point) else {
             logger.debug(
                 "Rejected word via \(method, privacy: .public): bounds \(Self.describe(bounds), privacy: .public) miss point \(Self.describe(point), privacy: .public)"
             )
-            return nil
+            return .notOnText
         }
+        guard let cleaned = cleaned(word),
+              cleaned.unicodeScalars.contains(where: CharacterSet.alphanumerics.contains) else { return .notOnText }
         logger.debug(
             "Captured word via \(method, privacy: .public): bounds \(Self.describe(bounds), privacy: .public), point \(Self.describe(point), privacy: .public)"
         )
-        return CapturedText(text: cleaned, source: .word, screenRect: bounds)
+        return .found(CapturedText(text: cleaned, source: .word, screenRect: bounds))
     }
 
     private static func describe(_ point: CGPoint) -> String {

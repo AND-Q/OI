@@ -1,14 +1,11 @@
 import AppKit
 import ApplicationServices
 
-/// 辅助功能、屏幕录制权限与触控板设置的系统实现。
+/// 辅助功能权限与触控板设置的系统实现。
 @MainActor
 final class SystemTranslatorEnvironment: TranslatorEnvironmentHandling {
     private static let accessibilitySettingsURL = URL(
         string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-    )
-    private static let screenCaptureSettingsURL = URL(
-        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
     )
     private static let trackpadSettingsURL = URL(
         string: "x-apple.systempreferences:com.apple.Trackpad-Settings.extension"
@@ -16,16 +13,6 @@ final class SystemTranslatorEnvironment: TranslatorEnvironmentHandling {
 
     var isAccessibilityTrusted: Bool {
         AXIsProcessTrusted()
-    }
-
-    var isScreenCaptureAllowed: Bool {
-        CGPreflightScreenCaptureAccess()
-    }
-
-    func requestScreenCaptureAccess() {
-        // 与辅助功能相同：系统只在首次请求时弹出授权提示，之后直接打开设置页。
-        guard !CGRequestScreenCaptureAccess() else { return }
-        open(Self.screenCaptureSettingsURL)
     }
 
     func requestAccessibilityAccess() {

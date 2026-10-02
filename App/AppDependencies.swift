@@ -29,6 +29,7 @@ struct AppDependencies {
         let quickAIKeyStore = KeychainQuickAIKeyStore()
         let quickAIClient = OpenAICompatibleQuickAIClient()
         let translatorEnvironment = SystemTranslatorEnvironment()
+        let textCapturer = AccessibilityTextCapturer()
         let launcherViewModel = LauncherViewModel(
             discoverApplications: DiscoverApplications(catalog: catalog),
             launchApplication: LaunchApplication(launcher: applicationLauncher),
@@ -75,8 +76,8 @@ struct AppDependencies {
                         settingsStore: settingsStore,
                         keyStore: quickAIKeyStore
                     ),
-                    textCapturer: AccessibilityTextCapturer(),
-                    screenWordRecognizer: VisionScreenWordRecognizer(),
+                    textCapturer: textCapturer,
+                    wordSelector: DoubleClickWordSelector(textCapturer: textCapturer),
                     environment: translatorEnvironment,
                     settingsStore: settingsStore
                 ),

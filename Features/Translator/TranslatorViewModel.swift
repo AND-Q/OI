@@ -11,7 +11,7 @@ final class TranslatorViewModel: ObservableObject {
 
     private let translateText: TranslateText
     private let textCapturer: any TextCapturing
-    private let screenWordRecognizer: any ScreenWordRecognizing
+    private let wordSelector: any WordSelecting
     private let environment: any TranslatorEnvironmentHandling
     private let settingsStore: any AppSettingsStoring
 
@@ -24,13 +24,13 @@ final class TranslatorViewModel: ObservableObject {
     init(
         translateText: TranslateText,
         textCapturer: any TextCapturing,
-        screenWordRecognizer: any ScreenWordRecognizing,
+        wordSelector: any WordSelecting,
         environment: any TranslatorEnvironmentHandling,
         settingsStore: any AppSettingsStoring
     ) {
         self.translateText = translateText
         self.textCapturer = textCapturer
-        self.screenWordRecognizer = screenWordRecognizer
+        self.wordSelector = wordSelector
         self.environment = environment
         self.settingsStore = settingsStore
     }
@@ -72,30 +72,33 @@ final class TranslatorViewModel: ObservableObject {
     }
 
     /// 触控板用力点按触发：点在选中的文字上时翻译选中的文字，否则翻译该处的单词——
-    /// 先用辅助功能接口取词，应用不提供文字时（如 VS Code、Chrome）再截图识字。
+    /// 先用辅助功能接口取词，应用不提供该处的文字位置时（如 VS Code、Chrome）再模拟双击选词。
     /// 读不到选区位置时无法判断是否点在选区上，先取单词，取不到再用选区：
     /// 点按未激活的窗口时前台应用尚未切换，读到的可能是上一个应用的选区。
-    /// 该处不是文字、功能已关闭或两项权限都没有时返回 nil，不弹出气泡，避免在桌面、图片等位置误弹。
+    /// 该处不是文字、功能已关闭或未获辅助功能权限时返回 nil，不弹出气泡，避免在桌面、图片等位置误弹。
     func captureFromForceTouch(at point: CGPoint) async -> TranslatorPresentation? {
-        guard settingsStore.load().isForceTouchTranslationEnabled else { return nil }
-        let canReadText = environment.isAccessibilityTrusted
-        let canRecognizeScreen = environment.isScreenCaptureAllowed
-        guard canReadText || canRecognizeScreen else { return nil }
+        guard settingsStore.load().isForceTouchTranslationEnabled, environment.isAccessibilityTrusted else {
+            return nil
+        }
         let generation = beginCapture()
 
-        var selection: CapturedText?
-        if canReadText {
-            selection = await textCapturer.selectedText()
-        }
+        let selection = await textCapturer.selectedText()
         var captured: CapturedText?
         if let selection, let rect = selection.screenRect, rect.insetBy(dx: -4, dy: -4).contains(point) {
             captured = selection
         }
-        if captured == nil, canReadText {
-            captured = await textCapturer.word(at: point)
-        }
-        if captured == nil, canRecognizeScreen {
-            captured = await screenWordRecognizer.word(at: point)
+        if captured == nil {
+            switch await textCapturer.word(at: point) {
+            case .found(let word):
+                captured = word
+            case .notOnText:
+                break
+            case .unavailable:
+                // 双击会改动目标应用的选区，已被更新的一次触发取代时不再进行。
+                if generation == captureGeneration {
+                    captured = await wordSelector.selectWord(at: point)
+                }
+            }
         }
         if captured == nil, selection?.screenRect == nil {
             captured = selection

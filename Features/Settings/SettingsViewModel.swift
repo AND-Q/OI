@@ -27,9 +27,8 @@ final class SettingsViewModel: ObservableObject {
     @Published private(set) var translatorShortcutNotice: LauncherShortcutNotice?
     /// Quick AI API Key 存于独立的密钥存储，设置窗口展示时才读取，不在启动期访问钥匙串。
     @Published private(set) var quickAIAPIKey = ""
-    /// 辅助功能与屏幕录制权限由系统持有，设置窗口展示或重新获得焦点时刷新（用户可能刚在系统设置中授权）。
+    /// 辅助功能权限由系统持有，设置窗口展示或重新获得焦点时刷新（用户可能刚在系统设置中授权）。
     @Published private(set) var isAccessibilityTrusted: Bool
-    @Published private(set) var isScreenCaptureAllowed: Bool
 
     /// 由 AppCoordinator 注入：把呼出快捷键切换为给定组合并接管按键处理，
     /// 注册失败时抛错，不产生部分生效的状态。
@@ -58,7 +57,6 @@ final class SettingsViewModel: ObservableObject {
         self.isLaunchAtLoginEnabled = status != .notRegistered
         self.launchAtLoginNotice = status == .requiresApproval ? .approvalPending : nil
         self.isAccessibilityTrusted = translatorEnvironment.isAccessibilityTrusted
-        self.isScreenCaptureAllowed = translatorEnvironment.isScreenCaptureAllowed
     }
 
     /// 注册或移除登录项。失败时回读系统真实状态并给出失败提示，
@@ -107,15 +105,10 @@ final class SettingsViewModel: ObservableObject {
 
     func refreshPermissionStatus() {
         isAccessibilityTrusted = translatorEnvironment.isAccessibilityTrusted
-        isScreenCaptureAllowed = translatorEnvironment.isScreenCaptureAllowed
     }
 
     func requestAccessibilityAccess() {
         translatorEnvironment.requestAccessibilityAccess()
-    }
-
-    func requestScreenCaptureAccess() {
-        translatorEnvironment.requestScreenCaptureAccess()
     }
 
     func openTrackpadSettings() {

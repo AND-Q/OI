@@ -106,8 +106,8 @@
 		A10000010000005B /* TranslatorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000005B /* TranslatorViewModel.swift */; };
 		A10000010000005C /* TranslatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000005C /* TranslatorView.swift */; };
 		A10000010000005D /* TranslatorPanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000005D /* TranslatorPanelController.swift */; };
-		A10000010000005E /* ScreenWordRecognizing.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000005E /* ScreenWordRecognizing.swift */; };
-		A10000010000005F /* VisionScreenWordRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000005F /* VisionScreenWordRecognizer.swift */; };
+		A10000010000005E /* WordSelecting.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000005E /* WordSelecting.swift */; };
+		A10000010000005F /* DoubleClickWordSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000005F /* DoubleClickWordSelector.swift */; };
 		B10000010000001D /* TranslatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001E /* TranslatorTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -224,8 +224,8 @@
 		A20000010000005B /* TranslatorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorViewModel.swift; sourceTree = "<group>"; };
 		A20000010000005C /* TranslatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorView.swift; sourceTree = "<group>"; };
 		A20000010000005D /* TranslatorPanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorPanelController.swift; sourceTree = "<group>"; };
-		A20000010000005E /* ScreenWordRecognizing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenWordRecognizing.swift; sourceTree = "<group>"; };
-		A20000010000005F /* VisionScreenWordRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionScreenWordRecognizer.swift; sourceTree = "<group>"; };
+		A20000010000005E /* WordSelecting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordSelecting.swift; sourceTree = "<group>"; };
+		A20000010000005F /* DoubleClickWordSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoubleClickWordSelector.swift; sourceTree = "<group>"; };
 		B20000010000001E /* TranslatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -390,7 +390,7 @@
 				A200000100000052 /* TranslatorEnvironmentHandling.swift */,
 				A200000100000053 /* ForceTouchMonitoring.swift */,
 				A200000100000054 /* LanguageDetecting.swift */,
-				A20000010000005E /* ScreenWordRecognizing.swift */,
+				A20000010000005E /* WordSelecting.swift */,
 			);
 			path = Ports;
 			sourceTree = "<group>";
@@ -584,7 +584,7 @@
 				A200000100000057 /* GlobalForceTouchMonitor.swift */,
 				A200000100000058 /* SystemTranslatorEnvironment.swift */,
 				A200000100000059 /* NaturalLanguageDetector.swift */,
-				A20000010000005F /* VisionScreenWordRecognizer.swift */,
+				A20000010000005F /* DoubleClickWordSelector.swift */,
 			);
 			path = Translator;
 			sourceTree = "<group>";
@@ -774,8 +774,8 @@
 				A10000010000005B /* TranslatorViewModel.swift in Sources */,
 				A10000010000005C /* TranslatorView.swift in Sources */,
 				A10000010000005D /* TranslatorPanelController.swift in Sources */,
-				A10000010000005E /* ScreenWordRecognizing.swift in Sources */,
-				A10000010000005F /* VisionScreenWordRecognizer.swift in Sources */,
+				A10000010000005E /* WordSelecting.swift in Sources */,
+				A10000010000005F /* DoubleClickWordSelector.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
