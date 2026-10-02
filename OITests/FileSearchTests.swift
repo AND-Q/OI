@@ -39,6 +39,23 @@ final class FileSearchTests: XCTestCase {
         XCTAssertNil(QuickQueryResolver.resolve("notes"))
     }
 
+    /// 回归测试：两段斜杠是除法，不按日期排除；完整的年/月/日仍视为日期。
+    func testQuickQueryResolverEvaluatesTwoPartSlashDivision() {
+        XCTAssertEqual(
+            QuickQueryResolver.resolve("1024/8"),
+            .calculation(expression: "1024/8", value: "128")
+        )
+        XCTAssertEqual(
+            QuickQueryResolver.resolve("3600/60"),
+            .calculation(expression: "3600/60", value: "60")
+        )
+        XCTAssertEqual(
+            QuickQueryResolver.resolve("10/4"),
+            .calculation(expression: "10/4", value: "2.5")
+        )
+        XCTAssertNil(QuickQueryResolver.resolve("2026/09/24"))
+    }
+
     func testQuickQueryResolverRecognizesLocalIPAliases() {
         guard case .localIPAddress = QuickQueryResolver.resolve("本机 IP") else {
             return XCTFail("Expected the local IP quick query")

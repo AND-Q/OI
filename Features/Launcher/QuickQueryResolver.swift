@@ -24,10 +24,11 @@ private enum MathExpressionEvaluator {
     static func evaluate(_ expression: String) -> String? {
         guard expression.count <= 256 else { return nil }
         // Date-like and numbered terms are common searches, not subtraction expressions.
+        // Two-part slash forms (10/3, 1024/8) are divisions; only a full year/month/day is a date.
         let datePatterns = [
             #"^\d{4}[-/]\d{1,2}[-/]\d{1,2}$"#,
-            #"^\d{4}[-/]\d{1,2}$"#,
-            #"^\d{1,2}[-/]\d{1,2}$"#
+            #"^\d{4}-\d{1,2}$"#,
+            #"^\d{1,2}-\d{1,2}$"#
         ]
         guard !datePatterns.contains(where: {
             expression.range(of: $0, options: .regularExpression) != nil
