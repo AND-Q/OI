@@ -215,8 +215,8 @@ final class SettingsViewModel: ObservableObject {
     /// 重申当前快捷键（冲突后按原键确认、重试默认键）仍执行激活——
     /// 既是重试入口也能自愈回滚失败的场景，仅在无失败提示可清理时跳过。
     private func applyShortcut(_ shortcut: LauncherShortcut, to target: ShortcutTarget) {
-        guard shortcut.isValid else {
-            setNotice(.failure("快捷键需包含 ⌘、⌥ 或 ⌃ 修饰键"), for: target)
+        if let problem = shortcut.problem {
+            setNotice(.failure(ShortcutFormatter.description(of: problem)), for: target)
             return
         }
         guard shortcut != settings[keyPath: target.other.setting] else {

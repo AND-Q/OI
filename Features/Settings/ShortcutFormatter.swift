@@ -27,6 +27,16 @@ enum ShortcutFormatter {
             .joined(separator: " ")
     }
 
+    /// 组合不能用作全局快捷键的原因，录制时的行内提示与设置面板的失败提示共用。
+    static func description(of problem: LauncherShortcut.Problem) -> String {
+        switch problem {
+        case .missingModifier:
+            "快捷键需包含 ⌘、⌥ 或 ⌃ 修饰键"
+        case .overridesAppShortcut:
+            "只用 ⌘ 会覆盖各应用的同名快捷键，请加上 ⌥ 或 ⌃"
+        }
+    }
+
     private static let keyNames: [UInt32: String] = {
         var names: [UInt32: String] = [:]
         let letters: [(Int, String)] = [

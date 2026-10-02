@@ -21,7 +21,7 @@ final class AppCoordinatorTests: XCTestCase {
 
     /// 组合被其他应用占用时保持未注册，并把失败原因同步到设置面板。
     func testStartReportsRegistrationFailureToSettings() {
-        let shortcut = LauncherShortcut(keyCode: 2, modifiers: 1 << 8)
+        let shortcut = LauncherShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11)
         let context = makeCoordinator(shortcut: shortcut, failing: true)
         defer { context.coordinator.stop() }
 

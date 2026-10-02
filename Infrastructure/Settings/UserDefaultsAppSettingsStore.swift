@@ -67,8 +67,8 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
     }
 
     /// 快捷键两个键视为整体：仅保存其一时按未配置处理；外部写入的脏数据
-    /// （负数、越界、无修饰键的非法组合）一律回退默认，避免启动崩溃或
-    /// 注册出拦截正常输入的全局热键。
+    /// （负数、越界、不能用作全局快捷键的组合）一律回退默认，避免启动崩溃或
+    /// 注册出拦截正常输入、覆盖各应用同名快捷键的全局热键。
     private func loadShortcut(keyCodeKey: String, modifiersKey: String) -> LauncherShortcut? {
         guard let rawKeyCode = defaults.object(forKey: keyCodeKey) as? Int,
               let rawModifiers = defaults.object(forKey: modifiersKey) as? Int,

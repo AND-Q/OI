@@ -23,4 +23,16 @@ final class LauncherShortcutTests: XCTestCase {
         XCTAssertFalse(LauncherShortcut(keyCode: 49, modifiers: 1 << 9).isValid) // 仅 ⇧
         XCTAssertFalse(LauncherShortcut(keyCode: 49, modifiers: 1 << 10).isValid) // 仅 ⇪
     }
+
+    /// 只用 ⌘（可加 ⇧）时仅限 Space 与 F 键：其余组合会覆盖各应用的同名快捷键（如 ⌘Q、⌘⇧Z）。
+    func testCommandOnlyShortcutsAreLimitedToSpaceAndFunctionKeys() {
+        XCTAssertEqual(LauncherShortcut(keyCode: 12, modifiers: 1 << 8).problem, .overridesAppShortcut) // ⌘Q
+        XCTAssertEqual(LauncherShortcut(keyCode: 6, modifiers: 1 << 8 | 1 << 9).problem, .overridesAppShortcut) // ⌘⇧Z
+        XCTAssertNil(LauncherShortcut(keyCode: 49, modifiers: 1 << 8).problem) // ⌘Space
+        XCTAssertNil(LauncherShortcut(keyCode: 122, modifiers: 1 << 8).problem) // ⌘F1
+        XCTAssertNil(LauncherShortcut(keyCode: 12, modifiers: 1 << 8 | 1 << 11).problem) // ⌥⌘Q
+        XCTAssertNil(LauncherShortcut(keyCode: 12, modifiers: 1 << 8 | 1 << 12).problem) // ⌃⌘Q
+        XCTAssertNil(LauncherShortcut.standardTranslator.problem) // ⌥D
+        XCTAssertEqual(LauncherShortcut(keyCode: 49, modifiers: 1 << 9).problem, .missingModifier) // 仅 ⇧
+    }
 }

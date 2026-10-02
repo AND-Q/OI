@@ -92,6 +92,12 @@ final class UserDefaultsAppSettingsStoreTests: XCTestCase {
         context.defaults.set(0, forKey: "settings.launcherShortcut.modifiers")
 
         XCTAssertEqual(context.store.load().launcherShortcut, LauncherShortcut.standard)
+
+        // 旧版本允许保存的 ⌘C 这类组合会覆盖各应用的同名快捷键，同样回退默认。
+        context.defaults.set(8, forKey: "settings.launcherShortcut.keyCode")
+        context.defaults.set(1 << 8, forKey: "settings.launcherShortcut.modifiers")
+
+        XCTAssertEqual(context.store.load().launcherShortcut, LauncherShortcut.standard)
     }
 
     // MARK: - Helpers

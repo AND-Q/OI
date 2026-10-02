@@ -42,7 +42,7 @@ struct SettingsView: View {
             } header: {
                 Text("快捷键")
             } footer: {
-                Text("全局呼出启动器面板的快捷键，需包含 ⌘、⌥ 或 ⌃ 修饰键。点按录制后按 Esc 取消。")
+                Text("全局呼出启动器面板的快捷键，需包含 ⌘、⌥ 或 ⌃ 修饰键；只用 ⌘ 时仅限 Space 与 F 键，以免覆盖各应用的同名快捷键。点按录制后按 Esc 取消。")
             }
 
             Section {

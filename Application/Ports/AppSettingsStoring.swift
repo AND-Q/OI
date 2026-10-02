@@ -4,14 +4,39 @@ import Foundation
 /// （cmdKey = 1 << 8、shiftKey = 1 << 9、optionKey = 1 << 11、controlKey = 1 << 12），
 /// 与 `GlobalShortcutHandling` 注册端口一致，本层无需引入 Carbon。
 struct LauncherShortcut: Sendable, Equatable, Hashable {
+    /// 组合不能用作全局快捷键的原因。
+    enum Problem: Sendable, Equatable {
+        /// 不含 ⌘、⌥ 或 ⌃：无实质修饰键的全局热键会拦截正常打字。
+        case missingModifier
+        /// 只用 ⌘（可加 ⇧）配 Space、F 键以外的键：会覆盖所有应用里的同名快捷键（如 ⌘Q、⌘C、⌘W）。
+        case overridesAppShortcut
+    }
+
     var keyCode: UInt32
     var modifiers: UInt32
 
-    /// 组合必须包含 ⌘、⌥ 或 ⌃ 之一：无实质修饰键的全局热键会拦截正常打字。
-    var isValid: Bool {
-        let actionableModifiers: UInt32 = (1 << 8) | (1 << 11) | (1 << 12)
-        return modifiers & actionableModifiers != 0
+    /// 不能用作全局快捷键的原因；可以使用时为 nil。
+    var problem: Problem? {
+        let command: UInt32 = 1 << 8
+        let optionOrControl: UInt32 = (1 << 11) | (1 << 12)
+        if modifiers & (command | optionOrControl) == 0 {
+            return .missingModifier
+        }
+        if modifiers & optionOrControl == 0, !Self.commandOnlyKeyCodes.contains(keyCode) {
+            return .overridesAppShortcut
+        }
+        return nil
     }
+
+    var isValid: Bool { problem == nil }
+
+    /// 只用 ⌘（可加 ⇧）时仍可使用的键：Space 与 F1–F20，各应用一般不拿它们作菜单快捷键。
+    /// 取值即 Carbon 的 kVK_Space、kVK_F1…kVK_F20。
+    private static let commandOnlyKeyCodes: Set<UInt32> = [
+        49,
+        122, 120, 99, 118, 96, 97, 98, 100, 101, 109, 103, 111,
+        105, 107, 113, 106, 64, 79, 80, 90,
+    ]
 
     /// 默认呼出快捷键：Option + Space（keyCode 49 = kVK_Space）。
     static let standard = LauncherShortcut(keyCode: 49, modifiers: 1 << 11)

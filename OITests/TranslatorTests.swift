@@ -617,7 +617,7 @@ final class TranslatorTests: XCTestCase {
     func testApplyTranslatorShortcutFailureRollsBack() {
         let viewModel = makeSettingsViewModel()
         let activator = RecordingActivator()
-        let rejected = LauncherShortcut(keyCode: 17, modifiers: 1 << 8)
+        let rejected = LauncherShortcut(keyCode: 17, modifiers: 1 << 8 | 1 << 12)
         activator.errors[rejected] = "该快捷键已被其他应用占用"
         viewModel.translatorShortcutActivator = activator.activate
 

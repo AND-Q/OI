@@ -100,14 +100,14 @@ struct ShortcutRecorderField: View {
 
     private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
         let modifiers = Self.carbonModifiers(from: event.modifierFlags)
-        // 无修饰键的 Esc 退出录制；带修饰键的 Esc 是合法组合，照常提交。
+        // 无修饰键的 Esc 退出录制；带修饰键的 Esc 与其他组合一样校验后提交。
         if event.keyCode == UInt16(kVK_Escape), modifiers == 0 {
             stopRecording()
             return nil
         }
         let recorded = LauncherShortcut(keyCode: UInt32(event.keyCode), modifiers: modifiers)
-        guard recorded.isValid else {
-            hint = "需包含 ⌘、⌥ 或 ⌃ 修饰键"
+        if let problem = recorded.problem {
+            hint = ShortcutFormatter.description(of: problem)
             return nil
         }
         stopRecording()
