@@ -36,7 +36,14 @@ final class LauncherViewModel: ObservableObject {
     @Published private(set) var listResetRequest = 0
     @Published private(set) var focusRequest = 0
     @Published private(set) var loadState: LauncherLoadState = .idle
-    @Published private(set) var launchState: LauncherLaunchState = .idle
+    @Published private(set) var launchState: LauncherLaunchState = .idle {
+        // 失败横幅占用结果列表上方的高度，出现或消失时重算面板高度。
+        didSet {
+            let hadLaunchError: Bool
+            if case .failed = oldValue { hadLaunchError = true } else { hadLaunchError = false }
+            if hadLaunchError != (launchErrorMessage != nil) { updatePanelHeight() }
+        }
+    }
     @Published private(set) var fileSearchState: LauncherFileSearchState = .idle
     @Published private(set) var panelHeight = LauncherLayout.searchHeight
     /// Tab 切入的 Quick AI 模式：输入框改为提问，`quickAISession` 只在该模式下存在。
@@ -176,7 +183,8 @@ final class LauncherViewModel: ObservableObject {
         return .results(
             rowCount: results.count,
             sectionHeaderCount: fileResults.isEmpty ? 0 : 1,
-            minHeight: isActionSheetVisible ? LauncherLayout.actionSheetMinHeight : 0
+            minHeight: isActionSheetVisible ? LauncherLayout.actionSheetMinHeight : 0,
+            hasLaunchError: launchErrorMessage != nil
         )
     }
 

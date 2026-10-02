@@ -14,21 +14,25 @@ enum LauncherLayout {
     static let expandedCornerRadius: CGFloat = 32
     /// Minimum panel expansion reserved for the floating action sheet.
     static let actionSheetMinHeight: CGFloat = 185
+    /// Launch-failure banner above the results list, including its top inset;
+    /// reserved in the expanded height so it never squeezes the rows.
+    static let launchErrorBannerHeight: CGFloat = 32
     /// Quick AI answer area (answer plus footer), fixed so streaming never resizes the window.
     static let quickAIHeight: CGFloat = 400
     static let quickAIFooterHeight: CGFloat = 32
 
     /// What the expanded area below the search field shows.
     enum ExpandedContent: Equatable {
-        case results(rowCount: Int, sectionHeaderCount: Int = 0, minHeight: CGFloat = 0)
+        case results(rowCount: Int, sectionHeaderCount: Int = 0, minHeight: CGFloat = 0, hasLaunchError: Bool = false)
         case status
         case quickAI
 
         var height: CGFloat {
             switch self {
-            case .results(let rowCount, let sectionHeaderCount, let minHeight):
+            case .results(let rowCount, let sectionHeaderCount, let minHeight, let hasLaunchError):
                 let contentHeight = CGFloat(max(rowCount, 0)) * LauncherLayout.rowHeight
                     + CGFloat(max(sectionHeaderCount, 0)) * LauncherLayout.sectionHeaderHeight
+                    + (hasLaunchError ? LauncherLayout.launchErrorBannerHeight : 0)
                 let maximumHeight = CGFloat(LauncherLayout.maximumVisibleRows) * LauncherLayout.rowHeight
                 let baseHeight = LauncherLayout.listVerticalPadding * 2 + min(contentHeight, maximumHeight)
                 return max(baseHeight, minHeight)
@@ -275,10 +279,11 @@ struct LauncherView: View {
             Spacer()
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 6)
+        .frame(maxHeight: .infinity)
         .background(Color.red.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .padding(.horizontal, 12)
         .padding(.top, 4)
+        .frame(height: LauncherLayout.launchErrorBannerHeight)
     }
 }

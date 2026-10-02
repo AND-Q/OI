@@ -179,6 +179,34 @@ final class LauncherViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.launchState, .failed("无法启动 Demo：启动失败"))
     }
 
+    /// 回归测试：启动失败横幅的高度计入面板展开高度，不能挤压结果行；失败状态清除后高度复原。
+    func testViewModelReservesPanelHeightForLaunchErrorBanner() async {
+        let application = AppDescriptor(
+            name: "Demo",
+            url: URL(fileURLWithPath: "/Applications/Demo.app")
+        )
+        let viewModel = LauncherViewModel(
+            discoverApplications: DiscoverApplications(catalog: StubAppCatalog(descriptors: [application])),
+            launchApplication: LaunchApplication(launcher: ThrowingApplicationLauncher())
+        )
+        await viewModel.loadApps()?.value
+        viewModel.query = "Demo"
+
+        await viewModel.launch(application)?.value
+
+        XCTAssertEqual(
+            viewModel.panelHeight,
+            LauncherLayout.totalHeight(isExpanded: true, content: .results(rowCount: 1, hasLaunchError: true))
+        )
+
+        viewModel.query = "Dem"
+        XCTAssertNil(viewModel.launchErrorMessage)
+        XCTAssertEqual(
+            viewModel.panelHeight,
+            LauncherLayout.totalHeight(isExpanded: true, content: .results(rowCount: 1))
+        )
+    }
+
     // MARK: - 索引搜索与使用历史
 
     func testViewModelSearchesThroughIndexWithInitialsAndAliases() async {
