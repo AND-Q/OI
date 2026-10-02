@@ -6,6 +6,7 @@ import os
 /// 双击选词：辅助功能取不到光标下的文字时（如 Chrome 网页、VS Code 编辑器），等手指抬起后在点按处模拟双击，
 /// 让目标应用自己选中该处的单词，用辅助功能读出选区，再单击一次取消选中。不按 ⌘C、不读写剪贴板。
 /// 用力点按本身会把光标移到点按处，取词结束后目标应用与普通单击一下的状态相同。
+/// 取到单词却读不到它的位置时（如 VS Code）OI 画不出高亮，改为保留应用自己的选中状态标出取的是哪个词。
 struct DoubleClickWordSelector: WordSelecting {
     /// 单词最多的字符数：超过时多半是双击选中了整段（如不以空格分词的长句），不当作单词。
     static let maximumWordLength = 64
@@ -74,11 +75,17 @@ struct DoubleClickWordSelector: WordSelecting {
         let previous = await textCapturer.selectedText()
         await Self.postClick(at: point, count: 2)
         let word = await selectedWord(at: point, previous: previous)
-        // 无论是否取到单词都单击一次：双击可能选中了空白或整段，取消选中后目标应用回到普通单击后的状态。
+        // 取到单词但读不到位置时保留选中状态，作为取到哪个词的标记；其余情况单击一次取消选中：
+        // 双击可能选中了空白或整段，取消选中后目标应用回到普通单击后的状态。
         // 须在弹出气泡前完成，否则这次单击会被当作点到气泡外部而收起气泡。
-        await Self.postClick(at: point, count: 1)
-        if let word {
-            Self.logger.debug("Captured word via double click in \(bundleIdentifier ?? "unknown", privacy: .public)")
+        let keepsSelection = word != nil && word?.screenRect == nil
+        if !keepsSelection {
+            await Self.postClick(at: point, count: 1)
+        }
+        if word != nil {
+            Self.logger.debug(
+                "Captured word via double click in \(bundleIdentifier ?? "unknown", privacy: .public)\(keepsSelection ? ", selection kept as marker" : "", privacy: .public)"
+            )
         } else {
             Self.logger.debug("No word selected after double click in \(bundleIdentifier ?? "unknown", privacy: .public)")
         }
