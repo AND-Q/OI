@@ -16,8 +16,10 @@ final class TranslatorViewModel: ObservableObject {
     private let settingsStore: any AppSettingsStoring
 
     private var translationTask: Task<Void, Never>?
-    private var flushTask: Task<Void, Never>?
-    private var pendingTranslation = ""
+    private lazy var translationBuffer = StreamingTextBuffer(interval: TranslatorViewModel.flushInterval) { [weak self] text in
+        self?.session?.translation += text
+        self?.session?.isCopied = false
+    }
     private var translationGeneration = 0
     private var captureGeneration = 0
 
@@ -37,7 +39,6 @@ final class TranslatorViewModel: ObservableObject {
 
     deinit {
         translationTask?.cancel()
-        flushTask?.cancel()
     }
 
     /// 复制与回车使用的译文；尚无可见译文时为 nil。
@@ -133,7 +134,7 @@ final class TranslatorViewModel: ObservableObject {
         translationGeneration += 1
         translationTask?.cancel()
         translationTask = nil
-        flushPendingTranslation()
+        translationBuffer.flush()
         if session?.isStreaming == true {
             session?.state = .finished
         }
@@ -142,7 +143,7 @@ final class TranslatorViewModel: ObservableObject {
     /// 气泡隐藏后清空会话与提示。
     func reset() {
         stopTranslation()
-        pendingTranslation = ""
+        translationBuffer.discard()
         session = nil
         notice = nil
     }
@@ -174,7 +175,7 @@ final class TranslatorViewModel: ObservableObject {
 
     private func stream(_ request: TranslationRequest) {
         stopTranslation()
-        pendingTranslation = ""
+        translationBuffer.discard()
         translationGeneration += 1
         let generation = translationGeneration
         session?.sourceLanguageCode = request.sourceLanguageCode
@@ -188,15 +189,15 @@ final class TranslatorViewModel: ObservableObject {
             do {
                 try await translateText.execute(request) { delta in
                     guard let self, self.translationGeneration == generation else { return }
-                    self.enqueue(delta)
+                    self.translationBuffer.append(delta)
                 }
                 guard let self, self.translationGeneration == generation else { return }
-                self.flushPendingTranslation()
+                self.translationBuffer.flush()
                 self.session?.state = .finished
             } catch {
                 // 中断（隐藏气泡、修改原文、切换语言）会递增 generation，取消带来的错误在此丢弃。
                 guard let self, self.translationGeneration == generation else { return }
-                self.flushPendingTranslation()
+                self.translationBuffer.flush()
                 self.session?.state = .failed(TranslatorErrorMessage.message(for: error))
             }
 
@@ -204,26 +205,6 @@ final class TranslatorViewModel: ObservableObject {
                 self.translationTask = nil
             }
         }
-    }
-
-    private func enqueue(_ delta: String) {
-        pendingTranslation += delta
-        guard flushTask == nil else { return }
-        let interval = Self.flushInterval
-        flushTask = Task { [weak self] in
-            try? await Task.sleep(for: interval)
-            guard !Task.isCancelled else { return }
-            self?.flushPendingTranslation()
-        }
-    }
-
-    private func flushPendingTranslation() {
-        flushTask?.cancel()
-        flushTask = nil
-        guard !pendingTranslation.isEmpty else { return }
-        session?.translation += pendingTranslation
-        session?.isCopied = false
-        pendingTranslation = ""
     }
 }
 

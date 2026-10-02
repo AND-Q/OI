@@ -484,6 +484,25 @@ final class QuickAITests: XCTestCase {
         XCTAssertFalse(viewModel.isExpanded)
     }
 
+    // MARK: - Streaming buffer
+
+    /// 增量攒成一批上屏，已上屏的不会重复交出；丢弃的增量不再上屏。
+    func testStreamingTextBufferMergesDeltasAndDiscards() {
+        var flushed: [String] = []
+        let buffer = StreamingTextBuffer(interval: .seconds(60)) { flushed.append($0) }
+
+        buffer.append("你")
+        buffer.append("好")
+        buffer.flush()
+        buffer.flush()
+        XCTAssertEqual(flushed, ["你好"])
+
+        buffer.append("丢弃")
+        buffer.discard()
+        buffer.flush()
+        XCTAssertEqual(flushed, ["你好"])
+    }
+
     // MARK: - Settings
 
     func testUserDefaultsStoreRoundTripsQuickAISettings() throws {

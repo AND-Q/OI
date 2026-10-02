@@ -68,8 +68,10 @@ final class LauncherViewModel: ObservableObject {
     private var launchTask: Task<Void, Never>?
     private var fileSearchTask: Task<Void, Never>?
     private var quickAITask: Task<Void, Never>?
-    private var quickAIFlushTask: Task<Void, Never>?
-    private var pendingQuickAIAnswer = ""
+    private lazy var quickAIAnswerBuffer = StreamingTextBuffer(interval: LauncherViewModel.quickAIFlushInterval) { [weak self] text in
+        self?.quickAISession?.answer += text
+        self?.quickAISession?.isAnswerCopied = false
+    }
     private var refreshGeneration = 0
     private var fileSearchGeneration = 0
     private var quickAIGeneration = 0
@@ -111,7 +113,6 @@ final class LauncherViewModel: ObservableObject {
         launchTask?.cancel()
         fileSearchTask?.cancel()
         quickAITask?.cancel()
-        quickAIFlushTask?.cancel()
     }
 
     /// Web URLs first (直达), then quick queries, applications and files.
@@ -429,15 +430,15 @@ final class LauncherViewModel: ObservableObject {
             do {
                 try await askQuickAI.execute(question: question) { delta in
                     guard let self, self.quickAIGeneration == generation else { return }
-                    self.enqueueQuickAIDelta(delta)
+                    self.quickAIAnswerBuffer.append(delta)
                 }
                 guard let self, self.quickAIGeneration == generation else { return }
-                self.flushQuickAIAnswer()
+                self.quickAIAnswerBuffer.flush()
                 self.quickAISession?.state = .finished
             } catch {
                 // 中断（Esc、隐藏面板、改动输入）会递增 generation，取消带来的错误在此丢弃。
                 guard let self, self.quickAIGeneration == generation else { return }
-                self.flushQuickAIAnswer()
+                self.quickAIAnswerBuffer.flush()
                 self.quickAISession?.state = .failed(LauncherErrorMessage.message(for: error))
             }
 
@@ -456,7 +457,7 @@ final class LauncherViewModel: ObservableObject {
         quickAIGeneration += 1
         quickAITask?.cancel()
         quickAITask = nil
-        flushQuickAIAnswer()
+        quickAIAnswerBuffer.flush()
         if quickAISession?.isStreaming == true {
             quickAISession?.state = .finished
         }
@@ -555,32 +556,10 @@ final class LauncherViewModel: ObservableObject {
         return launchTask
     }
 
-    /// Buffers a streamed delta and publishes the batch after `quickAIFlushInterval`.
-    private func enqueueQuickAIDelta(_ delta: String) {
-        pendingQuickAIAnswer += delta
-        guard quickAIFlushTask == nil else { return }
-        let interval = Self.quickAIFlushInterval
-        quickAIFlushTask = Task { [weak self] in
-            try? await Task.sleep(for: interval)
-            guard !Task.isCancelled else { return }
-            self?.flushQuickAIAnswer()
-        }
-    }
-
-    /// Publishes buffered deltas at once (timer, completion, failure or interruption).
-    private func flushQuickAIAnswer() {
-        quickAIFlushTask?.cancel()
-        quickAIFlushTask = nil
-        guard !pendingQuickAIAnswer.isEmpty else { return }
-        quickAISession?.answer += pendingQuickAIAnswer
-        quickAISession?.isAnswerCopied = false
-        pendingQuickAIAnswer = ""
-    }
-
     /// Drops the current answer; Quick AI mode itself stays as it is.
     private func discardQuickAISession() {
         stopQuickAI()
-        pendingQuickAIAnswer = ""
+        quickAIAnswerBuffer.discard()
         guard quickAISession != nil else { return }
         quickAISession = nil
         updatePanelHeight()

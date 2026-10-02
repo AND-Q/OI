@@ -11,10 +11,9 @@ struct TranslationRequest: Equatable, Sendable {
 /// 划词翻译：识别语种、选定目标语言，并经 Quick AI 配置的接口流式翻译。
 @MainActor
 struct TranslateText {
-    private let answerer: any QuickAIAnswering
+    private let streaming: QuickAIStreaming
     private let languageDetector: any LanguageDetecting
     private let settingsStore: any AppSettingsStoring
-    private let keyStore: any QuickAIKeyStoring
 
     init(
         answerer: any QuickAIAnswering,
@@ -22,10 +21,9 @@ struct TranslateText {
         settingsStore: any AppSettingsStoring,
         keyStore: any QuickAIKeyStoring
     ) {
-        self.answerer = answerer
+        self.streaming = QuickAIStreaming(answerer: answerer, settingsStore: settingsStore, keyStore: keyStore)
         self.languageDetector = languageDetector
         self.settingsStore = settingsStore
-        self.keyStore = keyStore
     }
 
     /// 识别原文语言并选定目标语言：原文已是目标语言（按主语言比较，简繁同属中文）时改译为备选语言，
@@ -46,30 +44,11 @@ struct TranslateText {
     /// 按当前 Quick AI 设置翻译，并把译文增量逐段交给 `onDelta`。
     /// 接口地址或模型缺失时不发起请求，直接抛出未配置错误。
     func execute(_ request: TranslationRequest, onDelta: (String) -> Void) async throws {
-        let settings = settingsStore.load()
-        guard let configuration = QuickAIConfiguration(
-            baseURLString: settings.quickAIBaseURL,
-            model: settings.quickAIModel,
-            apiKey: keyStore.load()
-        ) else {
-            throw ApplicationError.quickAINotConfigured
-        }
-
-        do {
-            for try await delta in answerer.streamAnswer(
-                to: request.text,
-                systemPrompt: Self.systemPrompt(for: request.targetLanguage),
-                configuration: configuration
-            ) {
-                onDelta(delta)
-            }
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            throw ApplicationError.quickAIFailed(
-                reason: (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            )
-        }
+        try await streaming.stream(
+            request.text,
+            systemPrompt: Self.systemPrompt(for: request.targetLanguage),
+            onDelta: onDelta
+        )
     }
 
     /// 原文整体作为用户消息发送；提示词明确它只是待译文本，避免原文中的问句或指令被当成提问回答。

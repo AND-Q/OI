@@ -110,6 +110,8 @@
 		A10000010000005F /* DoubleClickWordSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000005F /* DoubleClickWordSelector.swift */; };
 		A100000100000060 /* LauncherLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000060 /* LauncherLayout.swift */; };
 		A100000100000061 /* LauncherActionSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000061 /* LauncherActionSheetView.swift */; };
+		A100000100000062 /* QuickAIStreaming.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000062 /* QuickAIStreaming.swift */; };
+		A100000100000063 /* StreamingTextBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000063 /* StreamingTextBuffer.swift */; };
 		B10000010000001D /* TranslatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001E /* TranslatorTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -230,6 +232,8 @@
 		A20000010000005F /* DoubleClickWordSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoubleClickWordSelector.swift; sourceTree = "<group>"; };
 		A200000100000060 /* LauncherLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherLayout.swift; sourceTree = "<group>"; };
 		A200000100000061 /* LauncherActionSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherActionSheetView.swift; sourceTree = "<group>"; };
+		A200000100000062 /* QuickAIStreaming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAIStreaming.swift; sourceTree = "<group>"; };
+		A200000100000063 /* StreamingTextBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingTextBuffer.swift; sourceTree = "<group>"; };
 		B20000010000001E /* TranslatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -502,6 +506,7 @@
 				A20000010000003B /* OpenURL.swift */,
 				A20000010000004B /* AskQuickAI.swift */,
 				A200000100000055 /* TranslateText.swift */,
+				A200000100000062 /* QuickAIStreaming.swift */,
 			);
 			path = UseCases;
 			sourceTree = "<group>";
@@ -617,6 +622,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000010000004E /* QuickAIMarkdown.swift */,
+				A200000100000063 /* StreamingTextBuffer.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -792,6 +798,8 @@
 				A10000010000005F /* DoubleClickWordSelector.swift in Sources */,
 				A100000100000060 /* LauncherLayout.swift in Sources */,
 				A100000100000061 /* LauncherActionSheetView.swift in Sources */,
+				A100000100000062 /* QuickAIStreaming.swift in Sources */,
+				A100000100000063 /* StreamingTextBuffer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
