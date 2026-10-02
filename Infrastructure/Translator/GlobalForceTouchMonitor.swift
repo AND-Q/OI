@@ -1,16 +1,13 @@
 import AppKit
 import os
 
-/// 用只监听的 CGEventTap 观察触控板压力事件：一次按压进入用力点按时回调一次。
+/// 用只监听的 CGEventTap 观察触控板压力事件：一次按压从第一段（普通点按）进入第二段（用力点按）时回调一次。
 /// 压力事件属于手势类事件，`NSEvent` 的全局监听收不到，只能经事件流的监听点获取。
 /// 只监听不拦截，系统自带的「查询」需由用户在触控板设置中改用其他手势。
 @MainActor
 final class GlobalForceTouchMonitor: ForceTouchMonitoring {
     /// 未获辅助功能授权时无法创建监听点，按此间隔重试，授权后无需重启 OI。
     private static let retryInterval: Duration = .seconds(2)
-    /// 第一段压力达到此值即视为用力点按。第二段要由光标下的视图启用，关闭系统「查询」后
-    /// 很多视图不再进入第二段，压力只会停在第一段接近上限，因此不能只等第二段。
-    private static let deepPressThreshold = 0.9
 
     /// 一次按压期间的压力统计，抬起时汇总记录，用于核对实际的段位与压力取值。
     private struct PressStatistics {
@@ -127,8 +124,9 @@ final class GlobalForceTouchMonitor: ForceTouchMonitoring {
                 didTriggerInCurrentPress = false
                 return
             }
-            let isDeepPress = stage >= 2 || pressure >= Self.deepPressThreshold
-            guard isDeepPress, !didTriggerInCurrentPress else { return }
+            // 只认第二段：按住拖选时第一段压力同样会升到接近上限，按压力判断会误触发；
+            // 代价是不进入第二段的视图（如备忘录正文）无法用力点按取词。
+            guard stage >= 2, !didTriggerInCurrentPress else { return }
             didTriggerInCurrentPress = true
             // 取当前光标位置（全局显示坐标）：手势事件自带的位置字段含义没有文档保证，用力点按时光标不会移动。
             let location = CGEvent(source: nil)?.location ?? event.location
