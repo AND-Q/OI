@@ -77,7 +77,7 @@ struct ApplicationSearchIndex: Sendable {
         } else if let position = secondaryFieldPosition(document, query: query) {
             tier = 3
             textScore = position
-        } else if document.aliases.contains(where: { $0.hasPrefix(query) || $0.contains(query) })
+        } else if document.aliases.contains(where: { $0.contains(query) })
             || document.initials.hasPrefix(query) {
             tier = 4
             textScore = 0

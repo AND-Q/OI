@@ -66,10 +66,6 @@ final class QuickLookPresenter: NSObject {
         // AppKit 在 key/main 窗口焦点离开 LauncherPanel 时调用此方法（例如 QL 面板夺取 key 时）。
         // 真正的会话结束由 close() 与 windowWillClose 管理，在此不可提前结束会话。
     }
-
-    private func endSession() {
-        close()
-    }
 }
 
 extension QuickLookPresenter: QLPreviewPanelDataSource, QLPreviewPanelDelegate {

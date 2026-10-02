@@ -30,7 +30,7 @@
 		A100000100000015 /* ApplicationError.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000017 /* ApplicationError.swift */; };
 		A100000100000016 /* LauncherState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000018 /* LauncherState.swift */; };
 		A100000100000017 /* LauncherResultsList.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000019 /* LauncherResultsList.swift */; };
-		A100000100000018 /* VisualEffectBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000001A /* VisualEffectBackground.swift */; };
+		A100000100000018 /* LauncherPanelSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000001A /* LauncherPanelSurface.swift */; };
 		A100000100000019 /* PanelAnimationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000001B /* PanelAnimationCoordinator.swift */; };
 		A10000010000001A /* ApplicationSearchDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000001C /* ApplicationSearchDocument.swift */; };
 		A10000010000001B /* ApplicationSearchIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000001D /* ApplicationSearchIndex.swift */; };
@@ -151,7 +151,7 @@
 		A200000100000017 /* ApplicationError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationError.swift; sourceTree = "<group>"; };
 		A200000100000018 /* LauncherState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherState.swift; sourceTree = "<group>"; };
 		A200000100000019 /* LauncherResultsList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherResultsList.swift; sourceTree = "<group>"; };
-		A20000010000001A /* VisualEffectBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectBackground.swift; sourceTree = "<group>"; };
+		A20000010000001A /* LauncherPanelSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherPanelSurface.swift; sourceTree = "<group>"; };
 		A20000010000001B /* PanelAnimationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelAnimationCoordinator.swift; sourceTree = "<group>"; };
 		A20000010000001C /* ApplicationSearchDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationSearchDocument.swift; sourceTree = "<group>"; };
 		A20000010000001D /* ApplicationSearchIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationSearchIndex.swift; sourceTree = "<group>"; };
@@ -461,7 +461,7 @@
 				A200000100000019 /* LauncherResultsList.swift */,
 				A200000100000061 /* LauncherActionSheetView.swift */,
 				A20000010000003E /* QuickLookPresenter.swift */,
-				A20000010000001A /* VisualEffectBackground.swift */,
+				A20000010000001A /* LauncherPanelSurface.swift */,
 				A200000100000021 /* LauncherSearchInput.swift */,
 				A20000010000001B /* PanelAnimationCoordinator.swift */,
 			);
@@ -740,7 +740,7 @@
 				A100000100000015 /* ApplicationError.swift in Sources */,
 				A100000100000016 /* LauncherState.swift in Sources */,
 				A100000100000017 /* LauncherResultsList.swift in Sources */,
-				A100000100000018 /* VisualEffectBackground.swift in Sources */,
+				A100000100000018 /* LauncherPanelSurface.swift in Sources */,
 				A100000100000019 /* PanelAnimationCoordinator.swift in Sources */,
 				A10000010000001A /* ApplicationSearchDocument.swift in Sources */,
 				A10000010000001B /* ApplicationSearchIndex.swift in Sources */,
