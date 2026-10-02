@@ -320,6 +320,20 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(requestCount, 1)
     }
 
+    /// 用力点按取词开关变化时通知启停监听；其他设置变化不通知。
+    func testToggleForceTouchTranslationActivatesMonitoring() {
+        let viewModel = makeViewModel()
+        var activations: [Bool] = []
+        viewModel.forceTouchTranslationActivator = { activations.append($0) }
+
+        viewModel.settings.isFileSearchEnabled = false
+        XCTAssertEqual(activations, [])
+
+        viewModel.settings.isForceTouchTranslationEnabled = false
+        viewModel.settings.isForceTouchTranslationEnabled = true
+        XCTAssertEqual(activations, [false, true])
+    }
+
     func testQuickAIBaseURLPlaintextWarningFollowsSettings() {
         let viewModel = makeViewModel()
         XCTAssertFalse(viewModel.isQuickAIBaseURLPlaintext)

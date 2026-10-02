@@ -23,6 +23,9 @@ final class SettingsViewModel: ObservableObject {
             if settings.isFileSearchEnabled, !oldValue.isFileSearchEnabled {
                 fileSearchAccessRequester?()
             }
+            if settings.isForceTouchTranslationEnabled != oldValue.isForceTouchTranslationEnabled {
+                forceTouchTranslationActivator?(settings.isForceTouchTranslationEnabled)
+            }
         }
     }
     /// 开机自启动的开关状态来自系统登录项，而非持久化存储。
@@ -47,6 +50,8 @@ final class SettingsViewModel: ObservableObject {
     var translatorShortcutActivator: ((LauncherShortcut) throws -> Void)?
     /// 由 AppCoordinator 注入：文件搜索从关闭切到开启时请求桌面、文稿、下载目录授权。
     var fileSearchAccessRequester: (() -> Void)?
+    /// 由 AppCoordinator 注入：用力点按取词开关变化时启动（true）或停止（false）全局监听。
+    var forceTouchTranslationActivator: ((Bool) -> Void)?
 
     private let settingsStore: any AppSettingsStoring
     private let loginItemController: any LoginItemControlling

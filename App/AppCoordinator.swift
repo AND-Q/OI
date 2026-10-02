@@ -78,6 +78,19 @@ final class AppCoordinator {
                 )
             }
         }
+        // 用力点按监听随设置启停：关闭时不安装全局事件监听，也不在未授权时轮询重试。
+        if let forceTouchMonitor = dependencies.translator?.forceTouchMonitor,
+           let translatorPanelController {
+            dependencies.settingsViewModel.forceTouchTranslationActivator = { isEnabled in
+                guard isEnabled else {
+                    forceTouchMonitor.stop()
+                    return
+                }
+                forceTouchMonitor.start { point in
+                    translatorPanelController.translateText(at: point)
+                }
+            }
+        }
     }
 
     func start() {
@@ -87,10 +100,8 @@ final class AppCoordinator {
         statusBarController.start()
         registerLauncherShortcut()
         registerTranslatorShortcut()
-        if let translatorPanelController {
-            dependencies.translator?.forceTouchMonitor.start { point in
-                translatorPanelController.translateText(at: point)
-            }
+        if dependencies.settingsStore.load().isForceTouchTranslationEnabled {
+            dependencies.settingsViewModel.forceTouchTranslationActivator?(true)
         }
         viewModel.loadApps()
         // 文件搜索开启时才触发目录授权，否则会缺少桌面、文稿、下载下的结果；关闭时不打扰用户。

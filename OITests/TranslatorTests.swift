@@ -777,6 +777,37 @@ final class TranslatorTests: XCTestCase {
         XCTAssertFalse(monitor.isRunning)
     }
 
+    /// 用力点按取词关闭时不启动全局监听；在设置中开启或关闭后随之启停。
+    func testCoordinatorStartsForceTouchMonitorOnlyWhenEnabled() {
+        let settingsStore = MemoryAppSettingsStore(initial: AppSettings(isForceTouchTranslationEnabled: false))
+        let settingsViewModel = makeSettingsViewModel(settingsStore: settingsStore)
+        let monitor = RecordingForceTouchMonitor()
+        let coordinator = AppCoordinator(
+            dependencies: AppDependencies(
+                launcherViewModel: makeViewModel(with: [], settingsStore: settingsStore),
+                settingsViewModel: settingsViewModel,
+                settingsStore: settingsStore,
+                applicationIconProvider: StubIconProvider(),
+                globalShortcutService: RecordingShortcutService(),
+                translator: TranslatorDependencies(
+                    viewModel: makeTranslatorViewModel(settings: AppSettings()),
+                    shortcutService: RecordingShortcutService(),
+                    forceTouchMonitor: monitor
+                )
+            )
+        )
+        defer { coordinator.stop() }
+
+        coordinator.start()
+        XCTAssertFalse(monitor.isRunning)
+
+        settingsViewModel.settings.isForceTouchTranslationEnabled = true
+        XCTAssertTrue(monitor.isRunning)
+
+        settingsViewModel.settings.isForceTouchTranslationEnabled = false
+        XCTAssertFalse(monitor.isRunning)
+    }
+
     // MARK: - Helpers
 
     private static let visibleFrame = NSRect(x: 0, y: 0, width: 1440, height: 875)
