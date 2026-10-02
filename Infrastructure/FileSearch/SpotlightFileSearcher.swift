@@ -1,5 +1,6 @@
 import CoreServices
 import Foundation
+import os
 
 /// 基于系统 Spotlight 索引（`MDQuery`）的文件与文件夹搜索。
 /// 每次查询在后台线程同步执行一次静态查询（不订阅实时更新）。
@@ -33,13 +34,21 @@ struct SpotlightFileSearcher: FileSearching {
     func search(query: String, limit: Int) async throws -> [FileDescriptor] {
         let queryString = Self.queryString(for: query)
         let excludedDirectories = Self.excludedDirectories(homeDirectory: homeDirectory)
+        // 同步查询一旦开始就无法中途停止；排队期间已被新输入取代的查询直接跳过，
+        // 最新查询至多等正在执行的那一次，而不是等过期查询依次跑完。
+        let isCancelled = OSAllocatedUnfairLock(initialState: false)
         try Task.checkCancellation()
-        let files = try await withCheckedThrowingContinuation { continuation in
-            Self.queue.async {
-                continuation.resume(with: Result {
-                    try Self.execute(queryString, excludedDirectories: excludedDirectories, limit: limit)
-                })
+        let files: [FileDescriptor] = try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                Self.queue.async {
+                    continuation.resume(with: Result {
+                        guard !isCancelled.withLock({ $0 }) else { throw CancellationError() }
+                        return try Self.execute(queryString, excludedDirectories: excludedDirectories, limit: limit)
+                    })
+                }
             }
+        } onCancel: {
+            isCancelled.withLock { $0 = true }
         }
         try Task.checkCancellation()
         return files
