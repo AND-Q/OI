@@ -639,7 +639,8 @@ final class LauncherViewModel: ObservableObject {
     /// Debounced file lookup; stale results are dropped by generation so the
     /// newest query always wins. Failures leave the file section empty.
     /// 检索期间保留上一批文件结果（与原生 Spotlight 一致），否则每敲一个字
-    /// 面板都会先塌成状态页再弹回列表，快速输入时剧烈抖动。
+    /// 面板都会先塌成状态页再弹回列表，快速输入时剧烈抖动。只保留名称仍包含
+    /// 新查询的条目，回车才不会打开与当前输入不符的旧文件。
     private func scheduleFileSearch() {
         fileSearchTask?.cancel()
         fileSearchTask = nil
@@ -655,6 +656,13 @@ final class LauncherViewModel: ObservableObject {
             return
         }
 
+        let stillMatching = fileResults.filter {
+            $0.name.range(
+                of: normalizedQuery,
+                options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive]
+            ) != nil
+        }
+        if stillMatching.count != fileResults.count { fileResults = stillMatching }
         fileSearchState = .searching
         let debounce = fileSearchDebounce
         fileSearchTask = Task { [weak self] in

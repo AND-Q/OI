@@ -331,9 +331,28 @@ final class FileSearchTests: XCTestCase {
         XCTAssertEqual(viewModel.expandedContent, .status)
     }
 
+    /// 回归测试：检索在途期间只保留名称仍包含新查询的旧结果，回车不能打开与当前输入不符的旧文件。
+    func testViewModelDropsPreviousFileResultsThatNoLongerMatchQuery() async {
+        let searcher = StubFileSearcher(results: [file("repo-notes.txt"), file("Report.pdf")])
+        let viewModel = makeViewModel(apps: [], searcher: searcher)
+        await viewModel.loadApps()?.value
+
+        viewModel.query = "repo"
+        await viewModel.waitForFileSearch()
+        XCTAssertEqual(viewModel.selectedResult?.name, "repo-notes.txt")
+
+        searcher.delay = .milliseconds(50)
+        searcher.results = [file("Report.pdf")]
+        viewModel.query = "report"
+
+        XCTAssertEqual(viewModel.fileSearchState, .searching)
+        XCTAssertEqual(viewModel.fileResults.map(\.name), ["Report.pdf"])
+        XCTAssertEqual(viewModel.selectedResult?.name, "Report.pdf")
+    }
+
     /// 回归测试：新结果在途期间用方向键下移后，结果变短时光标贴到最后一条、变空归零、变长不动。
     func testViewModelClampsSelectionWhenAsyncFileResultsShrink() async {
-        let searcher = StubFileSearcher(results: [file("r1"), file("r2"), file("r3")])
+        let searcher = StubFileSearcher(results: [file("r1"), file("r1b"), file("r1c")])
         let viewModel = makeViewModel(apps: [], searcher: searcher)
         await viewModel.loadApps()?.value
 
@@ -358,15 +377,15 @@ final class FileSearchTests: XCTestCase {
         XCTAssertNil(viewModel.selectedResult)
 
         // 变长：光标不动。
-        searcher.results = [file("r1"), file("r2")]
+        searcher.results = [file("r1"), file("r1b")]
         viewModel.query = "r1 "
         await viewModel.waitForFileSearch()
-        searcher.results = [file("r1"), file("r2"), file("r3"), file("r4")]
+        searcher.results = [file("r1"), file("r1b"), file("r1c"), file("r1d")]
         viewModel.query = "r1"
         viewModel.moveSelection(by: 1)
         await viewModel.waitForFileSearch()
         XCTAssertEqual(viewModel.selectedIndex, 1)
-        XCTAssertEqual(viewModel.selectedResult?.name, "r2")
+        XCTAssertEqual(viewModel.selectedResult?.name, "r1b")
     }
 
     func testViewModelStaysIdleAfterCancellingInFlightFileSearch() async {
