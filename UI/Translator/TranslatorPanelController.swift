@@ -4,6 +4,7 @@ import SwiftUI
 
 /// 划词翻译气泡的 AppKit 壳：不激活 OI 的浮动面板，弹在原文旁边。
 /// 面板成为 key 窗口以接收 Esc / 回车与原文编辑，但 OI 不切到前台，原应用保持激活。
+/// 用力点按取到单词时，另用一个不接收鼠标的窗口在原文单词上叠加黄色高亮，随气泡出现与收起。
 @MainActor
 final class TranslatorPanelController {
     private enum Layout {
@@ -11,12 +12,16 @@ final class TranslatorPanelController {
         static let fadeOutDuration: TimeInterval = 0.15
         /// 首次排版完成前的估计高度。
         static let initialHeight: CGFloat = 120
+        /// 高亮比单词区域向外扩展的距离。
+        static let highlightPadding: CGFloat = 2
     }
 
     private let viewModel: TranslatorViewModel
     let panel: TranslatorPanel
+    private let highlight: NSPanel
     private var keyMonitor: Any?
     private var clickMonitor: Any?
+    private var scrollMonitor: Any?
     private var placement: TranslatorPlacement?
     private var contentHeight = Layout.initialHeight
     /// 每次弹出递增：淡出完成时据此判断期间是否又弹出了新的气泡。
@@ -27,6 +32,12 @@ final class TranslatorPanelController {
         self.viewModel = viewModel
         panel = TranslatorPanel(
             contentRect: NSRect(x: 0, y: 0, width: TranslatorLayout.width, height: Layout.initialHeight),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: true
+        )
+        highlight = NSPanel(
+            contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: true
@@ -54,6 +65,19 @@ final class TranslatorPanelController {
             cornerRadius: TranslatorLayout.cornerRadius
         )
 
+        highlight.isOpaque = false
+        highlight.backgroundColor = .clear
+        highlight.hasShadow = false
+        // 点击穿透到下面的应用，不影响原应用的操作。
+        highlight.ignoresMouseEvents = true
+        highlight.level = .floating
+        highlight.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
+        highlight.hidesOnDeactivate = false
+        highlight.animationBehavior = .none
+        let highlightView = TranslatorHighlightView()
+        highlightView.wantsLayer = true
+        highlight.contentView = highlightView
+
         // 点到其他应用（包括原应用）时面板失去 key，气泡随之收起。
         panel.onResignKey = { [weak self] in self?.hide() }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
@@ -68,6 +92,9 @@ final class TranslatorPanelController {
         }
         if let clickMonitor {
             NSEvent.removeMonitor(clickMonitor)
+        }
+        if let scrollMonitor {
+            NSEvent.removeMonitor(scrollMonitor)
         }
     }
 
@@ -98,6 +125,7 @@ final class TranslatorPanelController {
         isDismissing = true
         viewModel.stopTranslation()
         removeClickMonitor()
+        removeScrollMonitor()
         let generation = presentationGeneration
         guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
             finishHiding(generation: generation)
@@ -106,6 +134,7 @@ final class TranslatorPanelController {
         NSAnimationContext.runAnimationGroup { context in
             context.duration = Layout.fadeOutDuration
             self.panel.animator().alphaValue = 0
+            self.highlight.animator().alphaValue = 0
         } completionHandler: { [weak self] in
             MainActor.assumeIsolated {
                 self?.finishHiding(generation: generation)
@@ -119,6 +148,7 @@ final class TranslatorPanelController {
             self.keyMonitor = nil
         }
         removeClickMonitor()
+        removeHighlight()
         presentationGeneration += 1
         // 标记为收起中：下屏触发的 resignKey 不再走淡出流程。
         isDismissing = true
@@ -140,6 +170,10 @@ final class TranslatorPanelController {
         let anchor = presentation.anchorRect
             .map { TranslatorPlacement.appKitRect(fromGlobal: $0, primaryScreenHeight: primaryScreenHeight) }
             .flatMap { rect in screens.contains { $0.frame.intersects(rect) } ? rect : nil }
+        // 只给用力点按取到的单词加高亮：选区由原应用显示选中状态，剪贴板没有位置。
+        let highlightFrame = viewModel.session?.source == .word
+            ? anchor?.insetBy(dx: -Layout.highlightPadding, dy: -Layout.highlightPadding)
+            : nil
         let focusPoint = anchor.map { NSPoint(x: $0.midX, y: $0.midY) } ?? pointerLocation
         guard let screen = screens.first(where: { $0.frame.contains(focusPoint) })
                 ?? screens.first(where: { $0.frame.contains(pointerLocation) })
@@ -161,6 +195,17 @@ final class TranslatorPanelController {
         if !panel.isVisible {
             panel.alphaValue = 0
         }
+        // 高亮先上屏，气泡随后排在它之上。
+        if let highlightFrame {
+            highlight.setFrame(highlightFrame, display: true)
+            if !highlight.isVisible {
+                highlight.alphaValue = 0
+            }
+            highlight.orderFrontRegardless()
+            installScrollMonitor()
+        } else {
+            removeHighlight()
+        }
         panel.orderFrontRegardless()
         panel.makeKey()
         panel.invalidateShadow()
@@ -168,10 +213,12 @@ final class TranslatorPanelController {
 
         if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             panel.alphaValue = 1
+            highlight.alphaValue = 1
         } else {
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = Layout.fadeInDuration
                 self.panel.animator().alphaValue = 1
+                self.highlight.animator().alphaValue = 1
             }
         }
     }
@@ -179,6 +226,7 @@ final class TranslatorPanelController {
     private func finishHiding(generation: Int) {
         guard generation == presentationGeneration, isDismissing else { return }
         // 先下屏再复位：下屏触发的 resignKey 看到淡出仍在进行会直接跳过。
+        highlight.orderOut(nil)
         panel.orderOut(nil)
         panel.alphaValue = 1
         isDismissing = false
@@ -218,6 +266,27 @@ final class TranslatorPanelController {
             NSEvent.removeMonitor(clickMonitor)
         }
         clickMonitor = nil
+    }
+
+    /// 原文随滚动移动后高亮会错位：滚动其他应用时先收起高亮，气泡保留。
+    /// 全局监听只会收到发往其他应用的滚动，在气泡内滚动译文不受影响。
+    private func installScrollMonitor() {
+        guard scrollMonitor == nil else { return }
+        scrollMonitor = NSEvent.addGlobalMonitorForEvents(matching: .scrollWheel) { [weak self] _ in
+            self?.removeHighlight()
+        }
+    }
+
+    private func removeScrollMonitor() {
+        if let scrollMonitor {
+            NSEvent.removeMonitor(scrollMonitor)
+        }
+        scrollMonitor = nil
+    }
+
+    private func removeHighlight() {
+        removeScrollMonitor()
+        highlight.orderOut(nil)
     }
 
     // MARK: - Keyboard
@@ -433,5 +502,20 @@ final class TranslatorPanelSurface: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+}
+
+/// 盖在原文单词上的黄色高亮，仿照系统「查询」：半透明以透出下面的文字，
+/// 在 `updateLayer` 中取色，浅色与深色外观切换时随之更新。
+final class TranslatorHighlightView: NSView {
+    private static let cornerRadius: CGFloat = 4
+    private static let opacity: CGFloat = 0.4
+
+    override var wantsUpdateLayer: Bool { true }
+
+    override func updateLayer() {
+        layer?.backgroundColor = NSColor.systemYellow.withAlphaComponent(Self.opacity).cgColor
+        layer?.cornerRadius = Self.cornerRadius
+        layer?.cornerCurve = .continuous
     }
 }
