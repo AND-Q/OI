@@ -52,15 +52,19 @@ final class CarbonGlobalShortcutService: GlobalShortcutHandling {
                     nil,
                     &pressedHotKeyID
                 )
+                let pressedID = pressedHotKeyID.id
                 let service = Unmanaged<CarbonGlobalShortcutService>
                     .fromOpaque(userData)
                     .takeUnretainedValue()
-                // 其他实例的热键交还给下一个处理器。
-                guard status == noErr, pressedHotKeyID.id == service.hotKeyIdentifier else {
-                    return OSStatus(eventNotHandledErr)
+                // 热键事件经应用事件目标由主运行循环派发，回调总在主线程。
+                return MainActor.assumeIsolated {
+                    // 其他实例的热键交还给下一个处理器。
+                    guard status == noErr, pressedID == service.hotKeyIdentifier else {
+                        return OSStatus(eventNotHandledErr)
+                    }
+                    service.handler?()
+                    return noErr
                 }
-                service.handler?()
-                return noErr
             },
             1,
             &eventType,
