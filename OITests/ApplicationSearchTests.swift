@@ -110,6 +110,19 @@ final class ApplicationSearchTests: XCTestCase {
         XCTAssertEqual(index.search(query: "commicrosoftvscode").map(\.name), ["Code"])
     }
 
+    /// 回归测试：短查询不得命中同厂商 Bundle ID 共有的「顶级域.厂商」前缀，否则大量应用挤进 Tier 3，
+    /// 把首字母、拼音命中的应用截出结果上限。
+    func testShortQueryDoesNotMatchSharedBundleIdentifierPrefix() {
+        let tools = (0..<ApplicationSearchIndex.resultLimit).map { "Tool \($0)" }
+        let index = makeIndex(
+            tools + ["Light Editor"],
+            bundleIdentifiers: tools.indices.map { "com.apple.tool\($0)" }
+        )
+        XCTAssertEqual(index.search(query: "le").map(\.name), ["Light Editor"])
+        XCTAssertTrue(index.search(query: "com").isEmpty)
+        XCTAssertEqual(index.search(query: "comapple").count, ApplicationSearchIndex.resultLimit)
+    }
+
     func testAliasAndInitialsMatch() {
         let app = AppDescriptor(
             name: "Visual Studio Code",

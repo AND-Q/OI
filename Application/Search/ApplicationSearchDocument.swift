@@ -65,6 +65,12 @@ struct ApplicationSearchDocument: Sendable {
     let nameTokens: [String]
     let normalizedBundleName: String
     let normalizedBundleIdentifier: String
+    /// Bundle Identifier 顶级域段（如 `com`）归一化后的长度：查询须越过这一段才按完整 ID 前缀匹配，
+    /// 否则 `co`、`com` 这样的短查询会命中几乎所有应用。
+    let bundleIdentifierDomainLength: Int
+    /// 去掉「顶级域.厂商」两段后的 Bundle Identifier（`com.tencent.xinWeChat` → `xinwechat`）。
+    /// 同厂商应用共有的前缀不参与包含匹配，避免短查询把整个厂商的应用挤进同一层级。
+    let normalizedBundleIdentifierProduct: String
     let aliases: [String]
     let initials: String
     let pinyin: String
@@ -77,7 +83,18 @@ struct ApplicationSearchDocument: Sendable {
         self.normalizedBundleName = SearchTextNormalizer.normalize(
             app.url.deletingPathExtension().lastPathComponent
         )
-        self.normalizedBundleIdentifier = SearchTextNormalizer.normalize(app.bundleIdentifier ?? "")
+        let bundleIdentifier = app.bundleIdentifier ?? ""
+        let identifierSegments = bundleIdentifier.split(separator: ".")
+        let productSegments = identifierSegments.count > 2
+            ? identifierSegments.dropFirst(2)
+            : identifierSegments.suffix(1)
+        self.normalizedBundleIdentifier = SearchTextNormalizer.normalize(bundleIdentifier)
+        self.bundleIdentifierDomainLength = SearchTextNormalizer.normalize(
+            String(identifierSegments.first ?? "")
+        ).count
+        self.normalizedBundleIdentifierProduct = SearchTextNormalizer.normalize(
+            productSegments.joined(separator: ".")
+        )
         self.aliases = aliases.map(SearchTextNormalizer.normalize)
         self.initials = SearchTextNormalizer.initials(of: app.name)
         self.pinyin = SearchTextNormalizer.pinyin(of: app.name)

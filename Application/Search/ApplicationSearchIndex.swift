@@ -106,14 +106,19 @@ struct ApplicationSearchIndex: Sendable {
         )
     }
 
-    /// 在 bundle 文件名与 bundle identifier 上计算前缀或包含位置；
-    /// 前缀命中凭借更小的位置值优先于更靠后的包含命中。
+    /// 在 bundle 文件名与去掉「顶级域.厂商」的 bundle identifier 上计算前缀或包含位置，
+    /// 完整 bundle identifier 只做前缀匹配；前缀命中凭借更小的位置值优先于更靠后的包含命中。
     private func secondaryFieldPosition(
         _ document: ApplicationSearchDocument,
         query: String
     ) -> Int? {
+        // 直接输入 `com.microsoft…` 时按完整 ID 前缀命中；只输入顶级域段（`co`、`com`）不算。
+        if query.count > document.bundleIdentifierDomainLength,
+           document.normalizedBundleIdentifier.hasPrefix(query) {
+            return 0
+        }
         var best: Int?
-        for field in [document.normalizedBundleName, document.normalizedBundleIdentifier]
+        for field in [document.normalizedBundleName, document.normalizedBundleIdentifierProduct]
         where !field.isEmpty {
             let position: Int
             if field.hasPrefix(query) {
