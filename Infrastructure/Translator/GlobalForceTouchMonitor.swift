@@ -11,6 +11,8 @@ final class GlobalForceTouchMonitor: ForceTouchMonitoring {
     /// 第一段压力达到此值即视为用力点按。第二段要由光标下的视图启用，关闭系统「查询」后
     /// 很多视图不再进入第二段，压力只会停在第一段接近上限，因此不能只等第二段。
     private static let deepPressThreshold = 0.9
+    /// 按下后指针移动超过此距离视为拖拽：拖动窗口、文件或拖选文字时手指按得重，不算用力点按。
+    private static let dragThreshold: CGFloat = 5
 
     /// 一次按压期间的压力统计，抬起时汇总记录，用于核对实际的段位与压力取值。
     private struct PressStatistics {
@@ -27,6 +29,8 @@ final class GlobalForceTouchMonitor: ForceTouchMonitoring {
     private var handler: ((CGPoint) -> Void)?
     /// 本次按压是否已触发过：压力来回变化时不重复触发，抬起后复位。
     private var didTriggerInCurrentPress = false
+    /// 本次按压的按下位置（全局显示坐标），用于识别拖拽；抬起后清空。
+    private var pressStartLocation: CGPoint?
     private var pressStatistics = PressStatistics()
 
     func start(handler: @escaping (CGPoint) -> Void) {
@@ -52,6 +56,7 @@ final class GlobalForceTouchMonitor: ForceTouchMonitoring {
         removeTap()
         handler = nil
         didTriggerInCurrentPress = false
+        pressStartLocation = nil
         pressStatistics = PressStatistics()
     }
 
@@ -63,7 +68,7 @@ final class GlobalForceTouchMonitor: ForceTouchMonitoring {
     private func installTap() -> Bool {
         // 事件流中压力事件以手势事件（类型 29 / 30）传递，具体种类记在子类型里，
         // 由 NSEvent(cgEvent:) 还原为 .pressure；只订阅 .pressure 对应的第 34 位收不到。
-        let mask = NSEvent.EventTypeMask([.gesture, .magnify, .pressure, .leftMouseUp]).rawValue
+        let mask = NSEvent.EventTypeMask([.gesture, .magnify, .pressure, .leftMouseDown, .leftMouseUp]).rawValue
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
@@ -109,9 +114,12 @@ final class GlobalForceTouchMonitor: ForceTouchMonitoring {
             if let tap {
                 CGEvent.tapEnable(tap: tap, enable: true)
             }
+        case .leftMouseDown:
+            pressStartLocation = event.location
         case .leftMouseUp:
             logPressStatistics()
             didTriggerInCurrentPress = false
+            pressStartLocation = nil
         default:
             guard let pressureEvent = NSEvent(cgEvent: event), pressureEvent.type == .pressure else { return }
             let stage = pressureEvent.stage
@@ -132,6 +140,12 @@ final class GlobalForceTouchMonitor: ForceTouchMonitoring {
             didTriggerInCurrentPress = true
             // 取当前光标位置（全局显示坐标）：手势事件自带的位置字段含义没有文档保证，用力点按时光标不会移动。
             let location = CGEvent(source: nil)?.location ?? event.location
+            // 按下后已移开的是拖拽：整次按压都不再触发，抬起后复位。
+            if let start = pressStartLocation,
+               hypot(location.x - start.x, location.y - start.y) > Self.dragThreshold {
+                logger.debug("Deep press ignored: pointer moved during press")
+                return
+            }
             logger.debug(
                 "Force click at (\(Double(location.x), privacy: .public), \(Double(location.y), privacy: .public)), stage \(stage, privacy: .public), pressure \(pressure, privacy: .public)"
             )
