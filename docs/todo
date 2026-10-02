@@ -125,168 +125,93 @@
 - **涉及文件**：
   - [Domain/Models/TranslationLanguage.swift](Domain/Models/TranslationLanguage.swift)、[Application/Ports/TextCapturing.swift](Application/Ports/TextCapturing.swift)、[Application/Ports/ForceTouchMonitoring.swift](Application/Ports/ForceTouchMonitoring.swift)、[Application/Ports/LanguageDetecting.swift](Application/Ports/LanguageDetecting.swift)、[Application/Ports/WordSelecting.swift](Application/Ports/WordSelecting.swift)、[Application/Ports/TranslatorEnvironmentHandling.swift](Application/Ports/TranslatorEnvironmentHandling.swift)、[Application/Ports/QuickAIAnswering.swift](Application/Ports/QuickAIAnswering.swift)、[Application/Ports/AppSettingsStoring.swift](Application/Ports/AppSettingsStoring.swift)、[Application/UseCases/TranslateText.swift](Application/UseCases/TranslateText.swift)、[Application/UseCases/AskQuickAI.swift](Application/UseCases/AskQuickAI.swift)、[Infrastructure/Translator/](Infrastructure/Translator/)、[Infrastructure/QuickAI/OpenAICompatibleQuickAIClient.swift](Infrastructure/QuickAI/OpenAICompatibleQuickAIClient.swift)、[Infrastructure/Shortcut/CarbonGlobalShortcutService.swift](Infrastructure/Shortcut/CarbonGlobalShortcutService.swift)、[Infrastructure/Settings/UserDefaultsAppSettingsStore.swift](Infrastructure/Settings/UserDefaultsAppSettingsStore.swift)、[Features/Translator/](Features/Translator/)、[Features/Settings/SettingsViewModel.swift](Features/Settings/SettingsViewModel.swift)、[UI/Translator/TranslatorPanelController.swift](UI/Translator/TranslatorPanelController.swift)、[UI/Settings/SettingsView.swift](UI/Settings/SettingsView.swift)、[UI/Settings/SettingsWindowController.swift](UI/Settings/SettingsWindowController.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[App/AppCoordinator.swift](App/AppCoordinator.swift)、[OITests/TranslatorTests.swift](OITests/TranslatorTests.swift)、[OITests/QuickAITests.swift](OITests/QuickAITests.swift)
 
-> 以下未完成项由 Claude 于 2026-10-02 评估后改写，参考了 Spotlight、Raycast、sol、look，按建议优先级排序，待审查：
-> - 原「开发者实用工具」拆为第 10 项（UUID）与第 16 项（按端口结束进程）；原「系统控制快捷命令」改写为第 15 项；原「轻量剪贴板历史」移到第 17 项并标记暂缓；
-> - 第 11–14 项与文末「候选想法」为新增建议；
-> - 「评估意见」与「待确认」是给你审查用的，确认后可删掉或改成正式的需求描述。
-
 ## [ ] 9. 系统设置项直达
 
 - **需求描述**：
-  - 输入设置面板名称（`蓝牙`、`显示器`、`lanya`、`wifi`）直接检索 macOS 系统设置子面板，`Enter` 打开对应面板。
-- **评估意见**：
-  - 优先级最高。Spotlight 有这项能力而 OI 还没有，要让 OI 替代 ⌘Space 就绕不开；
-  - 能直接复用现有的拼音、首字母与分级匹配，几乎不需要新交互。
-- **实现思路**：
-  - 数据来源：macOS 13 起系统设置的各面板是 `/System/Library/ExtensionKit/Extensions/` 下的 `.appex` 扩展。在后台随应用目录扫描一起枚举其中属于系统设置的扩展，读取本地化名称与 bundle ID，用 `x-apple.systempreferences:<扩展 bundle ID>` 打开，不硬编码大表。现有 [SystemTranslatorEnvironment](Infrastructure/Translator/SystemTranslatorEnvironment.swift) 已用 `x-apple.systempreferences:com.apple.Trackpad-Settings.extension` 打开触控板设置，说明这条路可行；
-  - 筛选条件（扩展点标识）与本地化名称的读取位置需要在 macOS 27 上实测核对；枚举失败时退回一张常用面板的小表兜底；
-  - 同义词：内置少量常用别名（`wifi` → 网络 / Wi-Fi，`深色` / `dark` → 外观，`壁纸` → 墙纸，`vpn` 等）；
-  - 二级入口：隐私与安全性下的辅助功能、屏幕录制、完全磁盘访问等常用子项，用 `?Privacy_Accessibility` 这类锚点单独列出（同样只维护一张小表）；
-  - 检索：新增 `SearchResult.settingsPane` 结果类型，复用 [ApplicationSearchIndex](Application/Search/ApplicationSearchIndex.swift) 的匹配逻辑为设置项单独建索引。不要把设置项伪装成 `AppDescriptor` 混进应用目录，否则 `Enter` 会走启动应用流程，使用历史也会混在一起。打开走现有 [URLOpening](Application/Ports/URLOpening.swift) 端口与 [OpenURL](Application/UseCases/OpenURL.swift) 用例；
-  - 图标：各面板扩展自带的图标能否取到需实测，取不到时统一用「系统设置」App 图标或 SF Symbol 兜底；
-  - 设置项没有文件系统条目，`Cmd+F` / `Cmd+Y` / `Cmd+K` 对其静默。
-- **待确认**：
-  - 设置项放在哪里：(A) 单独的「系统设置」分组，排在 App 之后、文件之前（推荐，实现简单）；(B) 与 App 按匹配等级混排（更像 Spotlight，但要改造索引，让它同时容纳两类文档）；
-  - 是否在设置窗口提供开关（与「文件与文件夹搜索」并列）。
-- **涉及文件（预估）**：
-  - [Domain/Models/SearchResult.swift](Domain/Models/SearchResult.swift)、新增设置面板模型与 `Application/Ports` 端口、新增 `Infrastructure` 扩展枚举实现、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Features/Launcher/LauncherResultsList.swift](Features/Launcher/LauncherResultsList.swift)、[Features/Launcher/LauncherActionMenu.swift](Features/Launcher/LauncherActionMenu.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)
+  - 在启动器中直接检索并打开 macOS 系统设置的子面板（蓝牙、网络、声音、显示器等）。
+- **需要做到**：
+  - 支持中文名、英文名、拼音与首字母检索（`蓝牙`、`bluetooth`、`lanya`、`ly`），并支持常用同义词（`wifi` → 网络 / Wi-Fi，`深色` → 外观）；
+  - 隐私与安全性下的常用子项（辅助功能、屏幕录制、完全磁盘访问等）可直接检索；
+  - 设置项以「系统设置」分组显示在 App 之后、文件之前，`Enter` 打开对应面板并关闭启动器；
+  - 面板列表从系统读取，系统升级后无需手动维护。
 
 ## [ ] 10. 开发者小工具：UUID 与时间戳
 
 - **需求描述**：
-  - 输入 `uuid` 即时生成一个 UUID，`Enter` 复制并关闭面板；
-  - （新增建议）时间戳互转：输入 10 位或 13 位纯数字时显示对应的本地时间；输入 `ts` / `时间戳` 时显示当前 Unix 时间戳。
-- **评估意见**：
-  - 与现有 `ip` 快速查询的写法相同：[QuickQueryResolver](Features/Launcher/QuickQueryResolver.swift) 增加分支，[QuickQueryResult](Domain/Models/QuickQueryResult.swift) 增加 case，几十行代码，不需要权限，没有风险；
-  - 原需求中的「按进程名或端口号结束进程」拆到第 16 项单独评估。
-- **实现思路**：
-  - UUID 默认输出小写（多数开发场景如此）；
-  - 时间戳：10 位按秒、13 位按毫秒解析，以 `yyyy-MM-dd HH:mm:ss` 显示本地时间；只在合理年份范围内（如 2000–2100 年）识别，避免普通数字误判。纯数字本来不会被当作算式（算式至少要有一个运算符），两者不冲突。
-- **待确认**：
-  - UUID 用大写还是小写；时间戳互转是否需要。
-- **涉及文件（预估）**：
-  - [Domain/Models/QuickQueryResult.swift](Domain/Models/QuickQueryResult.swift)、[Features/Launcher/QuickQueryResolver.swift](Features/Launcher/QuickQueryResolver.swift)、[OITests/LauncherViewModelTests.swift](OITests/LauncherViewModelTests.swift)
+  - 输入 `uuid` 快速生成并复制；时间戳与日期互转。
+- **需要做到**：
+  - 输入 `uuid` 置顶显示新生成的 UUID（小写），`Enter` 复制并关闭面板；
+  - 输入 10 位或 13 位时间戳时显示对应的本地时间（`yyyy-MM-dd HH:mm:ss`），`Enter` 复制；
+  - 输入 `ts` / `时间戳` 显示当前 Unix 时间戳，`Enter` 复制；
+  - 普通数字不误判为时间戳（只识别 2000–2100 年范围内的值）。
 
-## [ ] 11. 自定义别名与隐藏结果（新增建议）
+## [ ] 11. 自定义别名与隐藏结果
 
 - **需求描述**：
-  - 在设置中为任意 App 添加自定义别名（如 `ps` → Photoshop、`wyy` → 网易云音乐），别名走现有的 Tier 4 匹配；
-  - 把不想出现在结果里的 App（各类 Helper、卸载器、很少用的系统工具）隐藏，可在设置中恢复。
-- **评估意见**：
-  - 搜索引擎已经支持别名（`ApplicationSearchIndex(applications:aliases:)`），但别名目前只能写死在 [AppConfiguration](App/AppConfiguration.swift) 里（现在只有 VS Code 一条），用户没有入口。补上设置界面的成本很低，又直接改善启动器的核心体验，比再加命令类功能更值得做；
-  - 隐藏功能先只做 App，文件结果不做。
-- **实现思路**：
-  - [AppSettings](Application/Ports/AppSettingsStoring.swift) 增加用户别名（以 bundle ID 为键，与内置别名合并）和隐藏列表（按 `usageKey`），由 UserDefaults 持久化；
-  - [LauncherViewModel](Features/Launcher/LauncherViewModel.swift) 改为从设置读取别名，修改后沿目录刷新的同一路径重建索引；
-  - 入口：设置窗口新增「别名与隐藏」分组集中管理；也可在 `Cmd+K` 菜单增加「添加别名…」「从结果中隐藏」。
-- **待确认**：
-  - 入口只放设置窗口（更简单），还是同时加进 `Cmd+K` 菜单。
-- **涉及文件（预估）**：
-  - [Application/Ports/AppSettingsStoring.swift](Application/Ports/AppSettingsStoring.swift)、[Infrastructure/Settings/UserDefaultsAppSettingsStore.swift](Infrastructure/Settings/UserDefaultsAppSettingsStore.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Features/Settings/SettingsViewModel.swift](Features/Settings/SettingsViewModel.swift)、[UI/Settings/SettingsView.swift](UI/Settings/SettingsView.swift)、[App/AppConfiguration.swift](App/AppConfiguration.swift)
+  - 为 App 设置自定义别名；隐藏不想出现在结果中的 App。
+- **需要做到**：
+  - 设置窗口中可为任意 App 添加、删除别名（如 `ps` → Photoshop、`wyy` → 网易云音乐），别名立即参与检索；
+  - 可将 App 从结果中隐藏，并在设置中查看与恢复；
+  - `Cmd+K` 菜单提供「添加别名…」与「从结果中隐藏」。
 
-## [ ] 12. 快捷链接与网页搜索增强（新增建议，参考 Raycast Quicklinks）
+## [ ] 12. 快捷链接与网页搜索增强
 
 - **需求描述**：
-  - 自定义快捷链接：关键词 + 带 `{query}` 占位的 URL 模板。输入 `gh swiftui` 置顶「在 GitHub 搜索 swiftui」，`Enter` 打开；模板不含 `{query}` 时就是一个可搜索的书签（如 `jira` → 公司 Jira 首页）；
+  - 自定义带关键词的快捷链接；可选默认搜索引擎；无结果时提供兜底操作。
+- **需要做到**：
+  - 快捷链接由名称、关键词与 URL 模板组成，模板可用 `{query}` 占位：输入 `gh swiftui` 置顶「在 GitHub 搜索 swiftui」，`Enter` 打开；不含占位的模板作为书签直接打开；支持任意 URL scheme（如 `obsidian://`）；
+  - 预置百度、Google、GitHub、B 站等常用链接，可在设置中新增、编辑、删除；
   - 默认搜索引擎可选（Bing / Google / 百度 / DuckDuckGo），`Cmd+Enter` 按所选引擎搜索；
-  - 无结果兜底：没有匹配时，不再只显示「没有找到匹配的结果」，而是给出「用 <默认引擎> 搜索 xxx」和「问 Quick AI」两行，`Enter` 即可执行。
-- **评估意见**：
-  - Raycast 里使用频率最高的功能之一，成本低：打开链接复用现有 [URLOpening](Application/Ports/URLOpening.swift) 端口与 [OpenURL](Application/UseCases/OpenURL.swift) 用例；`NSWorkspace` 能打开任意 URL scheme，所以 `obsidian://`、`vscode://`、`x-apple.systempreferences:` 这类深链接也能做成快捷链接；
-  - 搜索引擎目前写死在 [WebURLResolver.searchURL](Features/Launcher/WebURLResolver.swift) 中（Bing），改为可选只是一个设置项；
-  - 无结果兜底能让 `Cmd+Enter` 与 `Tab` 这两个不显眼的能力被看见，几乎不增加代码。
-- **实现思路**：
-  - [AppSettings](Application/Ports/AppSettingsStoring.swift) 增加快捷链接列表（名称、关键词、URL 模板）与默认搜索引擎；预置几条常用的（百度、Google、GitHub、B 站），用户可编辑、删除；
-  - 识别规则：输入为「关键词 + 空格 + 内容」时置顶该快捷链接行；只输入关键词时，无占位的链接作为普通结果参与匹配，有占位的链接提示「输入搜索内容」；查询内容做 URL 编码；
-  - 设置窗口新增「快捷链接」分组：列表 + 新增 / 编辑表单，模板格式不合法时行内提示。
-- **待确认**：
-  - 预置哪些快捷链接；兜底行是否要包含「问 Quick AI」（未配置 Quick AI 时隐藏）。
-- **涉及文件（预估）**：
-  - [Domain/Models/SearchResult.swift](Domain/Models/SearchResult.swift)、[Features/Launcher/WebURLResolver.swift](Features/Launcher/WebURLResolver.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Features/Launcher/LauncherView.swift](Features/Launcher/LauncherView.swift)、[Application/Ports/AppSettingsStoring.swift](Application/Ports/AppSettingsStoring.swift)、[Infrastructure/Settings/UserDefaultsAppSettingsStore.swift](Infrastructure/Settings/UserDefaultsAppSettingsStore.swift)、[Features/Settings/SettingsViewModel.swift](Features/Settings/SettingsViewModel.swift)、[UI/Settings/SettingsView.swift](UI/Settings/SettingsView.swift)
+  - 没有匹配结果时显示「用 <默认引擎> 搜索 xxx」与「问 Quick AI」两行，`Enter` 执行（未配置 Quick AI 时不显示后者）。
 
-## [ ] 13. 路径直达（新增建议）
+## [ ] 13. 路径直达
 
 - **需求描述**：
-  - 输入以 `/` 或 `~` 开头的路径（如 `~/Downloads`、`/usr/local/bin`、`~/.zshrc`），路径存在时置顶为直达结果：文件夹按 `Enter` 在 Finder 中打开，文件用默认 App 打开；`Cmd+T` 在终端打开、`Cmd+Y` 预览、`Cmd+K` 菜单全部可用。
-- **评估意见**：
-  - 写法与 [WebURLResolver](Features/Launcher/WebURLResolver.swift) 相同：识别后置顶一行，结果直接是 `SearchResult.file(FileDescriptor)`，现有的打开、预览、终端与动作菜单全部复用，成本低；
-  - 文件搜索走 Spotlight 索引，`~/Library`、隐藏文件和系统目录都被排除在外，路径直达正好补上这块，对开发场景很实用。
-- **实现思路**：
-  - 只识别 `/` 或 `~` 开头的输入，展开 `~` 后判断路径是否存在，存在才出结果，不做模糊匹配；
-  - 判断存在要读一次磁盘，网络卷上可能卡住，放到后台执行更稳（可沿用文件搜索的防抖与「最新查询胜出」机制）；
-  - 识别为路径时跳过 Spotlight 文件搜索，避免结果里出现无关文件。
-- **待确认**：
-  - 是否需要路径补全（如按 `Tab` 补全最后一段）。不建议首版做：`Tab` 已用于切换 Quick AI。
-- **涉及文件（预估）**：
-  - 新增 `Features/Launcher` 路径识别器、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、对应单元测试
+  - 输入文件路径直接打开对应的文件或文件夹。
+- **需要做到**：
+  - 输入以 `/` 或 `~` 开头且实际存在的路径时置顶显示该路径（包括隐藏文件与 `~/Library` 下的路径）；
+  - 文件夹 `Enter` 在 Finder 中打开，文件用默认 App 打开；`Cmd+T`、`Cmd+Y`、`Cmd+K` 等结果操作与文件结果一致；
+  - 路径不存在时不显示该行；输入路径时不显示无关的文件搜索结果。
 
-## [ ] 14. App 专属全局快捷键（新增建议，参考 Raycast Hotkeys）
+## [ ] 14. App 专属全局快捷键
 
 - **需求描述**：
-  - 在设置中为常用 App 绑定全局快捷键（如 `⌥T` → 终端、`⌥W` → 微信），按下即启动或切到前台；该 App 已在最前时再按则隐藏它（与 Raycast 一致）。
-- **评估意见**：
-  - 对高频切换的 App 比「呼出 → 输入 → 回车」少两步，重度用户很依赖；
-  - 基础设施已有：[CarbonGlobalShortcutService](Infrastructure/Shortcut/CarbonGlobalShortcutService.swift) 已按热键 ID 区分多个实例（呼出用 1、翻译用 2），[ShortcutRecorderField](UI/Settings/ShortcutRecorderField.swift) 与「先试注册、成功才持久化、失败回滚」流程都能复用，主要工作在设置界面。
-- **实现思路**：
-  - [AppSettings](Application/Ports/AppSettingsStoring.swift) 增加「bundle ID → 快捷键」映射；每个绑定一个热键 ID（从 3 起分配），或扩展服务让一个实例注册多个热键；
-  - 与呼出、翻译快捷键及彼此之间互相拒绝相同组合；App 被卸载时保留绑定但在设置中标灰；
-  - 启动与切换复用现有 [LaunchApplication](Application/UseCases/LaunchApplication.swift) 用例，同样记录使用历史。
-- **待确认**：
-  - 已在最前时再按是「隐藏」还是「不做任何事」。
-- **涉及文件（预估）**：
-  - [Application/Ports/AppSettingsStoring.swift](Application/Ports/AppSettingsStoring.swift)、[Infrastructure/Settings/UserDefaultsAppSettingsStore.swift](Infrastructure/Settings/UserDefaultsAppSettingsStore.swift)、[Infrastructure/Shortcut/CarbonGlobalShortcutService.swift](Infrastructure/Shortcut/CarbonGlobalShortcutService.swift)、[Features/Settings/SettingsViewModel.swift](Features/Settings/SettingsViewModel.swift)、[UI/Settings/SettingsView.swift](UI/Settings/SettingsView.swift)、[App/AppCoordinator.swift](App/AppCoordinator.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)
+  - 为常用 App 绑定全局快捷键，一键启动或切换。
+- **需要做到**：
+  - 设置窗口中可为任意 App 录制快捷键；按下时启动该 App 或切到前台，已在最前时再按则隐藏；
+  - 不能与呼出、翻译快捷键或彼此重复，冲突或被其他应用占用时给出提示且不保存；
+  - 通过快捷键启动同样计入使用历史。
 
 ## [ ] 15. 快捷指令与系统控制
 
-- **需求描述**（原）：
-  - 输入指令快速执行锁定屏幕、睡眠、重启、关机、清空废纸篓、切换外观模式。
-- **评估意见**：
-  - 锁屏（`⌃⌘Q`）、睡眠 / 重启 / 关机（苹果菜单）系统已有固定入口，搬进启动器的提升有限；真正缺顺手入口的是切换外观与清空废纸篓；
-  - 这几项大多没有公开 API：切换外观、清空废纸篓、重启、关机通常要用 Apple Events 控制 System Events 或 Finder。Release 开着 Hardened Runtime，需要加 `com.apple.security.automation.apple-events` entitlement 与 `NSAppleEventsUsageDescription`，首次使用会弹自动化授权；锁屏的常见做法是调用私有接口。为六个命令引入一类新权限和私有 API，不划算；
-  - 建议改为**搜索并运行「快捷指令」**：一个通用能力就能覆盖这一整类需求。系统动作由用户在快捷指令 App 里自己配好（切换外观等常见系统动作快捷指令里有现成的，具体覆盖范围实现前需在 macOS 27 上核对），OI 不需要新权限。
-- **实现思路**：
-  - 列表：后台执行 `/usr/bin/shortcuts list` 读取快捷指令名称，随应用目录一起刷新并缓存；
-  - 运行：后台执行 `/usr/bin/shortcuts run "<名称>"`，不打开快捷指令 App；失败时用现有的红色横幅提示；
-  - 结果类型：新增 `SearchResult` case，复用索引匹配（名称拼音、首字母），可单独设一个「快捷指令」分组；代码命名要避开现有表示全局热键的 `Shortcut`（如 `LauncherShortcut`），以免混淆；
-  - 内置命令只保留不需要新权限的「睡眠」（如 `pmset sleepnow`，需实测）；重启 / 关机如果仍要内置，必须二次确认：第一次按 `Enter` 进入确认态，再按一次才执行，`Esc` 或超时取消。
-- **待确认**：
-  - 是否接受「系统动作交给快捷指令」的方案。如果仍希望内置切换外观与清空废纸篓，需要接受新增自动化权限。
-- **涉及文件（预估）**：
-  - [Domain/Models/SearchResult.swift](Domain/Models/SearchResult.swift)、新增快捷指令列表与运行的端口及 `Infrastructure` 实现、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Features/Launcher/LauncherResultsList.swift](Features/Launcher/LauncherResultsList.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)
+- **需求描述**：
+  - 在启动器中执行系统操作（锁屏、睡眠、重启、关机、清空废纸篓、切换外观等）。
+- **需要做到**：
+  - 检索并运行用户的「快捷指令」（支持拼音与首字母），后台运行、不打开快捷指令 App，失败时提示原因；切换外观、锁屏等系统操作通过快捷指令完成；
+  - 内置「睡眠」命令；
+  - 如内置重启、关机，必须二次确认：第一次 `Enter` 进入确认态，再按一次才执行，`Esc` 或超时取消。
 
 ## [ ] 16. 按端口结束进程（暂缓）
 
-- **需求描述**（从原「开发者实用工具」拆出）：
-  - 按进程名或端口号快速结束进程。
-- **评估意见**：
-  - 按进程名结束普通 App，系统已有 `⌥⌘Esc` 与活动监视器，不建议做；
-  - 按端口结束（`kill :3000`）对开发有用，但需要端口到 PID 的查询、同一端口有多个进程时的列表选择、二次确认，以及其他用户或 root 进程无权限时的报错处理，相当于一个新的小界面，也有误杀风险。终端里 `lsof -ti:3000 | xargs kill` 一行就能替代。建议等前面几项完成后，确有需要再做。
-- **如果要做**：
-  - 只识别 `kill :端口` / `port 端口` 两种写法，后台查询监听该端口的进程（如 `lsof -nP -iTCP:<端口> -sTCP:LISTEN`），列出进程名、PID 与命令行；
-  - 第一次按 `Enter` 进入确认态，再按一次发送 `SIGTERM`；结束失败时再提示是否强制结束（`SIGKILL`）。
+- **需求描述**：
+  - 按端口号快速结束占用该端口的进程。
+- **需要做到**：
+  - 输入 `kill :3000` 或 `port 3000` 列出监听该端口的进程（进程名、PID、命令行）；
+  - 选中后第一次 `Enter` 进入确认态，再按一次结束进程；无法结束时提示原因，并可选择强制结束。
 
-## [ ] 17. 轻量剪贴板历史（暂缓，不建议做）
+## [ ] 17. 轻量剪贴板历史（暂缓）
 
-- **需求描述**（原）：
-  - 本地无感记录剪贴板内容，支持模糊搜索过滤与回车自动粘贴。
-- **评估意见**：
-  - 系统已有：macOS 26 起 Spotlight 自带剪贴板历史（可设置保留时间、可清除），本机目前是手动关闭的（见 [macOS Spotlight（聚焦）功能清单](docs/macOS%20Spotlight（聚焦）功能清单.md)）。如果当初是出于隐私关掉的，OI 再做一个同样会把敏感内容存下来；
-  - 代价最高：后台轮询 `changeCount`（系统不提供变化通知）、持久化存储、跳过 `org.nspasteboard.ConcealedType` / `TransientType` 等敏感与临时内容、保留时长与清除、图片与富文本展示；「回车自动粘贴」还要切回原应用模拟 `⌘V`（依赖辅助功能权限）。基本相当于另做一个产品；
-  - 系统在收紧：macOS 15.4 起苹果在推剪贴板读取的隐私提示（应用在无用户操作时读取通用剪贴板会请求授权），macOS 27 上后台监听很可能需要用户额外放行，「无感记录」很难成立；
-  - 真有需要，Maccy 等专门的剪贴板工具更成熟。
-- **如果以后要做，建议的最小范围**：
-  - 默认关闭，由用户在设置中开启；只记录纯文本；只存内存或短期保留（如 8 小时，与系统一致）；跳过敏感与临时内容；回车只复制、不自动粘贴。
+- **需求描述**：
+  - 本地记录剪贴板内容，支持搜索过滤与快速取用。
+- **需要做到**：
+  - 默认关闭，在设置中开启；
+  - 只记录纯文本，跳过密码管理器等标记为敏感或临时的内容；
+  - 短期保留（如 8 小时），可一键清除；
+  - 支持模糊搜索，`Enter` 复制所选内容。
 
 ## 候选想法（未排期）
 
-- **搜索当前 App 的菜单项**（参考 Raycast Search Menu Items）：呼出时记下前台 App，用辅助功能读取它的菜单栏，输入即可搜索菜单命令并显示其快捷键，`Enter` 执行。辅助功能权限与取词基础设施已有（划词翻译在用），难点在大型 App 菜单遍历较慢，需要按 App 缓存。Spotlight 也有「菜单项」类别，价值中等；
-- **自定义 AI 指令**（参考 Raycast AI Commands）：用户保存常用提示词模板（润色、解释代码、总结、写提交信息），模板中用 `{selection}` / `{clipboard}` 引用选中文字或剪贴板；在启动器输入指令名执行，回答复用 Quick AI 区域，划词气泡里也可以调用。取词与 Quick AI 客户端都能复用，成本主要在交互设计，要注意别让气泡变复杂；
-- **Quick AI 追问**：回答完成后可以继续追问（多轮），而不是每次从头提问。改动集中在 [QuickAISession](Features/Launcher/LauncherState.swift) 与请求的消息列表；
-- **单位换算**：在现有算式基础上支持 `10 km in miles`、`100f to c` 等，用 Foundation `Measurement` 离线换算。Spotlight 已有，优先级低。
-
-考虑过但不建议做：
-
-- **文本片段展开**（Raycast Snippets）：需要全局监听键盘输入（输入监控权限）并模拟输入或粘贴，隐私敏感；系统「键盘 → 文本替换」已覆盖基本需求；
-- **窗口管理**：macOS 15 起系统自带窗口平铺（拖到屏幕边缘、菜单与快捷键）；
-- **扩展 / 插件商店**：工作量相当于另做一个平台，与「极简启动器」定位不符；
-- **Emoji 搜索**：系统已有 `⌃⌘Space` 表情面板；
-- **浏览器书签搜索**：Safari 书签文件需要「完全磁盘访问」权限，代价与收益不成比例。
+- **搜索当前 App 的菜单项**：搜索前台 App 的菜单命令并显示其快捷键，`Enter` 执行；
+- **自定义 AI 指令**：保存常用提示词模板（润色、解释代码、总结），可引用选中文字或剪贴板，在启动器或划词气泡中调用；
+- **Quick AI 追问**：回答完成后可继续多轮追问；
+- **单位换算**：支持 `10 km in miles`、`100f to c` 等离线换算。
