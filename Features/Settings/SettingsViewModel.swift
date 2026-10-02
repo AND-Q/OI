@@ -30,6 +30,11 @@ final class SettingsViewModel: ObservableObject {
     /// 辅助功能权限由系统持有，设置窗口展示或重新获得焦点时刷新（用户可能刚在系统设置中授权）。
     @Published private(set) var isAccessibilityTrusted: Bool
 
+    /// Quick AI 接口地址经 http 访问公网主机时为 true，设置面板据此在地址栏下方提示明文传输。
+    var isQuickAIBaseURLPlaintext: Bool {
+        QuickAIConfiguration.isPlaintextOverPublicNetwork(baseURLString: settings.quickAIBaseURL)
+    }
+
     /// 由 AppCoordinator 注入：把呼出快捷键切换为给定组合并接管按键处理，
     /// 注册失败时抛错，不产生部分生效的状态。
     var launcherShortcutActivator: ((LauncherShortcut) throws -> Void)?

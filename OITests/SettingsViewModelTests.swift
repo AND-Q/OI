@@ -302,6 +302,17 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.settings.launcherShortcut, LauncherShortcut.standard)
     }
 
+    func testQuickAIBaseURLPlaintextWarningFollowsSettings() {
+        let viewModel = makeViewModel()
+        XCTAssertFalse(viewModel.isQuickAIBaseURLPlaintext)
+
+        viewModel.settings.quickAIBaseURL = "http://203.0.113.10:11434/v1"
+        XCTAssertTrue(viewModel.isQuickAIBaseURLPlaintext)
+
+        viewModel.settings.quickAIBaseURL = "https://203.0.113.10/v1"
+        XCTAssertFalse(viewModel.isQuickAIBaseURLPlaintext)
+    }
+
     // MARK: - Helpers
 
     private func makeViewModel(

@@ -30,9 +30,23 @@ struct QuickAIConfiguration: Sendable, Equatable {
     static func addingDefaultScheme(to urlString: String) -> String {
         guard !urlString.isEmpty, !urlString.contains("://") else { return urlString }
         let host = urlString.prefix { $0 != "/" && $0 != ":" }.lowercased()
-        let isLocal = host == "localhost" || host == "0.0.0.0" || host.hasSuffix(".local")
+        return (isLocalHost(host) ? "http://" : "https://") + urlString
+    }
+
+    /// 接口地址是否经 http 访问本机与局域网以外的主机：此时 API Key、提问与翻译原文都明文经过公网。
+    /// 未写协议头的公网地址会补 `https://`，不算明文。
+    static func isPlaintextOverPublicNetwork(baseURLString: String) -> Bool {
+        let urlString = addingDefaultScheme(to: baseURLString.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard let url = URL(string: urlString),
+              url.scheme?.lowercased() == "http",
+              let host = url.host()?.lowercased(), !host.isEmpty else { return false }
+        return !isLocalHost(host)
+    }
+
+    /// 本机与局域网地址，多为 Ollama 等本地服务。
+    private static func isLocalHost(_ host: String) -> Bool {
+        host == "localhost" || host == "0.0.0.0" || host.hasSuffix(".local")
             || host.hasPrefix("127.") || host.hasPrefix("10.") || host.hasPrefix("192.168.")
-        return (isLocal ? "http://" : "https://") + urlString
     }
 }
 

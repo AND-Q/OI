@@ -61,6 +61,11 @@ struct SettingsView: View {
                     prompt: Text("https://api.openai.com/v1")
                 )
                 .autocorrectionDisabled()
+                if viewModel.isQuickAIBaseURLPlaintext {
+                    Label("API Key 与提问、翻译内容将明文传输", systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
                 TextField("模型", text: $viewModel.settings.quickAIModel, prompt: Text("gpt-4o-mini"))
                     .autocorrectionDisabled()
                 SecureField("API Key", text: quickAIAPIKey, prompt: Text("本地模型可留空"))

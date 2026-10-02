@@ -33,6 +33,21 @@ final class QuickAITests: XCTestCase {
         XCTAssertEqual(baseURL("HTTPS://api.openai.com/v1"), "HTTPS://api.openai.com/v1")
     }
 
+    func testPlaintextOverPublicNetworkOnlyForHTTPToNonLocalHosts() {
+        func isPlaintext(_ string: String) -> Bool {
+            QuickAIConfiguration.isPlaintextOverPublicNetwork(baseURLString: string)
+        }
+        XCTAssertTrue(isPlaintext("http://203.0.113.10:11434/v1"))
+        XCTAssertTrue(isPlaintext(" HTTP://api.example.com/v1 "))
+        XCTAssertFalse(isPlaintext("https://203.0.113.10/v1"))
+        XCTAssertFalse(isPlaintext("api.example.com/v1"))
+        XCTAssertFalse(isPlaintext("http://localhost:11434/v1"))
+        XCTAssertFalse(isPlaintext("http://127.0.0.1:11434/v1"))
+        XCTAssertFalse(isPlaintext("http://192.168.1.8:11434/v1"))
+        XCTAssertFalse(isPlaintext("http://mac-mini.local:11434/v1"))
+        XCTAssertFalse(isPlaintext(""))
+    }
+
     // MARK: - OpenAI compatible client
 
     func testParseStreamLineExtractsDeltaDoneAndErrors() {
