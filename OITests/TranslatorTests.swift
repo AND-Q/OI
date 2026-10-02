@@ -211,9 +211,10 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(selector.points, [], "功能关闭或未获授权时不模拟双击")
     }
 
-    func testForceTouchPrefersSelectionUnderPointerOtherwiseWord() async {
+    /// 用力点按只翻译点按处的单词：按在选区上也取单词，选中的文字交给翻译快捷键。
+    func testForceTouchTranslatesWordEvenOnSelection() async {
         let selectionRect = CGRect(x: 100, y: 200, width: 80, height: 18)
-        let wordRect = CGRect(x: 490, y: 495, width: 30, height: 18)
+        let wordRect = CGRect(x: 110, y: 200, width: 30, height: 18)
         let viewModel = makeTranslatorViewModel(
             capturer: StubTextCapturer(
                 selection: CapturedText(text: "selected text", source: .selection, screenRect: selectionRect),
@@ -221,67 +222,33 @@ final class TranslatorTests: XCTestCase {
             )
         )
 
-        let onSelection = await viewModel.captureFromForceTouch(at: CGPoint(x: 120, y: 205))
-        XCTAssertEqual(onSelection, TranslatorPresentation(anchorRect: selectionRect))
-        XCTAssertEqual(viewModel.session?.sourceText, "selected text")
+        let presentation = await viewModel.captureFromForceTouch(at: CGPoint(x: 120, y: 205))
 
-        let elsewhere = await viewModel.captureFromForceTouch(at: CGPoint(x: 500, y: 500))
-        XCTAssertEqual(elsewhere, TranslatorPresentation(anchorRect: wordRect))
+        XCTAssertEqual(presentation, TranslatorPresentation(anchorRect: wordRect))
         XCTAssertEqual(viewModel.session?.sourceText, "word")
         XCTAssertEqual(viewModel.session?.source, .word)
     }
 
-    /// 读不到选区位置时无法判断是否点在选区上：先取点按处的单词，取不到再用选区。
-    func testForceTouchWithUnknownSelectionPositionPrefersWord() async {
+    /// 取不到单词时也不翻译选区：点按处不是文字、或双击没有选中单词时都不弹出气泡。
+    func testForceTouchWithoutWordIgnoresSelection() async {
         let selection = CapturedText(text: "selected text", source: .selection, screenRect: nil)
-        let withWord = makeTranslatorViewModel(
-            capturer: StubTextCapturer(
-                selection: selection,
-                wordAtPoint: CapturedText(text: "word", source: .word, screenRect: nil)
-            )
+        let notOnText = makeTranslatorViewModel(
+            capturer: StubTextCapturer(selection: selection, lookupWithoutWord: .notOnText)
         )
-        let withoutWord = makeTranslatorViewModel(
-            capturer: StubTextCapturer(selection: selection, lookupWithoutWord: .unavailable)
-        )
-
-        _ = await withWord.captureFromForceTouch(at: CGPoint(x: 500, y: 500))
-        _ = await withoutWord.captureFromForceTouch(at: CGPoint(x: 500, y: 500))
-
-        XCTAssertEqual(withWord.session?.sourceText, "word")
-        XCTAssertEqual(withoutWord.session?.sourceText, "selected text")
-    }
-
-    /// 应用已核实点按处不是文字（如空白处）时，不翻译位置未知的选区，以免气泡凭空出现。
-    func testForceTouchOnVerifiedNonTextIgnoresSelectionWithoutPosition() async {
-        let viewModel = makeTranslatorViewModel(
-            capturer: StubTextCapturer(
-                selection: CapturedText(text: "selected text", source: .selection, screenRect: nil),
-                lookupWithoutWord: .notOnText
-            )
+        let selector = RecordingWordSelector()
+        let nothingSelected = makeTranslatorViewModel(
+            capturer: StubTextCapturer(selection: selection, lookupWithoutWord: .unavailable),
+            wordSelector: selector
         )
 
-        let presentation = await viewModel.captureFromForceTouch(at: CGPoint(x: 500, y: 500))
+        let notOnTextResult = await notOnText.captureFromForceTouch(at: .zero)
+        let nothingSelectedResult = await nothingSelected.captureFromForceTouch(at: .zero)
 
-        XCTAssertNil(presentation)
-        XCTAssertNil(viewModel.session)
-    }
-
-    /// 选区位置已知且不在点按处时，点在非文字位置也不应翻译别处的选区。
-    func testForceTouchOutsideKnownSelectionWithoutWordDoesNothing() async {
-        let viewModel = makeTranslatorViewModel(
-            capturer: StubTextCapturer(
-                selection: CapturedText(
-                    text: "selected text",
-                    source: .selection,
-                    screenRect: CGRect(x: 100, y: 200, width: 80, height: 18)
-                )
-            )
-        )
-
-        let presentation = await viewModel.captureFromForceTouch(at: CGPoint(x: 500, y: 500))
-
-        XCTAssertNil(presentation)
-        XCTAssertNil(viewModel.session)
+        XCTAssertNil(notOnTextResult)
+        XCTAssertNil(notOnText.session)
+        XCTAssertEqual(selector.points, [.zero])
+        XCTAssertNil(nothingSelectedResult)
+        XCTAssertNil(nothingSelected.session)
     }
 
     func testForceTouchOnNonTextDoesNothing() async {
@@ -337,23 +304,6 @@ final class TranslatorTests: XCTestCase {
 
         XCTAssertEqual(viewModel.session?.sourceText, "word")
         XCTAssertEqual(selector.points, [])
-    }
-
-    /// 双击没有选中单词时，仍可退回读不到位置的选区。
-    func testForceTouchFallsBackToSelectionWhenDoubleClickSelectsNothing() async {
-        let selector = RecordingWordSelector()
-        let viewModel = makeTranslatorViewModel(
-            capturer: StubTextCapturer(
-                selection: CapturedText(text: "selected text", source: .selection, screenRect: nil),
-                lookupWithoutWord: .unavailable
-            ),
-            wordSelector: selector
-        )
-
-        _ = await viewModel.captureFromForceTouch(at: .zero)
-
-        XCTAssertEqual(selector.points, [.zero])
-        XCTAssertEqual(viewModel.session?.sourceText, "selected text")
     }
 
     // MARK: - Double click word selection

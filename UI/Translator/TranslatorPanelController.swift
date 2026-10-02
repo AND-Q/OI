@@ -130,7 +130,7 @@ final class TranslatorPanelController {
         }
     }
 
-    /// 触控板用力点按：翻译该处的选中文字或单词；该处不是文字时什么也不做。
+    /// 触控板用力点按：翻译该处的单词；该处不是文字时什么也不做。
     func translateText(at point: CGPoint) {
         Task { [weak self] in
             guard let self, let presentation = await self.viewModel.captureFromForceTouch(at: point) else { return }

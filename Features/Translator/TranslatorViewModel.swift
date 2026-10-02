@@ -71,11 +71,9 @@ final class TranslatorViewModel: ObservableObject {
         return TranslatorPresentation(anchorRect: nil)
     }
 
-    /// 触控板用力点按触发：点在选中的文字上时翻译选中的文字，否则翻译该处的单词——
-    /// 先用辅助功能接口取词，应用不提供该处的文字位置时（如 VS Code、Chrome）再模拟双击选词。
-    /// 读不到选区位置时无法判断是否点在选区上，先取单词，取不到再用选区：
-    /// 点按未激活的窗口时前台应用尚未切换，读到的可能是上一个应用的选区。
-    /// 应用已核实点按处不是文字（如空白处）时不再用选区，以免气泡凭空翻译别处的选区。
+    /// 触控板用力点按触发：只翻译该处的单词——先用辅助功能接口取词，应用不提供该处的文字位置时
+    /// （如 VS Code、Chrome）再模拟双击选词。选中的文字只由翻译快捷键翻译：很多应用读不到选区位置，
+    /// 无从核实是否按在选区上，两种操作分开后各自的结果才确定。
     /// 该处不是文字、功能已关闭或未获辅助功能权限时返回 nil，不弹出气泡，避免在桌面、图片等位置误弹。
     func captureFromForceTouch(at point: CGPoint) async -> TranslatorPresentation? {
         guard settingsStore.load().isForceTouchTranslationEnabled, environment.isAccessibilityTrusted else {
@@ -83,26 +81,16 @@ final class TranslatorViewModel: ObservableObject {
         }
         let generation = beginCapture()
 
-        let selection = await textCapturer.selectedText()
-        var captured: CapturedText?
-        if let selection, let rect = selection.screenRect, rect.insetBy(dx: -4, dy: -4).contains(point) {
-            captured = selection
-        }
-        if captured == nil {
-            switch await textCapturer.word(at: point) {
-            case .found(let word):
-                captured = word
-            case .notOnText:
-                return nil
-            case .unavailable:
-                // 双击会改动目标应用的选区，已被更新的一次触发取代时不再进行。
-                if generation == captureGeneration {
-                    captured = await wordSelector.selectWord(at: point)
-                }
-            }
-        }
-        if captured == nil, selection?.screenRect == nil {
-            captured = selection
+        let captured: CapturedText?
+        switch await textCapturer.word(at: point) {
+        case .found(let word):
+            captured = word
+        case .notOnText:
+            return nil
+        case .unavailable:
+            // 双击会改动目标应用的选区，已被更新的一次触发取代时不再进行。
+            guard generation == captureGeneration else { return nil }
+            captured = await wordSelector.selectWord(at: point)
         }
         guard generation == captureGeneration, let captured else { return nil }
         start(with: captured, notice: nil)
