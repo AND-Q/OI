@@ -36,15 +36,40 @@ final class AppCoordinatorTests: XCTestCase {
         XCTAssertEqual(context.settingsViewModel.settings.launcherShortcut, shortcut)
     }
 
+    /// 文件搜索开启时启动期请求目录授权；关闭时不请求，之后在设置中开启时再请求。
+    func testStartRequestsFolderAccessOnlyWhenFileSearchEnabled() {
+        let enabled = makeCoordinator(shortcut: .standard, failing: false)
+        defer { enabled.coordinator.stop() }
+        enabled.coordinator.start()
+        XCTAssertEqual(enabled.folderAccessRequests.count, 1)
+
+        let disabled = makeCoordinator(shortcut: .standard, failing: false, isFileSearchEnabled: false)
+        defer { disabled.coordinator.stop() }
+        disabled.coordinator.start()
+        XCTAssertEqual(disabled.folderAccessRequests.count, 0)
+
+        disabled.settingsViewModel.settings.isFileSearchEnabled = true
+        XCTAssertEqual(disabled.folderAccessRequests.count, 1)
+    }
+
     // MARK: - Helpers
 
     private struct Context {
         let coordinator: AppCoordinator
         let settingsViewModel: SettingsViewModel
         let shortcutService: StubGlobalShortcutService
+        let folderAccessRequests: RequestCounter
     }
 
-    private func makeCoordinator(shortcut: LauncherShortcut, failing: Bool) -> Context {
+    private final class RequestCounter {
+        var count = 0
+    }
+
+    private func makeCoordinator(
+        shortcut: LauncherShortcut,
+        failing: Bool,
+        isFileSearchEnabled: Bool = true
+    ) -> Context {
         let shortcutService = StubGlobalShortcutService()
         if failing {
             shortcutService.registeredErrors[shortcut] = StubGlobalShortcutError(
@@ -52,24 +77,29 @@ final class AppCoordinatorTests: XCTestCase {
             )
         }
         // 默认设置即开启静默启动，启动过程不会自动呼出面板。
-        let settingsStore = MemoryAppSettingsStore(initial: AppSettings(launcherShortcut: shortcut))
+        let settingsStore = MemoryAppSettingsStore(
+            initial: AppSettings(isFileSearchEnabled: isFileSearchEnabled, launcherShortcut: shortcut)
+        )
         let settingsViewModel = SettingsViewModel(
             settingsStore: settingsStore,
             loginItemController: StubLoginItemController()
         )
+        let folderAccessRequests = RequestCounter()
         let coordinator = AppCoordinator(
             dependencies: AppDependencies(
                 launcherViewModel: makeViewModel(with: [], settingsStore: settingsStore),
                 settingsViewModel: settingsViewModel,
                 settingsStore: settingsStore,
                 applicationIconProvider: StubApplicationIconProvider(),
-                globalShortcutService: shortcutService
+                globalShortcutService: shortcutService,
+                fileSearchAccessRequester: { folderAccessRequests.count += 1 }
             )
         )
         return Context(
             coordinator: coordinator,
             settingsViewModel: settingsViewModel,
-            shortcutService: shortcutService
+            shortcutService: shortcutService,
+            folderAccessRequests: folderAccessRequests
         )
     }
 }

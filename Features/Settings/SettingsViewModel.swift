@@ -18,7 +18,12 @@ enum LauncherShortcutNotice: Equatable {
 final class SettingsViewModel: ObservableObject {
     /// 持久化的应用设置；任何改动立即写回存储。
     @Published var settings: AppSettings {
-        didSet { settingsStore.save(settings) }
+        didSet {
+            settingsStore.save(settings)
+            if settings.isFileSearchEnabled, !oldValue.isFileSearchEnabled {
+                fileSearchAccessRequester?()
+            }
+        }
     }
     /// 开机自启动的开关状态来自系统登录项，而非持久化存储。
     @Published private(set) var isLaunchAtLoginEnabled: Bool
@@ -40,6 +45,8 @@ final class SettingsViewModel: ObservableObject {
     var launcherShortcutActivator: ((LauncherShortcut) throws -> Void)?
     /// 由 AppCoordinator 注入：翻译快捷键的激活闭包，约定同上。
     var translatorShortcutActivator: ((LauncherShortcut) throws -> Void)?
+    /// 由 AppCoordinator 注入：文件搜索从关闭切到开启时请求桌面、文稿、下载目录授权。
+    var fileSearchAccessRequester: (() -> Void)?
 
     private let settingsStore: any AppSettingsStoring
     private let loginItemController: any LoginItemControlling

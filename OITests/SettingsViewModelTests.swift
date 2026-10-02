@@ -302,6 +302,24 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.settings.launcherShortcut, LauncherShortcut.standard)
     }
 
+    /// 文件搜索从关闭切到开启时请求一次目录授权；其他设置变化或关闭时不请求。
+    func testEnablingFileSearchRequestsFolderAccess() {
+        let settingsStore = MemoryAppSettingsStore(initial: AppSettings(isFileSearchEnabled: false))
+        let viewModel = makeViewModel(settingsStore: settingsStore)
+        var requestCount = 0
+        viewModel.fileSearchAccessRequester = { requestCount += 1 }
+
+        viewModel.settings.isUsageRankingEnabled = false
+        XCTAssertEqual(requestCount, 0)
+
+        viewModel.settings.isFileSearchEnabled = true
+        XCTAssertEqual(requestCount, 1)
+
+        viewModel.settings.isSilentLaunchEnabled = false
+        viewModel.settings.isFileSearchEnabled = false
+        XCTAssertEqual(requestCount, 1)
+    }
+
     func testQuickAIBaseURLPlaintextWarningFollowsSettings() {
         let viewModel = makeViewModel()
         XCTAssertFalse(viewModel.isQuickAIBaseURLPlaintext)

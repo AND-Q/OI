@@ -61,6 +61,8 @@ final class AppCoordinator {
                 }
             )
         }
+        // 启动时文件搜索关闭、之后才在设置中开启的，开启时补一次目录授权请求。
+        dependencies.settingsViewModel.fileSearchAccessRequester = dependencies.fileSearchAccessRequester
         // 翻译快捷键沿用同样的注册路径与强引用约定。
         if let translatorShortcutService = dependencies.translator?.shortcutService,
            let translatorPanelController {
@@ -91,6 +93,10 @@ final class AppCoordinator {
             }
         }
         viewModel.loadApps()
+        // 文件搜索开启时才触发目录授权，否则会缺少桌面、文稿、下载下的结果；关闭时不打扰用户。
+        if dependencies.settingsStore.load().isFileSearchEnabled {
+            dependencies.fileSearchAccessRequester?()
+        }
         // 静默启动关闭时，启动后自动呼出启动器面板。
         if !dependencies.settingsStore.load().isSilentLaunchEnabled {
             panelController.show()

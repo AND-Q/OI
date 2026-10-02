@@ -13,6 +13,9 @@ struct AppDependencies {
     var appDirectoryWatcher: AppDirectoryWatcher? = nil
     /// 划词翻译；测试注入依赖图时可省略，此时不注册翻译快捷键、不监听触控板用力点按。
     var translator: TranslatorDependencies? = nil
+    /// 请求文件搜索所需的桌面、文稿、下载目录授权，由协调者在文件搜索开启时调用；
+    /// 测试注入依赖图时可省略，此时不触发授权。
+    var fileSearchAccessRequester: (() -> Void)? = nil
 
     static func live(configuration: AppConfiguration) -> AppDependencies {
         let settingsStore = UserDefaultsAppSettingsStore()
@@ -21,8 +24,6 @@ struct AppDependencies {
         )
         let applicationLauncher = WorkspaceApplicationLauncher()
         let fileSearcher = SpotlightFileSearcher()
-        // 首次启动即触发目录授权，否则文件搜索会缺少桌面、文稿、下载下的结果。
-        fileSearcher.requestProtectedFolderAccess()
         let fileOpener = WorkspaceFileOpener()
         let urlOpener = WorkspaceURLOpener()
         let usageStore = UserDefaultsAppUsageStore()
@@ -83,7 +84,8 @@ struct AppDependencies {
                 ),
                 shortcutService: CarbonGlobalShortcutService(hotKeyIdentifier: 2),
                 forceTouchMonitor: GlobalForceTouchMonitor()
-            )
+            ),
+            fileSearchAccessRequester: { fileSearcher.requestProtectedFolderAccess() }
         )
     }
 }
