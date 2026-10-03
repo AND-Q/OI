@@ -115,4 +115,12 @@ xcodebuild -project OI.xcodeproj -scheme OI -configuration Debug build
 xcodebuild -project OI.xcodeproj -scheme OI -configuration Debug test
 ```
 
-正式发布前需要配置签名团队、递增 `CURRENT_PROJECT_VERSION`，配置发布所需的 entitlement，并完成 Archive、Developer ID 签名和 notarization。App Sandbox 是否启用应按发布渠道和需要的系统权限决定：本启动器扫描系统应用并注册全局快捷键，不应为了形式而启用一个无法满足实际能力的 sandbox 配置。
+## 发布
+
+OI 通过 GitHub Release 分发安装包，不上架 App Store，也不使用 Developer ID 签名和公证，安装包为本地临时签名（ad-hoc）。发布一个版本：
+
+1. 递增 `MARKETING_VERSION` 与 `CURRENT_PROJECT_VERSION`，在 `docs/releases/v<版本号>.md` 编写发布说明，提交后运行全部测试。
+2. 执行 `scripts/release.sh`：编译 Release 版，打包为 `build/release/OI-<版本号>.zip`，并生成带 SHA-256 的发布说明。也可以在 Xcode 中 Archive，再通过 Distribute App → Custom → Copy App 导出 `OI.app` 后在 Finder 中压缩。
+3. 用脚本最后打印的 `gh release create` 命令发布，或在 GitHub 网页上创建 Release 并上传安装包。
+
+不启用 App Sandbox：OI 需要扫描系统应用、注册全局快捷键并通过辅助功能读取其他应用的文字，沙盒无法满足这些能力。
