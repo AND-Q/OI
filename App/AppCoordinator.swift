@@ -166,7 +166,8 @@ final class AppCoordinator {
             guard let self else { return }
             let existingWindows = Set(NSApp.windows.map(ObjectIdentifier.init))
             NSApp.activate()
-            NSApp.orderFrontStandardAboutPanel(nil)
+            // 空字符串让系统不在版本号后附带括号中的 build 号
+            NSApp.orderFrontStandardAboutPanel(options: [.version: ""])
             if self.aboutWindow == nil {
                 self.aboutWindow = NSApp.windows.first { !existingWindows.contains(ObjectIdentifier($0)) }
             }
