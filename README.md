@@ -1,10 +1,30 @@
 # OI
 
-OI 是一个原生 macOS 菜单栏启动器模板：使用 `⌥Space` 呼出启动器，搜索已安装的 App，并启动选中的应用。
+OI 是一个原生 macOS 菜单栏启动器：按 `⌥Space` 呼出 Spotlight 风格的面板，搜索并打开 App 与文件，也能做计算、打开网址、向 AI 提问，并在任意应用中用力点按或按 `⌥D` 划词翻译。
+
+## 功能
+
+- **应用搜索**：支持中英文名、拼音全拼与首字母（`weixin`、`wx` 都能找到微信）和模糊匹配；同级匹配内按使用频次排序，索引完全离线。
+- **文件搜索**：基于系统 Spotlight 索引检索家目录下的文件与文件夹，排在 App 之后。
+- **快速查询**：输入算式即时求值，输入 `ip` 查询本机局域网地址，`Enter` 复制结果。
+- **网址与网页搜索**：输入网址直接打开；`⌘Enter` 用所选搜索引擎（必应、Google、百度、DuckDuckGo）搜索当前输入。
+- **结果操作**：`⌘F` 在 Finder 中显示，`⌘Y` 用 Quick Look 预览，`⌘K` 打开快捷操作菜单。
+- **Quick AI**：按 `Tab` 向 OpenAI 兼容接口（也可以是 Ollama 等本地模型）提问，流式显示 Markdown 回答。
+- **划词翻译**：触控板用力点按翻译光标下的单词，`⌥D` 翻译选中的文字或剪贴板，译文在原文旁的气泡中流式显示。
+- **设置**：开机自启、自定义快捷键、文件搜索与使用历史开关、网页搜索引擎、Quick AI 接口与翻译语言。
+
+完整说明见 [OI 功能清单](docs/OI%20功能清单.md) 与 [OI 使用指南](docs/OI%20使用指南.md)。
+
+## 系统要求与权限
+
+- macOS 27.0 或更高版本。OI 常驻系统菜单栏，没有 Dock 图标。
+- 文件搜索需要桌面、文稿、下载目录的访问授权，首次启动时请求；在设置中关闭文件搜索后不再请求。
+- 划词翻译需要「辅助功能」权限（系统设置 → 隐私与安全性 → 辅助功能），设置窗口中有授权入口。
+- Quick AI 与划词翻译需要在设置中填写接口地址与模型，API Key 保存在钥匙串中。只有这两个功能会发起网络请求，其余检索都在本地完成。
 
 ## 架构定位
 
-项目采用“单 App Target + 明确分层 + Composition Root”的架构。它适合当前小功能，也为后续设置页、文件搜索、插件和网络功能预留了稳定边界。它不是为了目录数量而分层，也不是过早拆成多个 Swift Package。
+项目采用“单 App Target + 明确分层 + Composition Root”的架构。目前的应用与文件搜索、设置、Quick AI 和划词翻译都在这套边界内实现，后续的插件等功能也沿用同样的分层。它不是为了目录数量而分层，也不是过早拆成多个 Swift Package。
 
 ```text
 App/                         Composition Root
@@ -15,33 +35,46 @@ App/                         Composition Root
   AppCoordinator.swift       启动、停止和 AppKit 生命周期协调
 
 Domain/                      业务核心，不依赖 AppKit/SwiftUI
-  Models/AppDescriptor.swift 纯业务数据
+  Models/                    App、文件、搜索结果、快速查询、翻译语言等纯业务数据
 
 Application/                 用例边界和外部端口
   Ports/                     AppCatalog、ApplicationLaunching 等协议
-  UseCases/                  发现和启动应用等业务流程
+  UseCases/                  发现和启动应用、搜索文件、Quick AI 问答、翻译等业务流程
+  Search/                    应用搜索索引与拼音、首字母归一化
   Errors/                    面向 Feature 的稳定错误模型
 
 Features/Launcher/           用户功能和状态
   LauncherState.swift        可测试的加载与启动状态
   LauncherViewModel.swift    搜索、选择和异步任务协调
   LauncherLayout.swift       面板布局尺寸与展开高度
-Features/Settings/           设置面板（设置状态与 SwiftUI 表单）
-Features/Shared/             多个功能共用的呈现逻辑（Quick AI 回答的 Markdown 解析）
+  LauncherActionMenu.swift   ⌘K 快捷操作菜单
+  QuickQueryResolver.swift   算式求值与本机 IP 查询
+  WebURLResolver.swift       网址识别
+Features/Settings/           设置状态与快捷键展示
+Features/Translator/         划词翻译的状态、视图模型与气泡视图
+Features/Shared/             多个功能共用的呈现逻辑（Markdown 解析、流式文本缓冲）
 
 Infrastructure/              系统能力实现
-  AppCatalog/                文件系统扫描
-  Launch/                    NSWorkspace 启动实现
+  AppCatalog/                文件系统扫描与应用目录监听
+  FileSearch/                Spotlight 文件检索
+  Launch/                    NSWorkspace 打开应用、文件与网址
   Shortcut/                  Carbon 全局快捷键实现
   LoginItem/                 SMAppService 开机自启动实现
+  QuickAI/                   OpenAI 兼容接口客户端与钥匙串存储
+  Translator/                辅助功能取词、用力点按监听、双击选词与语种识别
+  Settings/                  UserDefaults 用户设置
+  Usage/                     UserDefaults 启动历史
 
 UI/                          AppKit/SwiftUI 桥接
   Icons/                     NSImage 图标提供与缓存
-  Panel/                     NSPanel、启动器界面与键盘事件适配
+  Panel/                     NSPanel、启动器界面、Quick Look 与键盘事件适配
   StatusBar/                 NSStatusItem 适配
-  Settings/                  设置窗口壳
+  Settings/                  设置窗口、表单与快捷键录制
+  Translator/                翻译气泡面板与单词高亮
 
 Assets.xcassets/             App 图标与全局 Accent Color
+assets/AppIcon.svg           App 图标源文件
+docs/                        功能清单、使用指南与待办
 ```
 
 依赖方向：
