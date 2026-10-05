@@ -79,6 +79,8 @@ final class KeychainQuickAIKeyStore: QuickAIKeyStoring {
         case failed
     }
 
+    private static let emptyPlaceholder = "\0"
+
     /// 空值（清空后的占位）按没有密钥处理。
     private func read(_ account: String) -> ReadResult {
         var query = baseQuery(for: account)
@@ -89,7 +91,8 @@ final class KeychainQuickAIKeyStore: QuickAIKeyStoring {
         case errSecSuccess:
             guard let data = result as? Data else { return .failed }
             let key = String(data: data, encoding: .utf8)
-            return .found(key?.isEmpty == false ? key : nil)
+            let validKey = (key == Self.emptyPlaceholder || key?.isEmpty == true) ? nil : key
+            return .found(validKey)
         case errSecItemNotFound:
             return .notFound
         default:
@@ -97,9 +100,10 @@ final class KeychainQuickAIKeyStore: QuickAIKeyStoring {
         }
     }
 
-    /// 先原地更新、不存在再新增：不经过"先删后写"，写入失败也不会丢掉原有密钥。nil 写入空值。
+    /// 先原地更新、不存在再新增：不经过"先删后写"，写入失败也不会丢掉原有密钥。nil 写入占位符（避免 0 字节 Data 被 SecItemUpdate 忽略）。
     private func write(_ key: String?) -> Bool {
-        let data = Data((key ?? "").utf8)
+        let text = key?.isEmpty == false ? key! : Self.emptyPlaceholder
+        let data = Data(text.utf8)
         let update = [kSecValueData as String: data]
         var status = SecItemUpdate(baseQuery(for: account) as CFDictionary, update as CFDictionary)
         if status == errSecItemNotFound {
