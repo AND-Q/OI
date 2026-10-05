@@ -68,6 +68,10 @@ struct AppSettings: Sendable, Equatable {
     var translationTargetLanguage: TranslationLanguage = .simplifiedChinese
     /// 原文已是目标语言时改译为此语言，默认组合即中文与外文双向互译。
     var translationAlternateLanguage: TranslationLanguage = .english
+    /// 划词翻译接口地址，与 Quick AI 分开填写，可以使用不同的服务。
+    var translationBaseURL: String = ""
+    /// 划词翻译模型名。API Key 同样与 Quick AI 分开存放，见 `QuickAIKeyStoring`。
+    var translationModel: String = ""
     /// `⌘↩` 网页搜索使用的搜索引擎。
     var webSearchEngine: WebSearchEngine = .bing
 }

@@ -35,12 +35,19 @@ final class SettingsViewModel: ObservableObject {
     @Published private(set) var translatorShortcutNotice: LauncherShortcutNotice?
     /// Quick AI API Key 存于独立的密钥存储，设置窗口展示时才读取，不在启动期访问钥匙串。
     @Published private(set) var quickAIAPIKey = ""
+    /// 划词翻译的 API Key，与 Quick AI 的分开存放，读取时机同上。
+    @Published private(set) var translationAPIKey = ""
     /// 辅助功能权限由系统持有，设置窗口展示或重新获得焦点时刷新（用户可能刚在系统设置中授权）。
     @Published private(set) var isAccessibilityTrusted: Bool
 
     /// Quick AI 接口地址经 http 访问公网主机时为 true，设置面板据此在地址栏下方提示明文传输。
     var isQuickAIBaseURLPlaintext: Bool {
         QuickAIConfiguration.isPlaintextOverPublicNetwork(baseURLString: settings.quickAIBaseURL)
+    }
+
+    /// 划词翻译接口地址的明文提示，规则同上。
+    var isTranslationBaseURLPlaintext: Bool {
+        QuickAIConfiguration.isPlaintextOverPublicNetwork(baseURLString: settings.translationBaseURL)
     }
 
     /// 由 AppCoordinator 注入：把呼出快捷键切换为给定组合并接管按键处理，
@@ -56,18 +63,22 @@ final class SettingsViewModel: ObservableObject {
     private let settingsStore: any AppSettingsStoring
     private let loginItemController: any LoginItemControlling
     private let quickAIKeyStore: any QuickAIKeyStoring
+    private let translatorKeyStore: any QuickAIKeyStoring
     private let translatorEnvironment: any TranslatorEnvironmentHandling
     private var savedQuickAIAPIKey = ""
+    private var savedTranslationAPIKey = ""
 
     init(
         settingsStore: any AppSettingsStoring,
         loginItemController: any LoginItemControlling,
         quickAIKeyStore: any QuickAIKeyStoring = MemoryQuickAIKeyStore(),
+        translatorKeyStore: any QuickAIKeyStoring = MemoryQuickAIKeyStore(),
         translatorEnvironment: any TranslatorEnvironmentHandling = MemoryTranslatorEnvironment()
     ) {
         self.settingsStore = settingsStore
         self.loginItemController = loginItemController
         self.quickAIKeyStore = quickAIKeyStore
+        self.translatorKeyStore = translatorKeyStore
         self.translatorEnvironment = translatorEnvironment
         self.settings = settingsStore.load()
         let status = loginItemController.status
@@ -170,6 +181,23 @@ final class SettingsViewModel: ObservableObject {
     func reloadQuickAIAPIKey() {
         quickAIAPIKey = quickAIKeyStore.load() ?? ""
         savedQuickAIAPIKey = quickAIAPIKey
+    }
+
+    /// 划词翻译 API Key 的输入，保存时机同 Quick AI，见 `commitTranslationAPIKey()`。
+    func setTranslationAPIKey(_ apiKey: String) {
+        translationAPIKey = apiKey
+    }
+
+    func commitTranslationAPIKey() {
+        let trimmed = translationAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed != savedTranslationAPIKey else { return }
+        translatorKeyStore.save(trimmed)
+        savedTranslationAPIKey = trimmed
+    }
+
+    func reloadTranslationAPIKey() {
+        translationAPIKey = translatorKeyStore.load() ?? ""
+        savedTranslationAPIKey = translationAPIKey
     }
 
     /// 设置窗口打开时同步系统真实状态：用户可能直接在系统设置中批准或移除了登录项。

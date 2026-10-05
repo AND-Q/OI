@@ -7,8 +7,8 @@ import XCTest
 @MainActor
 final class TranslatorTests: XCTestCase {
     private static let configuredSettings = AppSettings(
-        quickAIBaseURL: "https://api.openai.com/v1",
-        quickAIModel: "gpt-4o-mini"
+        translationBaseURL: "https://api.openai.com/v1",
+        translationModel: "gpt-4o-mini"
     )
 
     // MARK: - Language
@@ -56,9 +56,13 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(request.targetLanguage, .simplifiedChinese)
     }
 
+    /// 翻译接口与 Quick AI 分开填写：只填了 Quick AI 的接口也按未配置处理。
     func testTranslateTextThrowsNotConfiguredWithoutRequesting() async {
         let answerer = RecordingAnswerer(deltas: ["不应到达"])
-        let useCase = makeUseCase(answerer: answerer, settings: AppSettings())
+        let useCase = makeUseCase(
+            answerer: answerer,
+            settings: AppSettings(quickAIBaseURL: "https://api.openai.com/v1", quickAIModel: "gpt-4o-mini")
+        )
 
         do {
             try await useCase.execute(useCase.makeRequest(for: "Hello")) { _ in XCTFail("不应收到增量") }
@@ -84,6 +88,28 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(answerer.recorder.questions, ["Hello"])
         XCTAssertEqual(answerer.recorder.prompts, [TranslateText.systemPrompt(for: .simplifiedChinese)])
         XCTAssertTrue(TranslateText.systemPrompt(for: .simplifiedChinese).contains("Simplified Chinese"))
+    }
+
+    func testTranslateTextUsesTranslatorEndpointAndKey() async throws {
+        let answerer = RecordingAnswerer(deltas: ["你好"])
+        let useCase = TranslateText(
+            answerer: answerer,
+            languageDetector: StubLanguageDetector(code: "en"),
+            settingsStore: MemoryAppSettingsStore(initial: AppSettings(
+                quickAIBaseURL: "https://api.openai.com/v1",
+                quickAIModel: "gpt-4o",
+                translationBaseURL: "http://localhost:11434/v1",
+                translationModel: "qwen2.5"
+            )),
+            keyStore: MemoryQuickAIKeyStore(initial: "sk-translate")
+        )
+
+        try await useCase.execute(useCase.makeRequest(for: "Hello")) { _ in }
+
+        let expected = try XCTUnwrap(
+            QuickAIConfiguration(baseURLString: "http://localhost:11434/v1", model: "qwen2.5", apiKey: "sk-translate")
+        )
+        XCTAssertEqual(answerer.recorder.configurations, [expected])
     }
 
     // MARK: - Word boundaries
@@ -419,7 +445,7 @@ final class TranslatorTests: XCTestCase {
         guard case .failed(let message)? = viewModel.session?.state else {
             return XCTFail("应展示未配置提示")
         }
-        XCTAssertTrue(message.contains("Quick AI"))
+        XCTAssertTrue(message.contains("设置… → 划词翻译"))
 
         viewModel.translateCurrentSource()
         XCTAssertEqual(viewModel.session?.state, .streaming)
@@ -578,7 +604,9 @@ final class TranslatorTests: XCTestCase {
             isForceTouchTranslationEnabled: false,
             translatorShortcut: LauncherShortcut(keyCode: 17, modifiers: 1 << 8 | 1 << 11),
             translationTargetLanguage: .japanese,
-            translationAlternateLanguage: .french
+            translationAlternateLanguage: .french,
+            translationBaseURL: "http://localhost:11434/v1",
+            translationModel: "qwen2.5"
         )
 
         UserDefaultsAppSettingsStore(defaults: defaults).save(settings)
@@ -879,11 +907,12 @@ private final class RecordingWordSelector: WordSelecting, @unchecked Sendable {
     }
 }
 
-/// Records the questions and system prompts the answerer was asked with.
+/// Records the questions, system prompts and endpoint configurations the answerer was asked with.
 private final class TranslationRequestRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private var storedQuestions: [String] = []
     private var storedPrompts: [String] = []
+    private var storedConfigurations: [QuickAIConfiguration] = []
 
     var questions: [String] {
         lock.withLock { storedQuestions }
@@ -893,10 +922,15 @@ private final class TranslationRequestRecorder: @unchecked Sendable {
         lock.withLock { storedPrompts }
     }
 
-    func record(question: String, prompt: String) {
+    var configurations: [QuickAIConfiguration] {
+        lock.withLock { storedConfigurations }
+    }
+
+    func record(question: String, prompt: String, configuration: QuickAIConfiguration) {
         lock.withLock {
             storedQuestions.append(question)
             storedPrompts.append(prompt)
+            storedConfigurations.append(configuration)
         }
     }
 }
@@ -917,7 +951,7 @@ private struct RecordingAnswerer: QuickAIAnswering {
         systemPrompt: String,
         configuration: QuickAIConfiguration
     ) -> AsyncThrowingStream<String, Error> {
-        recorder.record(question: question, prompt: systemPrompt)
+        recorder.record(question: question, prompt: systemPrompt, configuration: configuration)
         return AsyncThrowingStream { continuation in
             for delta in deltas {
                 continuation.yield(delta)

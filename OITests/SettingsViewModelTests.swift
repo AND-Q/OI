@@ -362,6 +362,17 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.isQuickAIBaseURLPlaintext)
     }
 
+    func testTranslationBaseURLPlaintextWarningIsIndependent() {
+        let viewModel = makeViewModel()
+
+        viewModel.settings.translationBaseURL = "http://203.0.113.10:11434/v1"
+        XCTAssertTrue(viewModel.isTranslationBaseURLPlaintext)
+        XCTAssertFalse(viewModel.isQuickAIBaseURLPlaintext)
+
+        viewModel.settings.translationBaseURL = "http://localhost:11434/v1"
+        XCTAssertFalse(viewModel.isTranslationBaseURLPlaintext)
+    }
+
     // MARK: - Helpers
 
     private func makeViewModel(

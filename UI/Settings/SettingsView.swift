@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var viewModel: SettingsViewModel
     @FocusState private var isAPIKeyFocused: Bool
+    @FocusState private var isTranslationAPIKeyFocused: Bool
 
     var body: some View {
         Form {
@@ -67,7 +68,7 @@ struct SettingsView: View {
                 )
                 .autocorrectionDisabled()
                 if viewModel.isQuickAIBaseURLPlaintext {
-                    Label("API Key 与提问、翻译内容将明文传输", systemImage: "exclamationmark.triangle.fill")
+                    Label("API Key 与提问内容将明文传输", systemImage: "exclamationmark.triangle.fill")
                         .font(.footnote)
                         .foregroundStyle(.red)
                 }
@@ -112,10 +113,29 @@ struct SettingsView: View {
                 Picker("原文已是目标语言时译为", selection: translationAlternateLanguage) {
                     languageOptions
                 }
+                TextField(
+                    "接口地址",
+                    text: $viewModel.settings.translationBaseURL,
+                    prompt: Text("https://api.openai.com/v1")
+                )
+                .autocorrectionDisabled()
+                if viewModel.isTranslationBaseURLPlaintext {
+                    Label("API Key 与翻译内容将明文传输", systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                }
+                TextField("模型", text: $viewModel.settings.translationModel, prompt: Text("gpt-4o-mini"))
+                    .autocorrectionDisabled()
+                SecureField("API Key", text: translationAPIKey, prompt: Text("本地模型可留空"))
+                    .focused($isTranslationAPIKeyFocused)
+                    .onSubmit { viewModel.commitTranslationAPIKey() }
+                    .onChange(of: isTranslationAPIKeyFocused) { _, isFocused in
+                        if !isFocused { viewModel.commitTranslationAPIKey() }
+                    }
             } header: {
                 Text("划词翻译")
             } footer: {
-                Text("选中文字后按翻译快捷键即在原处弹出译文，未选中时翻译剪贴板内容；在触控板上用力点按则翻译光标所在的单词。默认外文译为简体中文、中文译为英语，气泡中可临时切换目标语言。翻译使用上方 Quick AI 的接口，原文会发送到所填地址。")
+                Text("选中文字后按翻译快捷键即在原处弹出译文，未选中时翻译剪贴板内容；在触控板上用力点按则翻译光标所在的单词。默认外文译为简体中文、中文译为英语，气泡中可临时切换目标语言。翻译接口与 Quick AI 分开填写，可以使用不同的服务与模型，建议选用响应快、不带思考的模型；原文会发送到所填地址，API Key 保存在钥匙串中。")
             }
 
             Section {
@@ -208,6 +228,13 @@ struct SettingsView: View {
         Binding(
             get: { viewModel.quickAIAPIKey },
             set: { viewModel.setQuickAIAPIKey($0) }
+        )
+    }
+
+    private var translationAPIKey: Binding<String> {
+        Binding(
+            get: { viewModel.translationAPIKey },
+            set: { viewModel.setTranslationAPIKey($0) }
         )
     }
 

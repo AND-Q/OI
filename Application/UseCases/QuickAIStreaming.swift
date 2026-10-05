@@ -1,21 +1,27 @@
 import Foundation
 
 /// Quick AI 问答与划词翻译共用的流式请求：按当前设置组装接口配置，逐段转交增量，
-/// 并把底层错误换成应用层错误。
+/// 并把底层错误换成应用层错误。两者的接口各自填写，`baseURL`、`model` 与 `keyStore` 指明读取哪一组。
 @MainActor
 struct QuickAIStreaming {
     private let answerer: any QuickAIAnswering
     private let settingsStore: any AppSettingsStoring
     private let keyStore: any QuickAIKeyStoring
+    private let baseURL: KeyPath<AppSettings, String>
+    private let model: KeyPath<AppSettings, String>
 
     init(
         answerer: any QuickAIAnswering,
         settingsStore: any AppSettingsStoring,
-        keyStore: any QuickAIKeyStoring
+        keyStore: any QuickAIKeyStoring,
+        baseURL: KeyPath<AppSettings, String>,
+        model: KeyPath<AppSettings, String>
     ) {
         self.answerer = answerer
         self.settingsStore = settingsStore
         self.keyStore = keyStore
+        self.baseURL = baseURL
+        self.model = model
     }
 
     /// 以 `systemPrompt` 为指令发送 `text`，并把增量逐段交给 `onDelta`。
@@ -23,8 +29,8 @@ struct QuickAIStreaming {
     func stream(_ text: String, systemPrompt: String, onDelta: (String) -> Void) async throws {
         let settings = settingsStore.load()
         guard let configuration = QuickAIConfiguration(
-            baseURLString: settings.quickAIBaseURL,
-            model: settings.quickAIModel,
+            baseURLString: settings[keyPath: baseURL],
+            model: settings[keyPath: model],
             apiKey: keyStore.load()
         ) else {
             throw ApplicationError.quickAINotConfigured

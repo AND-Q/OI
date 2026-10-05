@@ -1,4 +1,5 @@
 import Foundation
+import Security
 import XCTest
 
 @testable import OI
@@ -566,7 +567,78 @@ final class QuickAITests: XCTestCase {
         XCTAssertNil(store.load())
     }
 
+    func testSettingsViewModelKeepsTranslationAPIKeySeparate() {
+        let quickAIKeyStore = MemoryQuickAIKeyStore(initial: "sk-quick")
+        let translatorKeyStore = MemoryQuickAIKeyStore(initial: "sk-translate")
+        let viewModel = SettingsViewModel(
+            settingsStore: MemoryAppSettingsStore(),
+            loginItemController: StubLoginItemController(),
+            quickAIKeyStore: quickAIKeyStore,
+            translatorKeyStore: translatorKeyStore
+        )
+
+        viewModel.reloadQuickAIAPIKey()
+        viewModel.reloadTranslationAPIKey()
+        XCTAssertEqual(viewModel.quickAIAPIKey, "sk-quick")
+        XCTAssertEqual(viewModel.translationAPIKey, "sk-translate")
+
+        viewModel.setTranslationAPIKey(" sk-new ")
+        XCTAssertEqual(translatorKeyStore.load(), "sk-translate", "输入过程中不应写入")
+        viewModel.commitTranslationAPIKey()
+        XCTAssertEqual(translatorKeyStore.load(), "sk-new")
+
+        viewModel.setTranslationAPIKey("")
+        viewModel.commitTranslationAPIKey()
+        XCTAssertNil(translatorKeyStore.load())
+        XCTAssertEqual(quickAIKeyStore.load(), "sk-quick", "翻译密钥的改动不影响 Quick AI")
+    }
+
+    /// 升级前两者共用密钥：翻译密钥首次读取时复制 Quick AI 的密钥，此后互不影响，清空后也不再复制。
+    func testKeychainTranslatorKeyStoreCopiesQuickAIKeyOnce() {
+        let testService = "OITests.KeychainQuickAIKeyStore.\(UUID().uuidString)"
+        defer { deleteKeychainItems(service: testService) }
+        let quickAIStore = KeychainQuickAIKeyStore(service: testService)
+        quickAIStore.save("sk-shared")
+
+        XCTAssertEqual(makeTranslatorKeyStore(service: testService).load(), "sk-shared")
+
+        quickAIStore.save("sk-quick-new")
+        XCTAssertEqual(makeTranslatorKeyStore(service: testService).load(), "sk-shared", "复制后不再跟随 Quick AI")
+
+        makeTranslatorKeyStore(service: testService).save(nil)
+        XCTAssertNil(makeTranslatorKeyStore(service: testService).load(), "清空后不应再次复制 Quick AI 的密钥")
+        XCTAssertEqual(quickAIStore.load(), "sk-quick-new")
+    }
+
+    /// 全新安装时两者都没有密钥：之后填写的 Quick AI 密钥不会被复制给翻译。
+    func testKeychainTranslatorKeyStoreDoesNotCopyLaterQuickAIKey() {
+        let testService = "OITests.KeychainQuickAIKeyStore.\(UUID().uuidString)"
+        defer { deleteKeychainItems(service: testService) }
+
+        XCTAssertNil(makeTranslatorKeyStore(service: testService).load())
+
+        KeychainQuickAIKeyStore(service: testService).save("sk-quick")
+        XCTAssertNil(makeTranslatorKeyStore(service: testService).load())
+    }
+
     // MARK: - Helpers
+
+    /// 每次新建实例，避免内存缓存掩盖钥匙串中的实际内容。
+    private func makeTranslatorKeyStore(service: String) -> KeychainQuickAIKeyStore {
+        KeychainQuickAIKeyStore(
+            service: service,
+            account: KeychainQuickAIKeyStore.translatorAccount,
+            initialValueAccount: KeychainQuickAIKeyStore.quickAIAccount
+        )
+    }
+
+    /// 翻译账户清空时保留空值占位，测试结束按 service 删除全部条目。
+    private func deleteKeychainItems(service: String) {
+        SecItemDelete([
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+        ] as CFDictionary)
+    }
 
     private func configuredSettingsStore() -> MemoryAppSettingsStore {
         MemoryAppSettingsStore(initial: AppSettings(

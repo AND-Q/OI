@@ -212,7 +212,7 @@ private enum TranslatorErrorMessage {
     static func message(for error: Error) -> String {
         switch error as? ApplicationError {
         case .quickAINotConfigured?:
-            "划词翻译使用 Quick AI 的接口，请先在「设置… → Quick AI」中填写接口地址与模型。"
+            "请先在「设置… → 划词翻译」中填写翻译使用的接口地址与模型。"
         case .quickAIFailed(let reason)?:
             "翻译失败：\(reason)"
         default:

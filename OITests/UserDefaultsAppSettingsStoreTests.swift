@@ -41,6 +41,29 @@ final class UserDefaultsAppSettingsStoreTests: XCTestCase {
         XCTAssertEqual(context.store.load().webSearchEngine, .bing)
     }
 
+    /// 旧版本的划词翻译与 Quick AI 共用接口：从未保存过翻译接口时沿用 Quick AI 的值，
+    /// 保存后两者各自独立，翻译接口留空也不再回退。
+    func testTranslationEndpointFallsBackToQuickAIUntilSaved() throws {
+        let context = try makeStore()
+        defer { context.cleanup() }
+        context.defaults.set("https://api.openai.com/v1", forKey: "settings.quickAI.baseURL")
+        context.defaults.set("gpt-4o-mini", forKey: "settings.quickAI.model")
+
+        var settings = context.store.load()
+        XCTAssertEqual(settings.translationBaseURL, "https://api.openai.com/v1")
+        XCTAssertEqual(settings.translationModel, "gpt-4o-mini")
+
+        settings.quickAIModel = "gpt-4o"
+        settings.translationBaseURL = ""
+        settings.translationModel = ""
+        context.store.save(settings)
+
+        let reloaded = UserDefaultsAppSettingsStore(defaults: context.defaults).load()
+        XCTAssertEqual(reloaded.quickAIModel, "gpt-4o")
+        XCTAssertEqual(reloaded.translationBaseURL, "")
+        XCTAssertEqual(reloaded.translationModel, "")
+    }
+
     func testSavePersistsAcrossStoreInstances() throws {
         let context = try makeStore()
         defer { context.cleanup() }

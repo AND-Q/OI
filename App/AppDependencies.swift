@@ -28,6 +28,10 @@ struct AppDependencies {
         let urlOpener = WorkspaceURLOpener()
         let usageStore = UserDefaultsAppUsageStore()
         let quickAIKeyStore = KeychainQuickAIKeyStore()
+        let translatorKeyStore = KeychainQuickAIKeyStore(
+            account: KeychainQuickAIKeyStore.translatorAccount,
+            initialValueAccount: KeychainQuickAIKeyStore.quickAIAccount
+        )
         let quickAIClient = OpenAICompatibleQuickAIClient()
         let translatorEnvironment = SystemTranslatorEnvironment()
         let textCapturer = AccessibilityTextCapturer()
@@ -57,6 +61,7 @@ struct AppDependencies {
                 settingsStore: settingsStore,
                 loginItemController: SMAppServiceLoginItemController(),
                 quickAIKeyStore: quickAIKeyStore,
+                translatorKeyStore: translatorKeyStore,
                 translatorEnvironment: translatorEnvironment
             ),
             settingsStore: settingsStore,
@@ -75,7 +80,7 @@ struct AppDependencies {
                         answerer: quickAIClient,
                         languageDetector: NaturalLanguageDetector(),
                         settingsStore: settingsStore,
-                        keyStore: quickAIKeyStore
+                        keyStore: translatorKeyStore
                     ),
                     textCapturer: textCapturer,
                     wordSelector: DoubleClickWordSelector(textCapturer: textCapturer),

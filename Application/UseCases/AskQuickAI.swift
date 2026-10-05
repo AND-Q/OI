@@ -12,7 +12,13 @@ struct AskQuickAI {
         settingsStore: any AppSettingsStoring,
         keyStore: any QuickAIKeyStoring
     ) {
-        streaming = QuickAIStreaming(answerer: answerer, settingsStore: settingsStore, keyStore: keyStore)
+        streaming = QuickAIStreaming(
+            answerer: answerer,
+            settingsStore: settingsStore,
+            keyStore: keyStore,
+            baseURL: \.quickAIBaseURL,
+            model: \.quickAIModel
+        )
     }
 
     /// 按当前设置发起提问，并把回答增量逐段交给 `onDelta`。

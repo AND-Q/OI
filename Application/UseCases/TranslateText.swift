@@ -8,7 +8,7 @@ struct TranslationRequest: Equatable, Sendable {
     let targetLanguage: TranslationLanguage
 }
 
-/// 划词翻译：识别语种、选定目标语言，并经 Quick AI 配置的接口流式翻译。
+/// 划词翻译：识别语种、选定目标语言，并经划词翻译单独配置的接口流式翻译。
 @MainActor
 struct TranslateText {
     private let streaming: QuickAIStreaming
@@ -21,7 +21,13 @@ struct TranslateText {
         settingsStore: any AppSettingsStoring,
         keyStore: any QuickAIKeyStoring
     ) {
-        self.streaming = QuickAIStreaming(answerer: answerer, settingsStore: settingsStore, keyStore: keyStore)
+        self.streaming = QuickAIStreaming(
+            answerer: answerer,
+            settingsStore: settingsStore,
+            keyStore: keyStore,
+            baseURL: \.translationBaseURL,
+            model: \.translationModel
+        )
         self.languageDetector = languageDetector
         self.settingsStore = settingsStore
     }
@@ -41,7 +47,7 @@ struct TranslateText {
         )
     }
 
-    /// 按当前 Quick AI 设置翻译，并把译文增量逐段交给 `onDelta`。
+    /// 按当前划词翻译的接口设置翻译，并把译文增量逐段交给 `onDelta`。
     /// 接口地址或模型缺失时不发起请求，直接抛出未配置错误。
     func execute(_ request: TranslationRequest, onDelta: (String) -> Void) async throws {
         try await streaming.stream(

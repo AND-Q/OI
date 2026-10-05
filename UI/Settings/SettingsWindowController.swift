@@ -20,6 +20,7 @@ final class SettingsWindowController {
         viewModel.refreshLaunchAtLoginStatus()
         viewModel.refreshPermissionStatus()
         viewModel.reloadQuickAIAPIKey()
+        viewModel.reloadTranslationAPIKey()
         let window = self.window ?? makeWindow()
         self.window = window
         window.orderFrontRegardless()
@@ -58,6 +59,7 @@ final class SettingsWindowController {
             NotificationCenter.default.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
                     self?.viewModel.commitQuickAIAPIKey()
+                    self?.viewModel.commitTranslationAPIKey()
                 }
             }
         }

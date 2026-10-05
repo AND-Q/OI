@@ -16,6 +16,8 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
     private static let translatorShortcutModifiersKey = "settings.translator.shortcut.modifiers"
     private static let translationTargetLanguageKey = "settings.translator.targetLanguage"
     private static let translationAlternateLanguageKey = "settings.translator.alternateLanguage"
+    private static let translationBaseURLKey = "settings.translator.baseURL"
+    private static let translationModelKey = "settings.translator.model"
     private static let webSearchEngineKey = "settings.webSearchEngine"
 
     private let defaults: UserDefaults
@@ -26,6 +28,8 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
 
     func load() -> AppSettings {
         let fallback = AppSettings()
+        let quickAIBaseURL = defaults.string(forKey: Self.quickAIBaseURLKey) ?? fallback.quickAIBaseURL
+        let quickAIModel = defaults.string(forKey: Self.quickAIModelKey) ?? fallback.quickAIModel
         return AppSettings(
             isSilentLaunchEnabled: defaults.object(forKey: Self.silentLaunchKey) as? Bool
                 ?? fallback.isSilentLaunchEnabled,
@@ -37,8 +41,8 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
                 keyCodeKey: Self.shortcutKeyCodeKey,
                 modifiersKey: Self.shortcutModifiersKey
             ) ?? fallback.launcherShortcut,
-            quickAIBaseURL: defaults.string(forKey: Self.quickAIBaseURLKey) ?? fallback.quickAIBaseURL,
-            quickAIModel: defaults.string(forKey: Self.quickAIModelKey) ?? fallback.quickAIModel,
+            quickAIBaseURL: quickAIBaseURL,
+            quickAIModel: quickAIModel,
             isForceTouchTranslationEnabled: defaults.object(forKey: Self.forceTouchTranslationKey) as? Bool
                 ?? fallback.isForceTouchTranslationEnabled,
             translatorShortcut: loadShortcut(
@@ -49,6 +53,10 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
                 ?? fallback.translationTargetLanguage,
             translationAlternateLanguage: loadLanguage(forKey: Self.translationAlternateLanguageKey)
                 ?? fallback.translationAlternateLanguage,
+            // 旧版本的划词翻译与 Quick AI 共用接口：从未保存过翻译接口时沿用 Quick AI 的值，
+            // 升级后翻译照常可用；下次保存设置时写入，此后两者各自独立。
+            translationBaseURL: defaults.string(forKey: Self.translationBaseURLKey) ?? quickAIBaseURL,
+            translationModel: defaults.string(forKey: Self.translationModelKey) ?? quickAIModel,
             webSearchEngine: defaults.string(forKey: Self.webSearchEngineKey)
                 .flatMap(WebSearchEngine.init(rawValue:)) ?? fallback.webSearchEngine
         )
@@ -67,6 +75,8 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
         defaults.set(Int(settings.translatorShortcut.modifiers), forKey: Self.translatorShortcutModifiersKey)
         defaults.set(settings.translationTargetLanguage.rawValue, forKey: Self.translationTargetLanguageKey)
         defaults.set(settings.translationAlternateLanguage.rawValue, forKey: Self.translationAlternateLanguageKey)
+        defaults.set(settings.translationBaseURL, forKey: Self.translationBaseURLKey)
+        defaults.set(settings.translationModel, forKey: Self.translationModelKey)
         defaults.set(settings.webSearchEngine.rawValue, forKey: Self.webSearchEngineKey)
     }
 
