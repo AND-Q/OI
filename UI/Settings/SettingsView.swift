@@ -74,6 +74,8 @@ struct SettingsView: View {
                 }
                 TextField("模型", text: $viewModel.settings.quickAIModel, prompt: Text("gpt-4o-mini"))
                     .autocorrectionDisabled()
+                TextField("思考强度", text: $viewModel.settings.quickAIReasoningEffort, prompt: Text("留空不发送"))
+                    .autocorrectionDisabled()
                 SecureField("API Key", text: quickAIAPIKey, prompt: Text("本地模型可留空"))
                     .focused($isAPIKeyFocused)
                     .onSubmit { viewModel.commitQuickAIAPIKey() }
@@ -83,7 +85,7 @@ struct SettingsView: View {
             } header: {
                 Text("Quick AI")
             } footer: {
-                Text("在启动器中按 Tab 进入 Quick AI，输入问题后按回车提问。兼容 OpenAI Chat Completions 接口，也可填写 Ollama 等本地服务（如 http://localhost:11434/v1）。提问内容会发送到所填地址，API Key 保存在钥匙串中。")
+                Text("在启动器中按 Tab 进入 Quick AI，输入问题后按回车提问。兼容 OpenAI Chat Completions 接口，也可填写 Ollama 等本地服务（如 http://localhost:11434/v1）。提问内容会发送到所填地址，API Key 保存在钥匙串中。思考强度对应接口的 reasoning_effort 参数，常见取值为 low、medium、high，各服务支持的取值不同；留空则不发送，不支持该参数的服务可能报错。")
             }
 
             Section {
@@ -126,6 +128,8 @@ struct SettingsView: View {
                 }
                 TextField("模型", text: $viewModel.settings.translationModel, prompt: Text("gpt-4o-mini"))
                     .autocorrectionDisabled()
+                TextField("思考强度", text: $viewModel.settings.translationReasoningEffort, prompt: Text("留空不发送"))
+                    .autocorrectionDisabled()
                 SecureField("API Key", text: translationAPIKey, prompt: Text("本地模型可留空"))
                     .focused($isTranslationAPIKeyFocused)
                     .onSubmit { viewModel.commitTranslationAPIKey() }
@@ -135,7 +139,7 @@ struct SettingsView: View {
             } header: {
                 Text("划词翻译")
             } footer: {
-                Text("选中文字后按翻译快捷键即在原处弹出译文，未选中时翻译剪贴板内容；在触控板上用力点按则翻译光标所在的单词。默认外文译为简体中文、中文译为英语，气泡中可临时切换目标语言。翻译接口与 Quick AI 分开填写，可以使用不同的服务与模型，建议选用响应快、不带思考的模型；原文会发送到所填地址，API Key 保存在钥匙串中。")
+                Text("选中文字后按翻译快捷键即在原处弹出译文，未选中时翻译剪贴板内容；在触控板上用力点按则翻译光标所在的单词。默认外文译为简体中文、中文译为英语，气泡中可临时切换目标语言。翻译接口与 Quick AI 分开填写，可以使用不同的服务与模型，建议选用响应快、不带思考的模型，或把思考强度设低（含义同 Quick AI）；原文会发送到所填地址，API Key 保存在钥匙串中。")
             }
 
             Section {

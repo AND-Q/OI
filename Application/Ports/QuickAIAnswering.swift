@@ -6,10 +6,12 @@ struct QuickAIConfiguration: Sendable, Equatable {
     let model: String
     /// 本地服务（如 Ollama）无需鉴权时为 nil。
     let apiKey: String?
+    /// 思考强度（`reasoning_effort`），各服务支持的取值不同；未填写时为 nil，请求中不发送。
+    let reasoningEffort: String?
 
     /// 接口地址须为带主机名的 http(s) 绝对地址、模型名非空，否则视为未配置；
-    /// 未写协议头时自动补全（见 `addingDefaultScheme`）；空白 API Key 按未提供处理。
-    init?(baseURLString: String, model: String, apiKey: String?) {
+    /// 未写协议头时自动补全（见 `addingDefaultScheme`）；空白 API Key 与思考强度按未提供处理。
+    init?(baseURLString: String, model: String, apiKey: String?, reasoningEffort: String? = nil) {
         let trimmedURL = Self.addingDefaultScheme(
             to: baseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
         )
@@ -23,6 +25,8 @@ struct QuickAIConfiguration: Sendable, Equatable {
         self.baseURL = url
         self.model = trimmedModel
         self.apiKey = trimmedKey.isEmpty ? nil : trimmedKey
+        let trimmedEffort = reasoningEffort?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        self.reasoningEffort = trimmedEffort.isEmpty ? nil : trimmedEffort
     }
 
     /// 漏写协议头时补全：本机与局域网地址（多为 Ollama 等本地服务）补 `http://`，其余补 `https://`。

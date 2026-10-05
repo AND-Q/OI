@@ -17,7 +17,8 @@ struct AskQuickAI {
             settingsStore: settingsStore,
             keyStore: keyStore,
             baseURL: \.quickAIBaseURL,
-            model: \.quickAIModel
+            model: \.quickAIModel,
+            reasoningEffort: \.quickAIReasoningEffort
         )
     }
 

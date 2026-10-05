@@ -60,6 +60,8 @@ struct AppSettings: Sendable, Equatable {
     var quickAIBaseURL: String = ""
     /// Quick AI 模型名。API Key 不在此存储，见 `QuickAIKeyStoring`。
     var quickAIModel: String = ""
+    /// Quick AI 思考强度，对应接口的 `reasoning_effort` 参数；留空时不发送。
+    var quickAIReasoningEffort: String = ""
     /// 触控板用力点按（二段压力）取词翻译。
     var isForceTouchTranslationEnabled: Bool = true
     /// 划词翻译快捷键：翻译选中的文字，未选中时翻译剪贴板。
@@ -72,6 +74,8 @@ struct AppSettings: Sendable, Equatable {
     var translationBaseURL: String = ""
     /// 划词翻译模型名。API Key 同样与 Quick AI 分开存放，见 `QuickAIKeyStoring`。
     var translationModel: String = ""
+    /// 划词翻译思考强度，规则同 `quickAIReasoningEffort`。
+    var translationReasoningEffort: String = ""
     /// `⌘↩` 网页搜索使用的搜索引擎。
     var webSearchEngine: WebSearchEngine = .bing
 }

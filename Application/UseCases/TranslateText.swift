@@ -26,7 +26,8 @@ struct TranslateText {
             settingsStore: settingsStore,
             keyStore: keyStore,
             baseURL: \.translationBaseURL,
-            model: \.translationModel
+            model: \.translationModel,
+            reasoningEffort: \.translationReasoningEffort
         )
         self.languageDetector = languageDetector
         self.settingsStore = settingsStore

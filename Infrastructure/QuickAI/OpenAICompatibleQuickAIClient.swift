@@ -93,7 +93,8 @@ struct OpenAICompatibleQuickAIClient: QuickAIAnswering {
                 .init(role: "system", content: systemPrompt),
                 .init(role: "user", content: question),
             ],
-            stream: true
+            stream: true,
+            reasoningEffort: configuration.reasoningEffort
         )
         request.httpBody = try? JSONEncoder().encode(body)
         return request
@@ -157,6 +158,15 @@ private struct RequestBody: Encodable {
     let model: String
     let messages: [Message]
     let stream: Bool
+    /// 为 nil 时整个字段不编码：不支持该参数的服务可能直接拒绝请求。
+    let reasoningEffort: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case model
+        case messages
+        case stream
+        case reasoningEffort = "reasoning_effort"
+    }
 }
 
 private struct StreamChunk: Decodable {

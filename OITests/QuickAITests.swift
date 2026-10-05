@@ -23,6 +23,21 @@ final class QuickAITests: XCTestCase {
         XCTAssertNil(configuration?.apiKey)
     }
 
+    func testConfigurationTrimsReasoningEffort() {
+        func reasoningEffort(_ string: String?) -> String? {
+            let configuration = QuickAIConfiguration(
+                baseURLString: "https://api.openai.com/v1",
+                model: "gpt",
+                apiKey: nil,
+                reasoningEffort: string
+            )
+            return configuration?.reasoningEffort
+        }
+        XCTAssertEqual(reasoningEffort(" low "), "low")
+        XCTAssertNil(reasoningEffort("  "))
+        XCTAssertNil(reasoningEffort(nil))
+    }
+
     func testConfigurationAddsMissingScheme() {
         func baseURL(_ string: String) -> String? {
             QuickAIConfiguration(baseURLString: string, model: "gpt", apiKey: nil)?.baseURL.absoluteString
@@ -132,6 +147,27 @@ final class QuickAITests: XCTestCase {
 
         XCTAssertEqual(request.url?.absoluteString, "http://localhost:11434/v1/chat/completions")
         XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
+    }
+
+    /// 未填写思考强度时请求中不带 `reasoning_effort` 字段：不支持该参数的服务可能直接拒绝请求。
+    func testMakeRequestSendsReasoningEffortOnlyWhenSet() throws {
+        func body(reasoningEffort: String?) throws -> [String: Any] {
+            let configuration = try XCTUnwrap(QuickAIConfiguration(
+                baseURLString: "https://api.openai.com/v1",
+                model: "gpt-5-mini",
+                apiKey: nil,
+                reasoningEffort: reasoningEffort
+            ))
+            let request = OpenAICompatibleQuickAIClient.makeRequest(
+                question: "hi",
+                systemPrompt: AskQuickAI.systemPrompt,
+                configuration: configuration
+            )
+            return try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
+        }
+
+        XCTAssertEqual(try body(reasoningEffort: "low")["reasoning_effort"] as? String, "low")
+        XCTAssertNil(try body(reasoningEffort: nil)["reasoning_effort"])
     }
 
     func testMakeRequestNormalizesTrailingSlashOnEndpoint() throws {
@@ -295,6 +331,24 @@ final class QuickAITests: XCTestCase {
         }
         XCTAssertEqual(received, ["半"])
         XCTAssertEqual(answerer.recorder.configurations.first?.apiKey, "sk-test")
+    }
+
+    func testAskQuickAIUsesQuickAIReasoningEffort() async throws {
+        let answerer = StubQuickAIAnswerer(deltas: ["2"])
+        let useCase = AskQuickAI(
+            answerer: answerer,
+            settingsStore: MemoryAppSettingsStore(initial: AppSettings(
+                quickAIBaseURL: "https://api.openai.com/v1",
+                quickAIModel: "gpt-5-mini",
+                quickAIReasoningEffort: "high",
+                translationReasoningEffort: "low"
+            )),
+            keyStore: MemoryQuickAIKeyStore()
+        )
+
+        try await useCase.execute(question: "1+1") { _ in }
+
+        XCTAssertEqual(answerer.recorder.configurations.first?.reasoningEffort, "high")
     }
 
     // MARK: - View model
@@ -521,7 +575,11 @@ final class QuickAITests: XCTestCase {
         let suiteName = "OITests-QuickAI-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let settings = AppSettings(quickAIBaseURL: "http://localhost:11434/v1", quickAIModel: "qwen2.5")
+        let settings = AppSettings(
+            quickAIBaseURL: "http://localhost:11434/v1",
+            quickAIModel: "qwen2.5",
+            quickAIReasoningEffort: "medium"
+        )
 
         UserDefaultsAppSettingsStore(defaults: defaults).save(settings)
 

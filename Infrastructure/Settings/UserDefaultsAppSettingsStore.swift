@@ -11,6 +11,7 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
     private static let shortcutModifiersKey = "settings.launcherShortcut.modifiers"
     private static let quickAIBaseURLKey = "settings.quickAI.baseURL"
     private static let quickAIModelKey = "settings.quickAI.model"
+    private static let quickAIReasoningEffortKey = "settings.quickAI.reasoningEffort"
     private static let forceTouchTranslationKey = "settings.translator.isForceTouchEnabled"
     private static let translatorShortcutKeyCodeKey = "settings.translator.shortcut.keyCode"
     private static let translatorShortcutModifiersKey = "settings.translator.shortcut.modifiers"
@@ -18,6 +19,7 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
     private static let translationAlternateLanguageKey = "settings.translator.alternateLanguage"
     private static let translationBaseURLKey = "settings.translator.baseURL"
     private static let translationModelKey = "settings.translator.model"
+    private static let translationReasoningEffortKey = "settings.translator.reasoningEffort"
     private static let webSearchEngineKey = "settings.webSearchEngine"
 
     private let defaults: UserDefaults
@@ -43,6 +45,8 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
             ) ?? fallback.launcherShortcut,
             quickAIBaseURL: quickAIBaseURL,
             quickAIModel: quickAIModel,
+            quickAIReasoningEffort: defaults.string(forKey: Self.quickAIReasoningEffortKey)
+                ?? fallback.quickAIReasoningEffort,
             isForceTouchTranslationEnabled: defaults.object(forKey: Self.forceTouchTranslationKey) as? Bool
                 ?? fallback.isForceTouchTranslationEnabled,
             translatorShortcut: loadShortcut(
@@ -57,6 +61,8 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
             // 升级后翻译照常可用；下次保存设置时写入，此后两者各自独立。
             translationBaseURL: defaults.string(forKey: Self.translationBaseURLKey) ?? quickAIBaseURL,
             translationModel: defaults.string(forKey: Self.translationModelKey) ?? quickAIModel,
+            translationReasoningEffort: defaults.string(forKey: Self.translationReasoningEffortKey)
+                ?? fallback.translationReasoningEffort,
             webSearchEngine: defaults.string(forKey: Self.webSearchEngineKey)
                 .flatMap(WebSearchEngine.init(rawValue:)) ?? fallback.webSearchEngine
         )
@@ -70,6 +76,7 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
         defaults.set(Int(settings.launcherShortcut.modifiers), forKey: Self.shortcutModifiersKey)
         defaults.set(settings.quickAIBaseURL, forKey: Self.quickAIBaseURLKey)
         defaults.set(settings.quickAIModel, forKey: Self.quickAIModelKey)
+        defaults.set(settings.quickAIReasoningEffort, forKey: Self.quickAIReasoningEffortKey)
         defaults.set(settings.isForceTouchTranslationEnabled, forKey: Self.forceTouchTranslationKey)
         defaults.set(Int(settings.translatorShortcut.keyCode), forKey: Self.translatorShortcutKeyCodeKey)
         defaults.set(Int(settings.translatorShortcut.modifiers), forKey: Self.translatorShortcutModifiersKey)
@@ -77,6 +84,7 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
         defaults.set(settings.translationAlternateLanguage.rawValue, forKey: Self.translationAlternateLanguageKey)
         defaults.set(settings.translationBaseURL, forKey: Self.translationBaseURLKey)
         defaults.set(settings.translationModel, forKey: Self.translationModelKey)
+        defaults.set(settings.translationReasoningEffort, forKey: Self.translationReasoningEffortKey)
         defaults.set(settings.webSearchEngine.rawValue, forKey: Self.webSearchEngineKey)
     }
 

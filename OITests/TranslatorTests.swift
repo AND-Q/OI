@@ -98,17 +98,22 @@ final class TranslatorTests: XCTestCase {
             settingsStore: MemoryAppSettingsStore(initial: AppSettings(
                 quickAIBaseURL: "https://api.openai.com/v1",
                 quickAIModel: "gpt-4o",
+                quickAIReasoningEffort: "high",
                 translationBaseURL: "http://localhost:11434/v1",
-                translationModel: "qwen2.5"
+                translationModel: "qwen2.5",
+                translationReasoningEffort: "low"
             )),
             keyStore: MemoryQuickAIKeyStore(initial: "sk-translate")
         )
 
         try await useCase.execute(useCase.makeRequest(for: "Hello")) { _ in }
 
-        let expected = try XCTUnwrap(
-            QuickAIConfiguration(baseURLString: "http://localhost:11434/v1", model: "qwen2.5", apiKey: "sk-translate")
-        )
+        let expected = try XCTUnwrap(QuickAIConfiguration(
+            baseURLString: "http://localhost:11434/v1",
+            model: "qwen2.5",
+            apiKey: "sk-translate",
+            reasoningEffort: "low"
+        ))
         XCTAssertEqual(answerer.recorder.configurations, [expected])
     }
 
@@ -606,7 +611,8 @@ final class TranslatorTests: XCTestCase {
             translationTargetLanguage: .japanese,
             translationAlternateLanguage: .french,
             translationBaseURL: "http://localhost:11434/v1",
-            translationModel: "qwen2.5"
+            translationModel: "qwen2.5",
+            translationReasoningEffort: "low"
         )
 
         UserDefaultsAppSettingsStore(defaults: defaults).save(settings)
