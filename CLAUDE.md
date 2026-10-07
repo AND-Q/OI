@@ -69,6 +69,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - 格式：使用 `<type>: <中文描述>`。
   - 允许的类型：`feat`、`fix`、`refactor`、`chore`、`docs`、`test`、`perf`、`build`、`ci`、`style`、`revert`。
   - 每个提交应只包含一项独立且完整的变更。
+  - 提交说明和 PR 描述中不要添加 `Co-Authored-By` 等 AI 署名行或生成工具的署名。
 - **代码注释**
   - 改动代码时，代码注释要和附近的代码（或者同类代码）的语言、语气与密度保持一致。
 
