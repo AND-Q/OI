@@ -125,7 +125,19 @@
 - **涉及文件**：
   - [Domain/Models/TranslationLanguage.swift](Domain/Models/TranslationLanguage.swift)、[Application/Ports/TextCapturing.swift](Application/Ports/TextCapturing.swift)、[Application/Ports/ForceTouchMonitoring.swift](Application/Ports/ForceTouchMonitoring.swift)、[Application/Ports/LanguageDetecting.swift](Application/Ports/LanguageDetecting.swift)、[Application/Ports/WordSelecting.swift](Application/Ports/WordSelecting.swift)、[Application/Ports/TranslatorEnvironmentHandling.swift](Application/Ports/TranslatorEnvironmentHandling.swift)、[Application/Ports/QuickAIAnswering.swift](Application/Ports/QuickAIAnswering.swift)、[Application/Ports/AppSettingsStoring.swift](Application/Ports/AppSettingsStoring.swift)、[Application/UseCases/TranslateText.swift](Application/UseCases/TranslateText.swift)、[Application/UseCases/AskQuickAI.swift](Application/UseCases/AskQuickAI.swift)、[Infrastructure/Translator/](Infrastructure/Translator/)、[Infrastructure/QuickAI/OpenAICompatibleQuickAIClient.swift](Infrastructure/QuickAI/OpenAICompatibleQuickAIClient.swift)、[Infrastructure/Shortcut/CarbonGlobalShortcutService.swift](Infrastructure/Shortcut/CarbonGlobalShortcutService.swift)、[Infrastructure/Settings/UserDefaultsAppSettingsStore.swift](Infrastructure/Settings/UserDefaultsAppSettingsStore.swift)、[Features/Translator/](Features/Translator/)、[Features/Settings/SettingsViewModel.swift](Features/Settings/SettingsViewModel.swift)、[UI/Translator/TranslatorPanelController.swift](UI/Translator/TranslatorPanelController.swift)、[UI/Settings/SettingsView.swift](UI/Settings/SettingsView.swift)、[UI/Settings/SettingsWindowController.swift](UI/Settings/SettingsWindowController.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[App/AppCoordinator.swift](App/AppCoordinator.swift)、[OITests/TranslatorTests.swift](OITests/TranslatorTests.swift)、[OITests/QuickAITests.swift](OITests/QuickAITests.swift)
 
-## [ ] 9. 系统设置项直达
+## [ ] 9. 划词翻译源语言识别优化（代码标识符/驼峰命名误判）
+
+![识别语言错误示例](images/translator-language-detection-error.png)
+
+- **需求描述**：
+  - 在代码或文本中划选/重按取词代码标识符（如 `reduceKernel`）或短英文单词时，准确识别为英语并展示「英语 → 简体中文」，避免误识别为丹麦语等小语种。
+- **需要做到**：
+  - 支持代码驼峰命名（`reduceKernel`）、蛇形命名（`reduce_kernel`）等标识符的拆词识别，还原自然语言形态；
+  - 纯 ASCII 字母组成的简短单词/标识符优先判定为英语，避免因缺乏上下文误判为冷门小语种；
+  - 气泡顶部语言标签与双向互译目标语言准确对应。
+  - 检查是否还有相似的问题，一并修改，能够准确区别语种。（其实大部分都是中英文之间）
+
+## [ ] 10. 系统设置项直达
 
 - **需求描述**：
   - 在启动器中直接检索并打开 macOS 系统设置的子面板（蓝牙、网络、声音、显示器等）。
@@ -135,7 +147,7 @@
   - 设置项以「系统设置」分组显示在 App 之后、文件之前，`Enter` 打开对应面板并关闭启动器；
   - 面板列表从系统读取，系统升级后无需手动维护。
 
-## [ ] 10. 开发者小工具：UUID 与时间戳
+## [ ] 11. 开发者小工具：UUID 与时间戳
 
 - **需求描述**：
   - 输入 `uuid` 快速生成并复制；时间戳与日期互转。
@@ -145,7 +157,7 @@
   - 输入 `ts` / `时间戳` 显示当前 Unix 时间戳，`Enter` 复制；
   - 普通数字不误判为时间戳（只识别 2000–2100 年范围内的值）。
 
-## [ ] 11. 自定义别名与隐藏结果
+## [ ] 12. 自定义别名与隐藏结果
 
 - **需求描述**：
   - 为 App 设置自定义别名；隐藏不想出现在结果中的 App。
@@ -154,7 +166,7 @@
   - 可将 App 从结果中隐藏，并在设置中查看与恢复；
   - `Cmd+K` 菜单提供「添加别名…」与「从结果中隐藏」。
 
-## [ ] 12. 快捷链接与网页搜索增强
+## [ ] 13. 快捷链接与网页搜索增强
 
 - **需求描述**：
   - 自定义带关键词的快捷链接；可选默认搜索引擎；无结果时提供兜底操作。
@@ -164,7 +176,7 @@
   - [x] 默认搜索引擎可选（Bing / Google / 百度 / DuckDuckGo），`Cmd+Enter` 按所选引擎搜索；
   - 没有匹配结果时显示「用 <默认引擎> 搜索 xxx」与「问 Quick AI」两行，`Enter` 执行（未配置 Quick AI 时不显示后者）。
 
-## [ ] 13. 路径直达
+## [ ] 14. 路径直达
 
 - **需求描述**：
   - 输入文件路径直接打开对应的文件或文件夹。
@@ -173,7 +185,7 @@
   - 文件夹 `Enter` 在 Finder 中打开，文件用默认 App 打开；`Cmd+T`、`Cmd+Y`、`Cmd+K` 等结果操作与文件结果一致；
   - 路径不存在时不显示该行；输入路径时不显示无关的文件搜索结果。
 
-## [ ] 14. App 专属全局快捷键
+## [ ] 15. App 专属全局快捷键
 
 - **需求描述**：
   - 为常用 App 绑定全局快捷键，一键启动或切换。
@@ -182,7 +194,7 @@
   - 不能与呼出、翻译快捷键或彼此重复，冲突或被其他应用占用时给出提示且不保存；
   - 通过快捷键启动同样计入使用历史。
 
-## [ ] 15. 快捷指令与系统控制
+## [ ] 16. 快捷指令与系统控制
 
 - **需求描述**：
   - 在启动器中执行系统操作（锁屏、睡眠、重启、关机、清空废纸篓、切换外观等）。
@@ -191,7 +203,7 @@
   - 内置「睡眠」命令；
   - 如内置重启、关机，必须二次确认：第一次 `Enter` 进入确认态，再按一次才执行，`Esc` 或超时取消。
 
-## [ ] 16. 按端口结束进程（暂缓）
+## [ ] 17. 按端口结束进程（暂缓）
 
 - **需求描述**：
   - 按端口号快速结束占用该端口的进程。
@@ -199,7 +211,7 @@
   - 输入 `kill :3000` 或 `port 3000` 列出监听该端口的进程（进程名、PID、命令行）；
   - 选中后第一次 `Enter` 进入确认态，再按一次结束进程；无法结束时提示原因，并可选择强制结束。
 
-## [ ] 17. 轻量剪贴板历史（暂缓）
+## [ ] 18. 轻量剪贴板历史（暂缓）
 
 - **需求描述**：
   - 本地记录剪贴板内容，支持搜索过滤与快速取用。
@@ -209,7 +221,7 @@
   - 短期保留（如 8 小时），可一键清除；
   - 支持模糊搜索，`Enter` 复制所选内容。
 
-## [ ] 18. 设置中去开启权限时候“打开系统设置”这个界面不点击即可跳转系统设置界面
+## [ ] 19. 设置中去开启权限时候“打开系统设置”这个界面不点击即可跳转系统设置界面
 
 ## 候选想法（未排期）
 
