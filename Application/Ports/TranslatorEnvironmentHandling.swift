@@ -5,7 +5,8 @@ import Foundation
 @MainActor
 protocol TranslatorEnvironmentHandling: AnyObject {
     var isAccessibilityTrusted: Bool { get }
-    /// 请求辅助功能权限：弹出系统授权提示并打开「隐私与安全性 → 辅助功能」。
+    /// 请求辅助功能权限：系统弹出授权提示时交给提示引导（提示中可打开系统设置）；
+    /// 系统不再提示（OI 已在辅助功能列表中但未勾选）时直接打开「隐私与安全性 → 辅助功能」。
     func requestAccessibilityAccess()
     /// 打开「系统设置 → 触控板」，用于关闭系统查询的用力点按、确认触感反馈已开启。
     func openTrackpadSettings()

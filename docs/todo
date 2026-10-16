@@ -161,7 +161,7 @@
 - **涉及文件**：
   - [UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Features/Launcher/LauncherState.swift](Features/Launcher/LauncherState.swift)、[Application/Ports/UserNotifying.swift](Application/Ports/UserNotifying.swift)、[Infrastructure/Notifications/UserNotificationCenterNotifier.swift](Infrastructure/Notifications/UserNotificationCenterNotifier.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[OITests/LauncherPanelControllerTests.swift](OITests/LauncherPanelControllerTests.swift)、[OITests/LauncherViewModelTests.swift](OITests/LauncherViewModelTests.swift)、[OITests/FileSearchTests.swift](OITests/FileSearchTests.swift)、[OITests/TestSupport.swift](OITests/TestSupport.swift)
 
-## [ ] 11. 辅助功能授权弹窗与系统设置跳转冲突优化
+## [x] 11. 辅助功能授权弹窗与系统设置跳转冲突优化
 
 - **需求描述**：
   - 在设置面板中点击「开启辅助功能权限 - 去开启…」时，系统会弹出原生授权提示框（含「拒绝」与「打开系统设置」按钮），但此时 OI 还会同时自动打开并跳转到系统设置的辅助功能页，导致用户尚未在系统弹窗中点击「打开系统设置」，系统设置窗口就已经提前弹出并抢占焦点。
@@ -169,6 +169,12 @@
   - **避免重复自动跳转**：首次请求权限时由系统原生弹窗引导，仅调用 `AXIsProcessTrustedWithOptions` 触发系统授权提示，避免在弹窗未响应前强行通过 URL 打开系统设置；
   - **非首次指引优化**：若系统列表已存在该应用但处于未勾选状态（系统不再自动弹出提示框时），才通过 URL 兜底直达「系统设置 → 隐私与安全性 → 辅助功能」；
   - **保证窗口层级与焦点流畅**：防止系统授权对话框与系统设置应用窗口重叠或出现焦点争抢。
+- **实现说明**：
+  - 原因：[SystemTranslatorEnvironment](Infrastructure/Translator/SystemTranslatorEnvironment.swift) 调用 `AXIsProcessTrustedWithOptions` 请求提示后紧接着打开设置页，两者同时出现；
+  - 判断系统是否弹出提示：系统只在 OI 尚未出现在辅助功能列表中时弹出授权提示（并把 OI 加入列表），之后不再提示，但没有公开接口能查询 OI 是否已在列表中；用「是否首次请求」的本地标记推断也不可靠（旧版本已请求过、用户在列表中移除过 OI 时都会判断错）。改为观察提示框本身：提示框出现时会切到前台，请求后 1 秒内有其他应用切到前台即交给系统提示引导，不再打开设置页；没有则说明系统未提示（OI 已在列表中但未勾选），此时才打开「隐私与安全性 → 辅助功能」（打开前再确认一次仍未授权）；
+  - 焦点：提示框与系统设置页同一时间只会出现一个，不再互相覆盖、争抢焦点；等待期间重复点击「去开启…」不会重复请求；设置窗口与翻译气泡中的授权入口共用这一流程。
+- **涉及文件**：
+  - [Infrastructure/Translator/SystemTranslatorEnvironment.swift](Infrastructure/Translator/SystemTranslatorEnvironment.swift)、[Application/Ports/TranslatorEnvironmentHandling.swift](Application/Ports/TranslatorEnvironmentHandling.swift)
 
 ## [ ] 系统设置项直达
 
