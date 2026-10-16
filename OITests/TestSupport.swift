@@ -11,6 +11,7 @@ extension XCTestCase {
         usageStore: any AppUsageStoring = MemoryAppUsageStore(),
         settingsStore: any AppSettingsStoring = MemoryAppSettingsStore(),
         urlOpener: OpenURL? = nil,
+        notifier: any UserNotifying = MemoryUserNotifier(),
         now: @escaping () -> Date = { Date() }
     ) -> LauncherViewModel {
         LauncherViewModel(
@@ -23,6 +24,7 @@ extension XCTestCase {
             openURL: urlOpener,
             usageStore: usageStore,
             settingsStore: settingsStore,
+            notifier: notifier,
             aliases: aliases,
             now: now
         )

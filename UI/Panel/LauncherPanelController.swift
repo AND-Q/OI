@@ -233,6 +233,12 @@ final class LauncherPanelController {
     func handleKeyDown(_ event: NSEvent) -> NSEvent? {
         guard panel.isVisible else { return event }
 
+        // 回车打开后面板随即淡出：淡出期间不再响应面板内的按键，避免手快连按回车重复打开，
+        // 或把字符打进正在消失的输入框。
+        if animationCoordinator.isDismissalInProgress, event.window === panel {
+            return nil
+        }
+
         if event.timestamp == lastHandledEventTimestamp && event.keyCode == lastHandledKeyCode {
             return nil
         }
@@ -408,35 +414,27 @@ final class LauncherPanelController {
         }
     }
 
+    /// 打开选中项后立即收起面板，不等目标应用启动完成（冷启动可能要数秒，面板会一直停留）；
+    /// 打开失败由视图模型经系统通知告知。面板已收起或正在淡出时不再响应，避免连击重复打开。
+    /// 返回在后台进行的打开任务。
     @discardableResult
     func open(_ result: SearchResult) -> Task<Void, Never>? {
+        guard panel.isVisible, !animationCoordinator.isDismissalInProgress else { return nil }
         if case .quickQuery(let quickQuery) = result {
             copy(quickQuery)
             return nil
         }
         guard let task = viewModel.open(result) else { return nil }
-        return Task { [weak self] in
-            await task.value
-            guard let self else { return }
-            if case .failed = self.viewModel.launchState {
-                return
-            }
-            self.hide()
-        }
+        hide()
+        return task
     }
 
-    /// Searches the current query in the default browser and dismisses the panel.
+    /// Searches the current query in the default browser and dismisses the panel right away.
     @discardableResult
     func searchWebAndDismiss() -> Task<Void, Never>? {
         guard let task = viewModel.searchWeb() else { return nil }
-        return Task { [weak self] in
-            await task.value
-            guard let self else { return }
-            if case .failed = self.viewModel.launchState {
-                return
-            }
-            self.hide()
-        }
+        hide()
+        return task
     }
 
     func reveal(_ result: SearchResult) {

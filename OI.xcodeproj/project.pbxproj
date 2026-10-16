@@ -113,6 +113,8 @@
 		A100000100000062 /* QuickAIStreaming.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000062 /* QuickAIStreaming.swift */; };
 		A100000100000063 /* StreamingTextBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000063 /* StreamingTextBuffer.swift */; };
 		A100000100000064 /* WebSearchEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000064 /* WebSearchEngine.swift */; };
+		A100000100000065 /* UserNotifying.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000065 /* UserNotifying.swift */; };
+		A100000100000066 /* UserNotificationCenterNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000066 /* UserNotificationCenterNotifier.swift */; };
 		B10000010000001D /* TranslatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001E /* TranslatorTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -236,6 +238,8 @@
 		A200000100000062 /* QuickAIStreaming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAIStreaming.swift; sourceTree = "<group>"; };
 		A200000100000063 /* StreamingTextBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingTextBuffer.swift; sourceTree = "<group>"; };
 		A200000100000064 /* WebSearchEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSearchEngine.swift; sourceTree = "<group>"; };
+		A200000100000065 /* UserNotifying.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserNotifying.swift; sourceTree = "<group>"; };
+		A200000100000066 /* UserNotificationCenterNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserNotificationCenterNotifier.swift; sourceTree = "<group>"; };
 		B20000010000001E /* TranslatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -318,6 +322,7 @@
 				A40000010000001C /* Settings */,
 				A40000010000001F /* QuickAI */,
 				A400000100000020 /* Translator */,
+				A400000100000024 /* Notifications */,
 			);
 			path = Infrastructure;
 			sourceTree = "<group>";
@@ -403,6 +408,7 @@
 				A200000100000053 /* ForceTouchMonitoring.swift */,
 				A200000100000054 /* LanguageDetecting.swift */,
 				A20000010000005E /* WordSelecting.swift */,
+				A200000100000065 /* UserNotifying.swift */,
 			);
 			path = Ports;
 			sourceTree = "<group>";
@@ -630,6 +636,14 @@
 			path = Shared;
 			sourceTree = "<group>";
 		};
+		A400000100000024 /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				A200000100000066 /* UserNotificationCenterNotifier.swift */,
+			);
+			path = Notifications;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -804,6 +818,8 @@
 				A100000100000062 /* QuickAIStreaming.swift in Sources */,
 				A100000100000063 /* StreamingTextBuffer.swift in Sources */,
 				A100000100000064 /* WebSearchEngine.swift in Sources */,
+				A100000100000065 /* UserNotifying.swift in Sources */,
+				A100000100000066 /* UserNotificationCenterNotifier.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

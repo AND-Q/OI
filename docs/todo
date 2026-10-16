@@ -144,7 +144,7 @@
 - **涉及文件**：
   - [Infrastructure/Translator/NaturalLanguageDetector.swift](Infrastructure/Translator/NaturalLanguageDetector.swift)、[OITests/TranslatorTests.swift](OITests/TranslatorTests.swift)
 
-## [ ] 10. 应用启动响应速度与面板残留优化
+## [x] 10. 应用启动响应速度与面板残留优化
 
 - **需求描述**：
   - 解决启动应用时偶现的响应迟钝以及在目标应用打开过程中 OI 启动器窗口长时间残留的问题。
@@ -153,6 +153,13 @@
   - **防止重复触发**：在面板开始隐藏与目标应用拉起期间，禁用或过滤二次回车/快捷键事件，避免手速过快导致多次唤起启动流程；
   - **启动失败优雅处理**：若应用启动在后台报错（如文件丢失、损坏、权限拒绝），静默通过系统通知或错误横幅进行反馈，而不影响面板正常退出；
   - **排查启动路径延迟**：排查 `NSWorkspace.openApplication` 配置及前后台应用激活切换逻辑，优化系统调用耗时。
+- **实现说明**：
+  - 排查结论：迟钝与残留来自同一处——[LauncherPanelController.open](UI/Panel/LauncherPanelController.swift) 等到 `NSWorkspace.openApplication` 的完成回调后才收起面板，而该回调要等目标应用启动完成才返回，冷启动时面板会停留数秒；目标应用激活前 OI 一直是前台应用，面板也不会因失去激活而收起。`NSWorkspace.openApplication` 本身是异步调用，`OpenConfiguration` 保持默认（激活目标应用）即可，耗时在于等待完成回调而非调用配置；
+  - 即时关闭：回车、单击结果与 `⌘Enter` 网页搜索发起打开后立即进入淡出，打开在后台进行；[LauncherViewModel](Features/Launcher/LauncherViewModel.swift) 的应用启动、文件与网址打开各自独立进行，去掉了「同一时间只允许一次打开」的限制与只服务于它的 `launching` 状态——否则冷启动尚未完成时重新呼出面板打开其他应用会被静默吞掉；启动成功才记入使用历史，与此前一致；
+  - 防止重复触发：面板淡出期间吞掉发往面板的按键（重复的回车、`⌘Enter`、`⌘F` 等，以及打进正在消失的输入框的字符），`open` 在面板已收起或正在淡出时也不再响应（覆盖淡出期间的单击）；淡出期间按呼出快捷键仍可把面板叫回；
+  - 失败反馈：新增 [UserNotifying](Application/Ports/UserNotifying.swift) 端口与 [UserNotificationCenterNotifier](Infrastructure/Notifications/UserNotificationCenterNotifier.swift)，后台打开失败（文件丢失、损坏、权限拒绝等）时面板已照常收起，以系统通知说明「无法启动 xxx」与原因；第一次需要提示时才请求通知权限，从未出错的用户不会被打扰，未允许时只记日志；OI 处于前台时（如应用没能启动，前台仍是 OI）也以横幅展示。`⌘F`、`⌘Y`、`⌘T` 遇到已被移动或删除的文件时仍在面板上显示红色横幅（同步检查，面板不收起）。
+- **涉及文件**：
+  - [UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Features/Launcher/LauncherState.swift](Features/Launcher/LauncherState.swift)、[Application/Ports/UserNotifying.swift](Application/Ports/UserNotifying.swift)、[Infrastructure/Notifications/UserNotificationCenterNotifier.swift](Infrastructure/Notifications/UserNotificationCenterNotifier.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[OITests/LauncherPanelControllerTests.swift](OITests/LauncherPanelControllerTests.swift)、[OITests/LauncherViewModelTests.swift](OITests/LauncherViewModelTests.swift)、[OITests/FileSearchTests.swift](OITests/FileSearchTests.swift)、[OITests/TestSupport.swift](OITests/TestSupport.swift)
 
 ## [ ] 11. 辅助功能授权弹窗与系统设置跳转冲突优化
 

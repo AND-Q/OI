@@ -96,11 +96,39 @@ final class LauncherPanelControllerTests: XCTestCase {
         XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
     }
 
-    func testLauncherPanelControllerOpenFailsAndPreservesPanelWithError() async throws {
-        let app = AppDescriptor(name: "Faulty", url: URL(fileURLWithPath: "/Applications/Faulty.app"))
+    /// 回车后立即收起面板，不等目标应用启动完成：打开任务尚未执行时面板已在淡出。
+    func testLauncherPanelControllerOpenDismissesWithoutWaitingForLaunch() async throws {
+        let app = AppDescriptor(name: "Demo", url: URL(fileURLWithPath: "/Applications/Demo.app"))
+        let launcher = StubApplicationLauncher()
         let viewModel = LauncherViewModel(
             discoverApplications: DiscoverApplications(catalog: StubAppCatalog(descriptors: [app])),
-            launchApplication: LaunchApplication(launcher: ThrowingApplicationLauncher())
+            launchApplication: LaunchApplication(launcher: launcher)
+        )
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+
+        controller.show()
+        XCTAssertTrue(controller.isVisible)
+
+        let launch = controller.open(.application(app))
+
+        XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
+        XCTAssertEqual(launcher.launchedApplications, [], "启动在后台进行，收起面板不等它")
+        await launch?.value
+        XCTAssertEqual(launcher.launchedApplications, [app])
+    }
+
+    /// 启动失败时面板照常收起，失败经系统通知告知。
+    func testLauncherPanelControllerOpenFailureDismissesAndNotifies() async throws {
+        let app = AppDescriptor(name: "Faulty", url: URL(fileURLWithPath: "/Applications/Faulty.app"))
+        let notifier = MemoryUserNotifier()
+        let viewModel = LauncherViewModel(
+            discoverApplications: DiscoverApplications(catalog: StubAppCatalog(descriptors: [app])),
+            launchApplication: LaunchApplication(launcher: ThrowingApplicationLauncher()),
+            notifier: notifier
         )
         let controller = LauncherPanelController(
             viewModel: viewModel,
@@ -113,12 +141,42 @@ final class LauncherPanelControllerTests: XCTestCase {
 
         await controller.open(.application(app))?.value
 
-        XCTAssertTrue(controller.isVisible)
-        XCTAssertFalse(controller.isDismissalInProgress)
-        XCTAssertEqual(viewModel.launchErrorMessage, "无法启动 Faulty：启动失败")
-
-        viewModel.query = "new"
+        XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
+        XCTAssertEqual(notifier.records, [MemoryUserNotifier.Record(title: "无法启动 Faulty", body: "启动失败")])
         XCTAssertNil(viewModel.launchErrorMessage)
+    }
+
+    /// 面板淡出期间再按回车或单击结果都不再打开，避免手快连按重复启动。
+    func testLauncherPanelControllerIgnoresRepeatedOpenWhileDismissing() async throws {
+        let app = AppDescriptor(name: "Demo", url: URL(fileURLWithPath: "/Applications/Demo.app"))
+        let launcher = StubApplicationLauncher()
+        let viewModel = LauncherViewModel(
+            discoverApplications: DiscoverApplications(catalog: StubAppCatalog(descriptors: [app])),
+            launchApplication: LaunchApplication(launcher: launcher)
+        )
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+
+        controller.show()
+        await viewModel.loadApps()?.value
+        viewModel.query = "Demo"
+        XCTAssertNotNil(viewModel.selectedResult)
+
+        let windowNumber = controller.panel.windowNumber
+        XCTAssertNil(controller.handleKeyDown(try returnKeyEvent(timestamp: 1, windowNumber: windowNumber)))
+        XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
+
+        _ = controller.handleKeyDown(try returnKeyEvent(timestamp: 2, windowNumber: windowNumber))
+        XCTAssertNil(controller.open(.application(app)))
+
+        for _ in 0..<100 where launcher.launchedApplications.isEmpty {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(launcher.launchedApplications, [app])
     }
 
     func testLauncherPanelControllerRevealWebURLCopiesLinkAndDismisses() throws {
@@ -286,9 +344,10 @@ final class LauncherPanelControllerTests: XCTestCase {
         XCTAssertFalse(controller.isDismissalInProgress)
     }
 
-    func testLauncherPanelControllerCommandReturnSearchWebFailurePreservesPanelAndPublishesError() async throws {
+    func testLauncherPanelControllerCommandReturnSearchWebFailureDismissesAndNotifies() async throws {
         let opener = ThrowingURLOpener()
-        let viewModel = makeViewModel(with: [], urlOpener: OpenURL(opener: opener))
+        let notifier = MemoryUserNotifier()
+        let viewModel = makeViewModel(with: [], urlOpener: OpenURL(opener: opener), notifier: notifier)
         let controller = LauncherPanelController(
             viewModel: viewModel,
             iconProvider: WorkspaceApplicationIconProvider()
@@ -318,14 +377,14 @@ final class LauncherPanelControllerTests: XCTestCase {
 
         let handled = controller.handleKeyDown(commandReturnEvent)
         XCTAssertNil(handled)
+        XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
 
-        for _ in 0..<100 where viewModel.isLaunching {
+        for _ in 0..<100 where notifier.records.isEmpty {
             try await Task.sleep(nanoseconds: 10_000_000)
         }
 
-        XCTAssertTrue(controller.isVisible)
-        XCTAssertFalse(controller.isDismissalInProgress)
-        XCTAssertEqual(viewModel.launchErrorMessage, "无法打开链接：无法打开浏览器")
+        XCTAssertEqual(notifier.records, [MemoryUserNotifier.Record(title: "无法打开链接", body: "无法打开浏览器")])
+        XCTAssertNil(viewModel.launchErrorMessage)
     }
 
     func testLauncherPanelControllerReturnOpensSelectedResultAndDismisses() async throws {
@@ -367,5 +426,24 @@ final class LauncherPanelControllerTests: XCTestCase {
             try await Task.sleep(nanoseconds: 10_000_000)
         }
         XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
+    }
+
+    // MARK: - Helpers
+
+    private func returnKeyEvent(timestamp: TimeInterval, windowNumber: Int) throws -> NSEvent {
+        try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [],
+                timestamp: timestamp,
+                windowNumber: windowNumber,
+                context: nil,
+                characters: "\r",
+                charactersIgnoringModifiers: "\r",
+                isARepeat: false,
+                keyCode: 36
+            )
+        )
     }
 }

@@ -59,13 +59,13 @@ final class LauncherViewModel: ObservableObject {
     private let askQuickAI: AskQuickAI?
     private let usageStore: any AppUsageStoring
     private let settingsStore: any AppSettingsStoring
+    private let notifier: any UserNotifying
     private let aliases: [String: [String]]
     private let fileSearchMinimumQueryLength: Int
     private let fileSearchDebounce: Duration
     private let now: () -> Date
 
     private var loadTask: Task<Void, Never>?
-    private var launchTask: Task<Void, Never>?
     private var fileSearchTask: Task<Void, Never>?
     private var quickAITask: Task<Void, Never>?
     private lazy var quickAIAnswerBuffer = StreamingTextBuffer(interval: LauncherViewModel.quickAIFlushInterval) { [weak self] text in
@@ -89,6 +89,7 @@ final class LauncherViewModel: ObservableObject {
         askQuickAI: AskQuickAI? = nil,
         usageStore: any AppUsageStoring = MemoryAppUsageStore(),
         settingsStore: any AppSettingsStoring = MemoryAppSettingsStore(),
+        notifier: any UserNotifying = MemoryUserNotifier(),
         aliases: [String: [String]] = [:],
         fileSearchMinimumQueryLength: Int = 2,
         fileSearchDebounce: Duration = .milliseconds(120),
@@ -102,6 +103,7 @@ final class LauncherViewModel: ObservableObject {
         self.askQuickAI = askQuickAI
         self.usageStore = usageStore
         self.settingsStore = settingsStore
+        self.notifier = notifier
         self.aliases = aliases
         self.fileSearchMinimumQueryLength = fileSearchMinimumQueryLength
         self.fileSearchDebounce = fileSearchDebounce
@@ -110,7 +112,6 @@ final class LauncherViewModel: ObservableObject {
 
     deinit {
         loadTask?.cancel()
-        launchTask?.cancel()
         fileSearchTask?.cancel()
         quickAITask?.cancel()
     }
@@ -194,11 +195,6 @@ final class LauncherViewModel: ObservableObject {
         return message
     }
 
-    var isLaunching: Bool {
-        if case .launching = launchState { return true }
-        return false
-    }
-
     var launchErrorMessage: String? {
         guard case .failed(let message) = launchState else { return nil }
         return message
@@ -275,7 +271,8 @@ final class LauncherViewModel: ObservableObject {
     }
 
     /// Opens a result: web URLs through the default browser, applications launch
-    /// through the catalog, files through the default app.
+    /// through the catalog, files through the default app. Opening runs in the background
+    /// while the panel dismisses; failures are reported by notification.
     @discardableResult
     func open(_ result: SearchResult) -> Task<Void, Never>? {
         switch result {
@@ -317,38 +314,28 @@ final class LauncherViewModel: ObservableObject {
         ))
     }
 
+    /// 在后台启动应用：面板随即收起，不等应用启动完成（冷启动可能要数秒）。
+    /// 每次启动各自进行，前一次尚未完成时重新呼出面板启动其他应用不受影响；
+    /// 启动成功才记入使用历史，失败经系统通知告知。
     @discardableResult
     func launch(_ application: AppDescriptor) -> Task<Void, Never>? {
-        guard launchTask == nil else { return launchTask }
-
-        launchState = .launching
         let launchApplication = self.launchApplication
-
-        launchTask = Task { [weak self] in
+        return Task { [weak self] in
             do {
                 try await launchApplication.execute(application)
                 self?.recordUsage(for: application)
-                self?.launchState = .idle
-            } catch is CancellationError {
-                self?.launchState = .idle
             } catch {
-                self?.launchState = .failed(LauncherErrorMessage.message(for: error))
+                self?.notifyOpenFailure(error)
             }
-
-            self?.finishLaunching()
         }
-
-        return launchTask
     }
 
     func cancelOperations() {
         isActionSheetVisible = false
         stopQuickAI()
         loadTask?.cancel()
-        launchTask?.cancel()
         fileSearchTask?.cancel()
         if isLoading { loadState = .idle }
-        if isLaunching { launchState = .idle }
         if isSearchingFiles { fileSearchState = .idle }
     }
 
@@ -513,50 +500,36 @@ final class LauncherViewModel: ObservableObject {
         selectedActionIndex = nextIndex
     }
 
+    /// Opens a file with its default app in the background, like application launches.
     @discardableResult
     private func open(_ file: FileDescriptor) -> Task<Void, Never>? {
-        guard launchTask == nil else { return launchTask }
         guard let openFile else { return nil }
-
-        launchState = .launching
-        launchTask = Task { [weak self] in
+        return Task { [weak self] in
             do {
                 try await openFile.execute(file)
-                self?.launchState = .idle
-            } catch is CancellationError {
-                self?.launchState = .idle
             } catch {
-                self?.launchState = .failed(LauncherErrorMessage.message(for: error))
+                self?.notifyOpenFailure(error)
             }
-
-            self?.finishLaunching()
         }
-
-        return launchTask
     }
 
-    /// Opens a web URL in the default browser, sharing the launch pipeline so
-    /// concurrent triggers are guarded and failures surface as launch errors.
+    /// Opens a web URL in the default browser in the background, like application launches.
     @discardableResult
     private func openExternalURL(_ url: URL) -> Task<Void, Never>? {
-        guard launchTask == nil else { return launchTask }
         guard let openURL else { return nil }
-
-        launchState = .launching
-        launchTask = Task { [weak self] in
+        return Task { [weak self] in
             do {
                 try await openURL.execute(url)
-                self?.launchState = .idle
-            } catch is CancellationError {
-                self?.launchState = .idle
             } catch {
-                self?.launchState = .failed(LauncherErrorMessage.message(for: error))
+                self?.notifyOpenFailure(error)
             }
-
-            self?.finishLaunching()
         }
+    }
 
-        return launchTask
+    /// 打开在后台进行，失败时面板已经收起，只能经系统通知告知。
+    private func notifyOpenFailure(_ error: Error) {
+        let notification = LauncherErrorMessage.notification(for: error)
+        notifier.notify(title: notification.title, body: notification.body)
     }
 
     /// Drops the current answer; Quick AI mode itself stays as it is.
@@ -578,10 +551,6 @@ final class LauncherViewModel: ObservableObject {
         scheduleFileSearch()
         updateFilteredApps()
         requestListReset()
-    }
-
-    private func finishLaunching() {
-        launchTask = nil
     }
 
     private var normalizedQuery: String {
@@ -729,6 +698,20 @@ private enum LauncherErrorMessage {
             return "请先在「设置… → Quick AI」中填写接口地址与模型。"
         case .quickAIFailed(let reason):
             return "回答失败：\(reason)"
+        }
+    }
+
+    /// 后台打开失败的系统通知：标题说明哪一项没能打开，正文为原因。
+    static func notification(for error: Error) -> (title: String, body: String) {
+        switch error as? ApplicationError {
+        case .launchFailed(let applicationName, let reason)?:
+            ("无法启动 \(applicationName)", reason)
+        case .fileOpenFailed(let fileName, let reason)?:
+            ("无法打开 \(fileName)", reason)
+        case .urlOpenFailed(let reason)?:
+            ("无法打开链接", reason)
+        default:
+            ("操作未能完成", "请重试。")
         }
     }
 }

@@ -417,7 +417,6 @@ final class FileSearchTests: XCTestCase {
 
         await viewModel.open(.file(plan))?.value
         XCTAssertEqual(opener.openedFiles, [plan])
-        XCTAssertFalse(viewModel.isLaunching)
         let records = await store.records()
         XCTAssertTrue(records.isEmpty)
 
@@ -440,18 +439,21 @@ final class FileSearchTests: XCTestCase {
         XCTAssertEqual(opener.terminalURLs, [plan.url.deletingLastPathComponent()])
     }
 
-    func testViewModelPublishesFileOpenFailure() async {
+    func testViewModelNotifiesFileOpenFailure() async {
         let opener = StubFileOpener()
         opener.error = StubFileSearchError()
+        let notifier = MemoryUserNotifier()
         let viewModel = LauncherViewModel(
             discoverApplications: DiscoverApplications(catalog: StubAppCatalog(descriptors: [])),
             launchApplication: LaunchApplication(launcher: StubApplicationLauncher()),
-            openFile: OpenFile(opener: opener)
+            openFile: OpenFile(opener: opener),
+            notifier: notifier
         )
 
         await viewModel.open(.file(file("plan.md")))?.value
 
-        XCTAssertEqual(viewModel.launchErrorMessage, "无法打开 plan.md：文件搜索失败")
+        XCTAssertEqual(notifier.records, [MemoryUserNotifier.Record(title: "无法打开 plan.md", body: "文件搜索失败")])
+        XCTAssertNil(viewModel.launchErrorMessage)
     }
 
     // MARK: - Helpers

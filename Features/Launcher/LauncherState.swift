@@ -8,10 +8,10 @@ enum LauncherLoadState: Equatable, Sendable {
     case failed(String)
 }
 
-/// State owned by the launcher feature while an application is launched.
+/// Failure banner above the results when the selected item cannot be located (e.g. a moved file).
+/// Opening runs in the background after the panel dismisses, so its failures are notified instead.
 enum LauncherLaunchState: Equatable, Sendable {
     case idle
-    case launching
     case failed(String)
 }
 

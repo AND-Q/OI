@@ -140,7 +140,24 @@ final class LauncherViewModelTests: XCTestCase {
         await viewModel.launch(application)?.value
 
         XCTAssertEqual(launcher.launchedApplications, [application])
-        XCTAssertFalse(viewModel.isLaunching)
+    }
+
+    /// 面板收起后启动仍在后台进行（冷启动可能要数秒）：此时重新呼出面板启动其他应用，不能被前一次启动挡住。
+    func testViewModelLaunchesAgainWhileEarlierLaunchIsInFlight() async {
+        let first = AppDescriptor(name: "First", url: URL(fileURLWithPath: "/Applications/First.app"))
+        let second = AppDescriptor(name: "Second", url: URL(fileURLWithPath: "/Applications/Second.app"))
+        let launcher = StubApplicationLauncher()
+        let viewModel = LauncherViewModel(
+            discoverApplications: DiscoverApplications(catalog: StubAppCatalog(descriptors: [])),
+            launchApplication: LaunchApplication(launcher: launcher)
+        )
+
+        let firstLaunch = viewModel.launch(first)
+        let secondLaunch = viewModel.launch(second)
+        await firstLaunch?.value
+        await secondLaunch?.value
+
+        XCTAssertEqual(launcher.launchedApplications.map(\.name).sorted(), ["First", "Second"])
     }
 
     func testViewModelPublishesLoadedStateAfterDiscovery() async {
@@ -163,36 +180,36 @@ final class LauncherViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.loadState, .failed("无法加载应用列表：目录不可用"))
     }
 
-    func testViewModelPublishesLaunchFailure() async {
+    /// 启动在后台进行、面板已经收起：失败经系统通知告知，不在面板上显示横幅。
+    func testViewModelNotifiesLaunchFailure() async {
         let application = AppDescriptor(
             name: "Demo",
             url: URL(fileURLWithPath: "/Applications/Demo.app")
         )
+        let notifier = MemoryUserNotifier()
         let viewModel = LauncherViewModel(
             discoverApplications: DiscoverApplications(catalog: StubAppCatalog(descriptors: [])),
-            launchApplication: LaunchApplication(launcher: ThrowingApplicationLauncher())
+            launchApplication: LaunchApplication(launcher: ThrowingApplicationLauncher()),
+            notifier: notifier
         )
 
         await viewModel.launch(application)?.value
 
-        XCTAssertEqual(viewModel.launchErrorMessage, "无法启动 Demo：启动失败")
-        XCTAssertEqual(viewModel.launchState, .failed("无法启动 Demo：启动失败"))
+        XCTAssertEqual(notifier.records, [MemoryUserNotifier.Record(title: "无法启动 Demo", body: "启动失败")])
+        XCTAssertNil(viewModel.launchErrorMessage)
     }
 
-    /// 回归测试：启动失败横幅的高度计入面板展开高度，不能挤压结果行；失败状态清除后高度复原。
+    /// 回归测试：失败横幅的高度计入面板展开高度，不能挤压结果行；失败状态清除后高度复原。
     func testViewModelReservesPanelHeightForLaunchErrorBanner() async {
         let application = AppDescriptor(
             name: "Demo",
             url: URL(fileURLWithPath: "/Applications/Demo.app")
         )
-        let viewModel = LauncherViewModel(
-            discoverApplications: DiscoverApplications(catalog: StubAppCatalog(descriptors: [application])),
-            launchApplication: LaunchApplication(launcher: ThrowingApplicationLauncher())
-        )
+        let viewModel = makeViewModel(with: [application])
         await viewModel.loadApps()?.value
         viewModel.query = "Demo"
 
-        await viewModel.launch(application)?.value
+        viewModel.publishFileOpenError(fileName: "Demo", reason: "文件已被移动或删除")
 
         XCTAssertEqual(
             viewModel.panelHeight,
@@ -511,7 +528,6 @@ final class LauncherViewModelTests: XCTestCase {
         await viewModel.open(.webURL(URL(string: "https://github.com")!))?.value
 
         XCTAssertEqual(opener.openedURLs, [URL(string: "https://github.com")!])
-        XCTAssertFalse(viewModel.isLaunching)
     }
 
     func testViewModelSearchWebOpensSearchURLAndIgnoresEmptyQuery() async {
@@ -530,7 +546,6 @@ final class LauncherViewModelTests: XCTestCase {
         viewModel.query = "swift arrays"
         await viewModel.searchWeb()?.value
         XCTAssertEqual(opener.openedURLs, [WebSearchEngine.bing.searchURL(for: "swift arrays")])
-        XCTAssertFalse(viewModel.isLaunching)
     }
 
     func testViewModelSearchWebUsesSearchEngineFromSettings() async {

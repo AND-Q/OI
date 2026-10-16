@@ -51,6 +51,7 @@ struct AppDependencies {
             ),
             usageStore: usageStore,
             settingsStore: settingsStore,
+            notifier: UserNotificationCenterNotifier(),
             aliases: configuration.applicationAliases,
             fileSearchMinimumQueryLength: configuration.fileSearchMinimumQueryLength
         )
