@@ -125,7 +125,7 @@
 - **涉及文件**：
   - [Domain/Models/TranslationLanguage.swift](Domain/Models/TranslationLanguage.swift)、[Application/Ports/TextCapturing.swift](Application/Ports/TextCapturing.swift)、[Application/Ports/ForceTouchMonitoring.swift](Application/Ports/ForceTouchMonitoring.swift)、[Application/Ports/LanguageDetecting.swift](Application/Ports/LanguageDetecting.swift)、[Application/Ports/WordSelecting.swift](Application/Ports/WordSelecting.swift)、[Application/Ports/TranslatorEnvironmentHandling.swift](Application/Ports/TranslatorEnvironmentHandling.swift)、[Application/Ports/QuickAIAnswering.swift](Application/Ports/QuickAIAnswering.swift)、[Application/Ports/AppSettingsStoring.swift](Application/Ports/AppSettingsStoring.swift)、[Application/UseCases/TranslateText.swift](Application/UseCases/TranslateText.swift)、[Application/UseCases/AskQuickAI.swift](Application/UseCases/AskQuickAI.swift)、[Infrastructure/Translator/](Infrastructure/Translator/)、[Infrastructure/QuickAI/OpenAICompatibleQuickAIClient.swift](Infrastructure/QuickAI/OpenAICompatibleQuickAIClient.swift)、[Infrastructure/Shortcut/CarbonGlobalShortcutService.swift](Infrastructure/Shortcut/CarbonGlobalShortcutService.swift)、[Infrastructure/Settings/UserDefaultsAppSettingsStore.swift](Infrastructure/Settings/UserDefaultsAppSettingsStore.swift)、[Features/Translator/](Features/Translator/)、[Features/Settings/SettingsViewModel.swift](Features/Settings/SettingsViewModel.swift)、[UI/Translator/TranslatorPanelController.swift](UI/Translator/TranslatorPanelController.swift)、[UI/Settings/SettingsView.swift](UI/Settings/SettingsView.swift)、[UI/Settings/SettingsWindowController.swift](UI/Settings/SettingsWindowController.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[App/AppCoordinator.swift](App/AppCoordinator.swift)、[OITests/TranslatorTests.swift](OITests/TranslatorTests.swift)、[OITests/QuickAITests.swift](OITests/QuickAITests.swift)
 
-## [ ] 9. 划词翻译源语言识别优化（代码标识符/驼峰命名误判）
+## [x] 9. 划词翻译源语言识别优化（代码标识符/驼峰命名误判）
 
 ![识别语言错误示例](images/translator-language-detection-error.png)
 
@@ -136,6 +136,13 @@
   - 纯 ASCII 字母组成的简短单词/标识符优先判定为英语，避免因缺乏上下文误判为冷门小语种；
   - 气泡顶部语言标签与双向互译目标语言准确对应。
   - 检查是否还有相似的问题，一并修改，能够准确区别语种。（其实大部分都是中英文之间）
+- **实现说明**：
+  - 原因：[NaturalLanguageDetector](Infrastructure/Translator/NaturalLanguageDetector.swift) 原先把原文整体交给 `NLLanguageRecognizer`，统计模型面对标识符、单个单词这类缺少上下文的文本只能凭字母组合猜测，`reduceKernel` 被判为丹麦语；同类问题还有：只有汉字的短词没有假名可供区分，同样可能被判为日语，只有数字或符号的文本也交给模型随意判断；
+  - 拆词：`words(in:)` 把文本切成单词（不含汉字），标识符按驼峰、连续大写缩写与下划线、连字符等拆开（`reduceKernel`、`reduce_kernel` → reduce、kernel，`XMLHttpRequest` → XML、Http、Request），作为判断依据与送给模型的文本；送去翻译的原文保持不变；
+  - 先按文字种类判断：不含假名、谚文且单词数不超过汉字数两倍时按中文（中文里夹杂英文术语与标识符很常见，如「调用 reduceKernel 接口」），简繁由模型限定在两者之间判断，判断不出按简体；只含 ASCII 字母时，单个标识符或单词、不超过三个词的短语直接按英语，更长的文本交给模型，只有模型对其他语言的把握达到 0.9 时才采用（如不带变音符号的法语句子），否则仍按英语；没有字母时不判断语种（气泡显示「自动识别」）；含假名、谚文、带变音符号的拉丁字母、西里尔字母等其余情况照旧交给模型；
+  - 气泡顶部的语言与翻译方向都来自同一次识别结果（[TranslateText](Application/UseCases/TranslateText.swift) 按原文语言选定目标语言），识别准确后标识符显示「英语 → 简体中文」，中文显示「简体中文 → 英语」。
+- **涉及文件**：
+  - [Infrastructure/Translator/NaturalLanguageDetector.swift](Infrastructure/Translator/NaturalLanguageDetector.swift)、[OITests/TranslatorTests.swift](OITests/TranslatorTests.swift)
 
 ## [ ] 10. 应用启动响应速度与面板残留优化
 
