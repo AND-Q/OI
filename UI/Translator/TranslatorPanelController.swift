@@ -21,6 +21,8 @@ final class TranslatorPanelController {
         case selectionCancelled = "selection cancelled"
         /// 左上角的关闭按钮：只关闭气泡，截图翻译的框选继续。
         case closeButton = "close button"
+        /// ⌘W：同关闭按钮。
+        case closeShortcut = "command-W"
     }
 
     private let makeViewModel: @MainActor () -> TranslatorViewModel
@@ -146,7 +148,7 @@ final class TranslatorPanelController {
             case .lostKeyFocus:
                 // 框选期间点按遮罩会让气泡失去 key：气泡保留，按键改由遮罩接收。
                 return
-            case .reselect, .closeButton:
+            case .reselect, .closeButton, .closeShortcut:
                 break
             case .clickOutside, .escapeKey, .returnKey, .shortcut, .selectionCancelled:
                 endSelection()
@@ -276,11 +278,15 @@ final class TranslatorPanelController {
         }
     }
 
-    /// OI 没有可见的主菜单、气泡出现时也不激活 OI，编辑快捷键在这里直接分派给第一响应者。
+    /// OI 没有可见的主菜单、气泡出现时也不激活 OI，编辑快捷键在这里直接分派给第一响应者，⌘W 在这里关闭气泡。
     private func handleCommandKey(_ key: String, event: NSEvent, in bubble: TranslatorBubble) -> NSEvent? {
         let panel = bubble.panel
         let viewModel = bubble.viewModel
         switch key {
+        case "w":
+            // 同左上角的关闭按钮；不处理时会交给主菜单的「关闭」，无边框的气泡关不掉，只会提示音。
+            close(bubble, reason: .closeShortcut)
+            return nil
         case "c":
             // 选中了部分原文或译文时复制选中的部分；都没有选中时复制整段译文并保留气泡。
             if let editor = panel.firstResponder as? NSTextView, editor.isFieldEditor {

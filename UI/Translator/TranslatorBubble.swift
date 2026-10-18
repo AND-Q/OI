@@ -383,7 +383,7 @@ final class TranslatorCloseButtonView: NSView {
         button.setFrameOrigin(.zero)
         button.target = self
         button.action = #selector(closeBubble)
-        button.toolTip = "关闭"
+        button.toolTip = "关闭（⌘W）"
         // 透明而非隐藏：仍可点按，旁白也能读到这个按钮。
         button.alphaValue = 0
         addSubview(button)
