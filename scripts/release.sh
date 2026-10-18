@@ -11,6 +11,12 @@ if [[ -n "$(git status --porcelain)" ]]; then
     exit 1
 fi
 
+# 制作安装包要用到 dmgbuild，编译前先检查，免得编译完才发现缺少
+if ! command -v dmgbuild >/dev/null 2>&1; then
+    echo "缺少 dmgbuild，请先执行：pip3 install dmgbuild" >&2
+    exit 1
+fi
+
 VERSION=$(xcodebuild -project OI.xcodeproj -scheme OI -configuration Release -showBuildSettings \
     | awk -F' = ' '/^ *MARKETING_VERSION = / { print $2; exit }')
 if [[ -z "$VERSION" ]]; then
