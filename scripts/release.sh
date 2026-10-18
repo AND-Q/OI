@@ -27,20 +27,14 @@ fi
 BUILD_DIR=build/release
 APP="$BUILD_DIR/Build/Products/Release/OI.app"
 DMG="$BUILD_DIR/OI-$VERSION.dmg"
-STAGING="$BUILD_DIR/dmg"
 
 echo "编译 OI ${VERSION}（Release）…"
 xcodebuild -project OI.xcodeproj -scheme OI -configuration Release -derivedDataPath "$BUILD_DIR" -quiet clean build
 
 codesign --verify --deep --strict "$APP"
 
-# 磁盘映像中放 OI.app 与「应用程序」的快捷方式，打开后把 OI 拖进去即可安装；用 ditto 复制，保留签名与扩展属性
-rm -rf "$STAGING" "$DMG"
-mkdir -p "$STAGING"
-ditto "$APP" "$STAGING/OI.app"
-ln -s /Applications "$STAGING/Applications"
-hdiutil create -quiet -volname "OI $VERSION" -srcfolder "$STAGING" -format UDZO "$DMG"
-rm -rf "$STAGING"
+echo "制作安装包…"
+scripts/make-dmg.sh "$APP" "$VERSION" "$DMG"
 SHA256=$(shasum -a 256 "$DMG" | awk '{ print $1 }')
 
 {
