@@ -44,8 +44,8 @@ struct LauncherShortcut: Sendable, Equatable, Hashable {
     /// 默认划词翻译快捷键：Option + D（keyCode 2 = kVK_ANSI_D）。
     static let standardTranslator = LauncherShortcut(keyCode: 2, modifiers: 1 << 11)
 
-    /// 默认截图翻译快捷键：Option + Shift + D。
-    static let standardScreenTranslator = LauncherShortcut(keyCode: 2, modifiers: 1 << 11 | 1 << 9)
+    /// 默认截图翻译快捷键：Option + S（keyCode 1 = kVK_ANSI_S），与常见翻译工具「⌥D 划词、⌥S 截图」的习惯一致。
+    static let standardScreenTranslator = LauncherShortcut(keyCode: 1, modifiers: 1 << 11)
 }
 
 /// 应用级用户设置（设置面板读写）。开机自启动不在此存储：其状态由系统登录项持有，
