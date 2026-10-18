@@ -302,7 +302,7 @@ final class LauncherPanelControllerTests: XCTestCase {
         let handled = controller.handleKeyDown(commandReturnEvent)
         XCTAssertNil(handled)
 
-        for _ in 0..<100 where controller.isVisible && !controller.isDismissalInProgress {
+        for _ in 0..<100 where opener.openedURLs.isEmpty {
             try await Task.sleep(nanoseconds: 10_000_000)
         }
         XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
