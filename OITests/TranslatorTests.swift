@@ -162,6 +162,10 @@ final class TranslatorTests: XCTestCase {
             TranslateText.systemPrompt(for: .simplifiedChinese).contains("one meaning per line"),
             "单词的几个释义每行一个，用分号连在一行里分不清是几个释义"
         )
+        XCTAssertTrue(
+            TranslateText.systemPrompt(for: .simplifiedChinese).contains("Start each line with the part of speech"),
+            "单词的每个释义在行首标出词性"
+        )
     }
 
     func testTranslateTextUsesTranslatorEndpointAndKey() async throws {
