@@ -1,5 +1,5 @@
 #!/bin/bash
-# 编译 Release 版 OI，打包为 zip 并生成带校验值的发布说明，供上传到 GitHub Release。
+# 编译 Release 版 OI，打包为 dmg 磁盘映像并生成带校验值的发布说明，供上传到 GitHub Release。
 # 用法：在已提交的干净工作区中执行 scripts/release.sh
 set -euo pipefail
 
@@ -26,26 +26,31 @@ fi
 
 BUILD_DIR=build/release
 APP="$BUILD_DIR/Build/Products/Release/OI.app"
-ZIP="$BUILD_DIR/OI-$VERSION.zip"
+DMG="$BUILD_DIR/OI-$VERSION.dmg"
+STAGING="$BUILD_DIR/dmg"
 
 echo "编译 OI ${VERSION}（Release）…"
 xcodebuild -project OI.xcodeproj -scheme OI -configuration Release -derivedDataPath "$BUILD_DIR" -quiet clean build
 
 codesign --verify --deep --strict "$APP"
 
-# 用 ditto 打包，保留签名与扩展属性
-rm -f "$ZIP"
-ditto -c -k --keepParent "$APP" "$ZIP"
-SHA256=$(shasum -a 256 "$ZIP" | awk '{ print $1 }')
+# 磁盘映像中放 OI.app 与「应用程序」的快捷方式，打开后把 OI 拖进去即可安装；用 ditto 复制，保留签名与扩展属性
+rm -rf "$STAGING" "$DMG"
+mkdir -p "$STAGING"
+ditto "$APP" "$STAGING/OI.app"
+ln -s /Applications "$STAGING/Applications"
+hdiutil create -quiet -volname "OI $VERSION" -srcfolder "$STAGING" -format UDZO "$DMG"
+rm -rf "$STAGING"
+SHA256=$(shasum -a 256 "$DMG" | awk '{ print $1 }')
 
 {
     cat "$NOTES"
-    printf '\n---\n\n`OI-%s.zip` 的 SHA-256：`%s`\n' "$VERSION" "$SHA256"
+    printf '\n---\n\n`OI-%s.dmg` 的 SHA-256：`%s`\n' "$VERSION" "$SHA256"
 } > "$BUILD_DIR/release-notes.md"
 
 echo
-echo "安装包：$ZIP"
+echo "安装包：$DMG"
 echo "SHA-256：$SHA256"
 echo
 echo "确认无误后发布（标签指向当前提交）："
-echo "  gh release create v$VERSION \"$ZIP\" --target $(git rev-parse HEAD) --title \"OI $VERSION\" --notes-file $BUILD_DIR/release-notes.md"
+echo "  gh release create v$VERSION \"$DMG\" --target $(git rev-parse HEAD) --title \"OI $VERSION\" --notes-file $BUILD_DIR/release-notes.md"

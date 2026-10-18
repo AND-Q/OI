@@ -125,7 +125,7 @@ xcodebuild -project OI.xcodeproj -scheme OI -configuration Debug test
 OI 通过 GitHub Release 分发安装包，不上架 App Store，也不使用 Developer ID 签名和公证，安装包为本地临时签名（ad-hoc）。发布一个版本：
 
 1. 递增 `MARKETING_VERSION` 与 `CURRENT_PROJECT_VERSION`，在 `docs/releases/v<版本号>.md` 编写发布说明，提交后运行全部测试。
-2. 执行 `scripts/release.sh`：编译 Release 版，打包为 `build/release/OI-<版本号>.zip`，并生成带 SHA-256 的发布说明。也可以在 Xcode 中 Archive，再通过 Distribute App → Custom → Copy App 导出 `OI.app` 后在 Finder 中压缩。
+2. 执行 `scripts/release.sh`：编译 Release 版，打包为 `build/release/OI-<版本号>.dmg`（打开后把 OI 拖进「应用程序」安装），并生成带 SHA-256 的发布说明。也可以在 Xcode 中 Archive，再通过 Distribute App → Custom → Copy App 导出 `OI.app`，按脚本中的 `hdiutil` 步骤制作磁盘映像。
 3. 用脚本最后打印的 `gh release create` 命令发布，或在 GitHub 网页上创建 Release 并上传安装包。
 
 OI 的「检查更新…」按仓库最新 Release 的标签与当前版本号比较，标签须为 `v<版本号>` 形式（如 `v1.1.0`，脚本给出的命令即是）；草稿与预发布版本不会被检查到，仓库不公开时也查询不到。
