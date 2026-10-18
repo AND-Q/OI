@@ -230,6 +230,22 @@
 - **涉及文件**：
   - [UI/Translator/TranslatorBubble.swift](UI/Translator/TranslatorBubble.swift)、[UI/Translator/TranslatorPanelController.swift](UI/Translator/TranslatorPanelController.swift)、[Features/Translator/TranslatorViewModel.swift](Features/Translator/TranslatorViewModel.swift)、[Features/Translator/TranslatorView.swift](Features/Translator/TranslatorView.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[App/AppCoordinator.swift](App/AppCoordinator.swift)、[OITests/TranslatorTests.swift](OITests/TranslatorTests.swift)
 
+## [ ] 14. 设置窗口改为 Raycast 式侧边栏导航
+
+![现状：所有设置项挤在一张长表单里](images/settings-before-single-form.png)
+
+![参考：Raycast 的左侧分类、右侧详情](images/settings-raycast-reference.png)
+
+- **需求描述**：
+  - 现在设置窗口是一整张长表单（见上图），设置项越加越多，找一项要一直往下滚；
+  - 改成 Raycast 设置窗口那样：左边是分类导航，右边只显示当前分类的内容（见下图），不引入 Raycast 的账户、Pro 与应用列表等与本项目无关的部分。
+- **需要做到**：
+  - 侧边栏：顶部一个搜索框，下面按分类来，当前分类高亮，侧边栏使用系统材质背景；
+  - 详情区：每个分类一页，沿用现有的分组标题、开关、输入框、快捷键录制与说明文字，只显示当前分类，不再把所有内容串成一张长表单；右侧独立滚动；
+  - 搜索：顶部搜索框按分类名与设置项名称过滤，回车跳到对应分类；
+  - 窗口：加宽到能放下左右两栏，保留现有行为；
+  - 只改布局：所有设置项、默认值、UserDefaults 与钥匙串持久化、快捷键试注册与回滚、API Key 的保存时机都不变。
+
 ## [ ] 系统设置项直达
 
 - **需求描述**：
