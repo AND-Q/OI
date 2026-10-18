@@ -333,41 +333,149 @@ final class TranslatorBubble {
     }
 }
 
-/// 气泡左上角的关闭按钮：直接使用系统的窗口关闭按钮（红色交通灯），外观由系统绘制，随深色模式与窗口是否活跃变化。
+/// 气泡左上角的关闭按钮，外观照 macOS 窗口的关闭按钮：平时是与背景接近的浅灰圆点，不抢眼；
+/// 指针移上去时变为系统的红色并显示 ×。系统自带的按钮只在标题栏里才有悬停变色，放进气泡后需借助未公开的接口，
+/// 因此自行绘制。
 struct TranslatorWindowCloseButton: NSViewRepresentable {
     let action: () -> Void
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(action: action)
+    func makeNSView(context: Context) -> TranslatorCloseButtonView {
+        let view = TranslatorCloseButtonView()
+        view.onClick = action
+        return view
     }
 
-    func makeNSView(context: Context) -> NSButton {
-        let button = NSWindow.standardWindowButton(.closeButton, for: [.titled, .closable]) ?? NSButton()
-        button.target = context.coordinator
-        button.action = #selector(Coordinator.performClose)
-        button.toolTip = "关闭"
-        return button
+    func updateNSView(_ view: TranslatorCloseButtonView, context: Context) {
+        view.onClick = action
     }
 
-    func updateNSView(_ button: NSButton, context: Context) {
-        context.coordinator.action = action
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: TranslatorCloseButtonView, context: Context) -> CGSize? {
+        TranslatorCloseButtonView.size
+    }
+}
+
+final class TranslatorCloseButtonView: NSView {
+    static let size = NSSize(width: 14, height: 14)
+    /// 与系统窗口按钮相同的圆点直径。
+    private static let diameter: CGFloat = 12
+    /// 系统关闭按钮的红色、描边与 × 的颜色。
+    private static let fillColor = NSColor(srgbRed: 1, green: 0.373, blue: 0.341, alpha: 1)
+    private static let pressedFillColor = NSColor(srgbRed: 0.75, green: 0.286, blue: 0.259, alpha: 1)
+    private static let borderColor = NSColor(srgbRed: 0.878, green: 0.267, blue: 0.243, alpha: 1)
+    private static let glyphColor = NSColor(srgbRed: 0.302, green: 0, blue: 0, alpha: 0.7)
+
+    var onClick: (() -> Void)?
+    private var isPressed = false {
+        didSet { needsDisplay = true }
     }
 
-    /// 按系统给出的按钮尺寸排版。
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSButton, context: Context) -> CGSize? {
-        nsView.frame.size == .zero ? nsView.fittingSize : nsView.frame.size
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        toolTip = "关闭"
     }
 
-    @MainActor
-    final class Coordinator: NSObject {
-        var action: () -> Void
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
-        init(action: @escaping () -> Void) {
-            self.action = action
+    override var intrinsicContentSize: NSSize { Self.size }
+
+    /// 气泡不是 key 窗口时（如固定后点过别处）点一次即关闭。
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas {
+            removeTrackingArea(area)
         }
+        // OI 不在前台，只有 activeAlways 的跟踪区域才会收到指针进出。
+        addTrackingArea(NSTrackingArea(
+            rect: .zero,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        ))
+    }
 
-        @objc func performClose() {
-            action()
+    override func mouseEntered(with event: NSEvent) {
+        needsDisplay = true
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        needsDisplay = true
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        isPressed = true
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        isPressed = contains(event)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        isPressed = false
+        if contains(event) {
+            onClick?()
         }
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let rect = NSRect(
+            x: (bounds.width - Self.diameter) / 2,
+            y: (bounds.height - Self.diameter) / 2,
+            width: Self.diameter,
+            height: Self.diameter
+        )
+        let circle = NSBezierPath(ovalIn: rect.insetBy(dx: 0.25, dy: 0.25))
+        circle.lineWidth = 0.5
+        guard isPressed || isPointerInside else {
+            // 平时：随浅色与深色外观变化的浅灰，与毛玻璃背景接近。
+            NSColor.labelColor.withAlphaComponent(0.16).setFill()
+            circle.fill()
+            NSColor.labelColor.withAlphaComponent(0.08).setStroke()
+            circle.stroke()
+            return
+        }
+        (isPressed ? Self.pressedFillColor : Self.fillColor).setFill()
+        circle.fill()
+        Self.borderColor.setStroke()
+        circle.stroke()
+
+        let inset = Self.diameter * 0.32
+        let glyphRect = rect.insetBy(dx: inset, dy: inset)
+        let glyph = NSBezierPath()
+        glyph.move(to: NSPoint(x: glyphRect.minX, y: glyphRect.minY))
+        glyph.line(to: NSPoint(x: glyphRect.maxX, y: glyphRect.maxY))
+        glyph.move(to: NSPoint(x: glyphRect.minX, y: glyphRect.maxY))
+        glyph.line(to: NSPoint(x: glyphRect.maxX, y: glyphRect.minY))
+        glyph.lineWidth = 1.1
+        glyph.lineCapStyle = .round
+        Self.glyphColor.setStroke()
+        glyph.stroke()
+    }
+
+    /// 按指针的实际位置判断是否悬停：气泡收起时收不到指针离开，再次弹出时也不会停留在悬停状态。
+    private var isPointerInside: Bool {
+        guard let window else { return false }
+        return bounds.contains(convert(window.mouseLocationOutsideOfEventStream, from: nil))
+    }
+
+    private func contains(_ event: NSEvent) -> Bool {
+        bounds.contains(convert(event.locationInWindow, from: nil))
+    }
+
+    // MARK: - Accessibility
+
+    override func isAccessibilityElement() -> Bool { true }
+
+    override func accessibilityRole() -> NSAccessibility.Role? { .button }
+
+    override func accessibilityLabel() -> String? { "关闭" }
+
+    override func accessibilityPerformPress() -> Bool {
+        onClick?()
+        return true
     }
 }
