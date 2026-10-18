@@ -18,7 +18,9 @@ MOUNT="/Volumes/$VOLUME"
 WORK=$(mktemp -d)
 STAGING="$WORK/staging"
 RW_DMG="$WORK/rw.dmg"
-trap 'rm -rf "$WORK"' EXIT
+DEVICE=""
+# 中途出错时推出已挂载的临时映像
+trap '[[ -n "$DEVICE" ]] && hdiutil detach -quiet -force "$DEVICE"; rm -rf "$WORK"' EXIT
 
 # 同名磁盘映像已挂载时，访达无法区分要布置的是哪一个
 if [[ -d "$MOUNT" ]]; then
@@ -32,7 +34,7 @@ ditto "$APP" "$STAGING/OI.app"
 ln -s /Applications "$STAGING/Applications"
 # 合并普通屏与 Retina 两种尺寸的背景图
 tiffutil -cathidpicheck "$ROOT/assets/dmg-background.png" "$ROOT/assets/dmg-background@2x.png" \
-    -out "$STAGING/.background/background.tiff" >/dev/null
+    -out "$STAGING/.background/background.tiff" >/dev/null 2>&1
 if [[ -f "$APP/Contents/Resources/AppIcon.icns" ]]; then
     cp "$APP/Contents/Resources/AppIcon.icns" "$STAGING/.VolumeIcon.icns"
 fi
@@ -46,7 +48,8 @@ if [[ -f "$MOUNT/.VolumeIcon.icns" ]] && xcrun --find SetFile >/dev/null 2>&1; t
     xcrun SetFile -a C "$MOUNT"
 fi
 
-# 窗口 600×400，与背景图尺寸一致；图标位置是图标中心，与背景图中箭头两端对齐
+# 窗口宽 600、高 432（含标题栏），内容区约 600×400；背景图 600×440 留出余量，不露白边。
+# 图标位置是图标中心，与背景图中箭头两端对齐。关闭后重新打开并微调一次窗口大小，促使访达保存布局
 osascript <<EOF
 tell application "Finder"
     tell disk "$VOLUME"
@@ -54,31 +57,43 @@ tell application "Finder"
         set current view of container window to icon view
         set toolbar visible of container window to false
         set statusbar visible of container window to false
-        set bounds of container window to {200, 120, 800, 520}
+        set bounds of container window to {200, 120, 800, 552}
         set viewOptions to icon view options of container window
         set arrangement of viewOptions to not arranged
         set icon size of viewOptions to 128
         set text size of viewOptions to 13
         set background picture of viewOptions to file ".background:background.tiff"
-        set position of item "OI.app" of container window to {150, 185}
-        set position of item "Applications" of container window to {450, 185}
+        set position of item "OI.app" of container window to {150, 180}
+        set position of item "Applications" of container window to {450, 180}
         close
         open
         update without registering applications
-        delay 2
+        delay 1
+        set bounds of container window to {200, 120, 790, 542}
+        delay 1
+        set bounds of container window to {200, 120, 800, 552}
+        delay 1
         close
     end tell
 end tell
 EOF
 
-# 等访达把布局写进 .DS_Store 再推出
-for _ in 1 2 3 4 5 6 7 8 9 10; do
-    [[ -f "$MOUNT/.DS_Store" ]] && break
+# 访达在关闭窗口后才把视图选项与图标位置异步写进 .DS_Store（标记分别为 icvp、Iloc），
+# 打开窗口时先写入的只有窗口大小；两者都写入后再推出，最多等 30 秒
+for _ in $(seq 30); do
+    if [[ -f "$MOUNT/.DS_Store" ]] && grep -aq icvp "$MOUNT/.DS_Store" && grep -aq Iloc "$MOUNT/.DS_Store"; then
+        break
+    fi
     sleep 1
 done
+if ! { grep -aq icvp "$MOUNT/.DS_Store" && grep -aq Iloc "$MOUNT/.DS_Store"; } 2>/dev/null; then
+    echo "访达没有写入窗口布局，请确认已允许终端控制「访达」后重试。" >&2
+    exit 1
+fi
+sleep 2
 sync
 for _ in 1 2 3 4 5; do
-    hdiutil detach -quiet "$DEVICE" && break
+    hdiutil detach -quiet "$DEVICE" && DEVICE="" && break
     sleep 2
 done
 
