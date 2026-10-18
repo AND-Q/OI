@@ -971,6 +971,25 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(environment.trackpadSettingsOpenCount, 1)
     }
 
+    func testSettingsViewModelNotifiesBeforeOpeningSystemSettings() {
+        let environment = MemoryTranslatorEnvironment()
+        let viewModel = makeSettingsViewModel(environment: environment)
+        var openCountsWhenNotified: [Int] = []
+        viewModel.willOpenSystemSettings = {
+            openCountsWhenNotified.append(
+                environment.accessibilityRequestCount
+                    + environment.screenCaptureRequestCount
+                    + environment.trackpadSettingsOpenCount
+            )
+        }
+
+        viewModel.requestAccessibilityAccess()
+        viewModel.requestScreenCaptureAccess()
+        viewModel.openTrackpadSettings()
+
+        XCTAssertEqual(openCountsWhenNotified, [0, 1, 2], "每次跳转前通知一次，先于打开系统设置")
+    }
+
     func testReportTranslatorShortcutRegistrationFailureSetsNotice() {
         let viewModel = makeSettingsViewModel()
 

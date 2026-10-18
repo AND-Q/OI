@@ -5,13 +5,25 @@ import SwiftUI
 /// 这里用固定单实例窗口托管 SwiftUI 表单，避免依赖 showSettingsWindow: 选择器。
 @MainActor
 final class SettingsWindowController {
+    /// 系统设置的 Bundle ID，沿用「系统偏好设置」时期的标识。
+    private static let systemSettingsBundleIdentifier = "com.apple.systempreferences"
+    /// 系统设置退出后稍等再回到最前面：前台交给下一个应用、它的窗口升到最前面，与退出通知的先后不确定。
+    private static let returnDelay: Duration = .milliseconds(300)
+
     private let viewModel: SettingsViewModel
     private var window: NSWindow?
     private var commitObservers: [any NSObjectProtocol] = []
     private var permissionObserver: (any NSObjectProtocol)?
+    private var closeObserver: (any NSObjectProtocol)?
+    /// 从设置页跳转到系统设置后，等待系统设置退出。
+    private var systemSettingsObserver: (any NSObjectProtocol)?
+    private var returnTask: Task<Void, Never>?
 
     init(viewModel: SettingsViewModel) {
         self.viewModel = viewModel
+        viewModel.willOpenSystemSettings = { [weak self] in
+            self?.returnAfterSystemSettingsQuits()
+        }
     }
 
     func show() {
@@ -73,6 +85,54 @@ final class SettingsWindowController {
                 self?.viewModel.refreshPermissionStatus()
             }
         }
+        closeObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.stopWaitingForSystemSettings()
+            }
+        }
         return window
+    }
+
+    /// 设置页跳转到系统设置后，等系统设置退出再把设置窗口带回最前面：系统设置退出后前台交给上一个
+    /// 普通应用，它的窗口会盖住设置窗口，而 OI 没有程序坞图标、也不在 ⌘Tab 中，用户难以找回。
+    /// 设置窗口关闭后不再等待；用户自行打开的系统设置不受影响。
+    private func returnAfterSystemSettingsQuits() {
+        guard systemSettingsObserver == nil else { return }
+        systemSettingsObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didTerminateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            let bundleIdentifier = application?.bundleIdentifier
+            MainActor.assumeIsolated {
+                guard bundleIdentifier == SettingsWindowController.systemSettingsBundleIdentifier else { return }
+                self?.systemSettingsDidQuit()
+            }
+        }
+    }
+
+    private func systemSettingsDidQuit() {
+        stopWaitingForSystemSettings()
+        returnTask = Task { [weak self] in
+            try? await Task.sleep(for: SettingsWindowController.returnDelay)
+            // 等待期间窗口已关闭时任务被取消，不再重新打开。
+            guard let self, !Task.isCancelled else { return }
+            self.returnTask = nil
+            self.show()
+        }
+    }
+
+    private func stopWaitingForSystemSettings() {
+        returnTask?.cancel()
+        returnTask = nil
+        if let systemSettingsObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(systemSettingsObserver)
+            self.systemSettingsObserver = nil
+        }
     }
 }
