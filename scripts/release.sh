@@ -20,7 +20,7 @@ fi
 
 NOTES="docs/releases/v$VERSION.md"
 if [[ ! -f "$NOTES" ]]; then
-    echo "缺少发布说明 $NOTES，请先编写。" >&2
+    echo "缺少发布说明 ${NOTES}，请先编写。" >&2
     exit 1
 fi
 
@@ -28,7 +28,7 @@ BUILD_DIR=build/release
 APP="$BUILD_DIR/Build/Products/Release/OI.app"
 ZIP="$BUILD_DIR/OI-$VERSION.zip"
 
-echo "编译 OI $VERSION（Release）…"
+echo "编译 OI ${VERSION}（Release）…"
 xcodebuild -project OI.xcodeproj -scheme OI -configuration Release -derivedDataPath "$BUILD_DIR" -quiet clean build
 
 codesign --verify --deep --strict "$APP"
