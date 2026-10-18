@@ -213,8 +213,10 @@ struct AccessibilityTextCapturer: TextCapturing {
     }
 
     private static func frame(of element: AXUIElement) -> CGRect? {
-        guard let origin = unpack(attribute(element, kAXPositionAttribute), .cgPoint, initial: CGPoint.zero),
-              let size = unpack(attribute(element, kAXSizeAttribute), .cgSize, initial: CGSize.zero)
+        var origin = CGPoint.zero
+        var size = CGSize.zero
+        guard unpack(attribute(element, kAXPositionAttribute), .cgPoint, into: &origin),
+              unpack(attribute(element, kAXSizeAttribute), .cgSize, into: &size)
         else { return nil }
         return CGRect(origin: origin, size: size)
     }
@@ -345,19 +347,20 @@ struct AccessibilityTextCapturer: TextCapturing {
     }
 
     private static func range(_ value: CFTypeRef?) -> CFRange? {
-        unpack(value, .cfRange, initial: CFRange())
+        var result = CFRange()
+        return unpack(value, .cfRange, into: &result) ? result : nil
     }
 
     private static func rect(_ value: CFTypeRef?) -> CGRect? {
-        unpack(value, .cgRect, initial: CGRect.zero)
+        var result = CGRect.zero
+        return unpack(value, .cgRect, into: &result) ? result : nil
     }
 
-    /// 取出 AXValue 中的结构体；值不是 AXValue 或类型不符时为 nil。
-    private static func unpack<T>(_ value: CFTypeRef?, _ type: AXValueType, initial: T) -> T? {
-        guard let value, CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
-        var result = initial
-        guard AXValueGetValue(value as! AXValue, type, &result) else { return nil }
-        return result
+    /// 把 AXValue 中的结构体取到 `pointer` 指向的变量；值不是 AXValue 或类型不符时返回 false。
+    /// 不写成泛型：`AXValueGetValue` 按字节写入，只能传给纯数值的结构体（CGPoint、CGSize、CGRect、CFRange）。
+    private static func unpack(_ value: CFTypeRef?, _ type: AXValueType, into pointer: UnsafeMutableRawPointer) -> Bool {
+        guard let value, CFGetTypeID(value) == AXValueGetTypeID() else { return false }
+        return AXValueGetValue(value as! AXValue, type, pointer)
     }
 
     private static func axValue(point: CGPoint) -> AXValue? {

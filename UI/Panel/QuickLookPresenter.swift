@@ -80,8 +80,11 @@ extension QuickLookPresenter: QLPreviewPanelDataSource, QLPreviewPanelDelegate {
     }
 
     nonisolated func previewPanel(_ panel: QLPreviewPanel!, handle event: NSEvent!) -> Bool {
-        MainActor.assumeIsolated {
-            onHandleEvent?(event) ?? false
+        guard let event else { return false }
+        // 同上，QL 在主线程回调，事件只在主线程上使用；NSEvent 不是 Sendable，编译器无从得知，这里显式声明。
+        nonisolated(unsafe) let mainThreadEvent = event
+        return MainActor.assumeIsolated {
+            onHandleEvent?(mainThreadEvent) ?? false
         }
     }
 

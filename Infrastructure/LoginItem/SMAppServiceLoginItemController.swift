@@ -10,6 +10,8 @@ final class SMAppServiceLoginItemController: LoginItemControlling {
         case .enabled: .enabled
         case .requiresApproval: .requiresApproval
         case .notRegistered, .notFound: .notRegistered
+        // 系统将来新增的状态按未注册处理，开关显示为关。
+        @unknown default: .notRegistered
         }
     }
 
