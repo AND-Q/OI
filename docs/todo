@@ -171,7 +171,7 @@
   - **保证窗口层级与焦点流畅**：防止系统授权对话框与系统设置应用窗口重叠或出现焦点争抢。
 - **实现说明**：
   - 原因：[SystemTranslatorEnvironment](Infrastructure/Translator/SystemTranslatorEnvironment.swift) 调用 `AXIsProcessTrustedWithOptions` 请求提示后紧接着打开设置页，两者同时出现；
-  - 判断系统是否弹出提示：系统只在 OI 尚未出现在辅助功能列表中时弹出授权提示（并把 OI 加入列表），之后不再提示，但没有公开接口能查询 OI 是否已在列表中；用「是否首次请求」的本地标记推断也不可靠（旧版本已请求过、用户在列表中移除过 OI 时都会判断错）。改为观察提示框本身：提示框出现时会切到前台，请求后 1 秒内有其他应用切到前台即交给系统提示引导，不再打开设置页；没有则说明系统未提示（OI 已在列表中但未勾选），此时才打开「隐私与安全性 → 辅助功能」（打开前再确认一次仍未授权）；
+  - 判断系统是否弹出提示：系统只在 OI 尚未出现在辅助功能列表中时弹出授权提示（并把 OI 加入列表），之后不再提示，但没有公开接口能查询 OI 是否已在列表中；用「是否首次请求」的本地标记推断也不可靠（旧版本已请求过、用户在列表中移除过 OI 时都会判断错）。改为观察提示框本身：提示框出现时会切到前台，请求后 1 秒内有其他应用切到前台即交给系统提示引导，不再打开设置页；没有则说明系统未提示（OI 已在列表中但未勾选），此时才打开「隐私与安全性 → 辅助功能」（打开前再确认一次仍未授权）；后经实测，辅助功能的提示在未授权时每次请求都会弹出（只弹一次的是屏幕录制），改进见 15；
   - 焦点：提示框与系统设置页同一时间只会出现一个，不再互相覆盖、争抢焦点；等待期间重复点击「去开启…」不会重复请求；设置窗口与翻译气泡中的授权入口共用这一流程。
 - **涉及文件**：
   - [Infrastructure/Translator/SystemTranslatorEnvironment.swift](Infrastructure/Translator/SystemTranslatorEnvironment.swift)、[Application/Ports/TranslatorEnvironmentHandling.swift](Application/Ports/TranslatorEnvironmentHandling.swift)
@@ -246,6 +246,21 @@
   - 搜索：顶部搜索框按分类名与设置项名称过滤，回车跳到对应分类；
   - 窗口：加宽到能放下左右两栏，保留现有行为；
   - 只改布局：所有设置项、默认值、UserDefaults 与钥匙串持久化、快捷键试注册与回滚、API Key 的保存时机都不变。
+
+## [x] 15. 辅助功能授权提示每次运行只弹一次
+
+- **需求描述**：
+  - 点「去开启…」申请辅助功能权限时，每次都先弹出系统授权提示（点过「拒绝」也一样），要先点其中的「打开系统设置」才能到设置页；屏幕录制的授权提示则只在第一次申请时弹出，之后直接打开设置页，两者不一致。
+- **需要做到**：
+  - 每次运行 OI 后第一次申请照常由系统授权提示引导（提示会把 OI 加入权限列表）；同一次运行中再次申请（包括在提示中点过「拒绝」）不再弹提示，直接打开「隐私与安全性」中对应的页面；
+  - 不跨运行记住：重新打开 OI 后第一次申请再弹一次提示，OI 被移出列表或重新编译（临时签名，系统视为另一个程序）后仍能由提示加回列表，不必在设置页用「+」手动添加；
+  - OI 不会主动申请权限，只有点按设置窗口或翻译气泡中的授权入口时才申请。
+- **实现说明**：
+  - 原因：`AXIsProcessTrustedWithOptions` 带提示选项时，未授权就每次弹出提示；`CGRequestScreenCaptureAccess` 只在第一次弹出。11 中「系统只在 OI 尚未出现在列表中时弹出提示」的前提对辅助功能不成立；
+  - [SystemTranslatorEnvironment](Infrastructure/Translator/SystemTranslatorEnvironment.swift) 记下本次运行中已向系统请求过的权限（只在内存中），再次请求时跳过系统请求，仍未授权则直接打开设置页；首次请求沿用 11 的流程（观察提示框是否出现，没有出现才打开设置页）；屏幕录制同样适用，第二次请求不必再等待 1 秒；
+  - 该类直接调用系统权限接口，没有单元测试，在真机上验证。
+- **涉及文件**：
+  - [Infrastructure/Translator/SystemTranslatorEnvironment.swift](Infrastructure/Translator/SystemTranslatorEnvironment.swift)、[Application/Ports/TranslatorEnvironmentHandling.swift](Application/Ports/TranslatorEnvironmentHandling.swift)
 
 ## [ ] 系统设置项直达
 

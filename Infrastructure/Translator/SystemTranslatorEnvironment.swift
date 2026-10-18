@@ -25,7 +25,8 @@ final class SystemTranslatorEnvironment: TranslatorEnvironmentHandling {
             }
         }
 
-        /// 请求权限，返回是否已获授权；系统只在 OI 尚未出现在对应权限列表中时弹出授权提示。
+        /// 请求权限，返回是否已获授权。未授权时系统弹出授权提示（并把 OI 加入对应权限列表）：
+        /// 辅助功能每次请求都会弹出（点过「拒绝」也一样），屏幕录制只在第一次请求时弹出。
         func request() -> Bool {
             switch self {
             case .accessibility:
@@ -47,6 +48,8 @@ final class SystemTranslatorEnvironment: TranslatorEnvironmentHandling {
     /// 一次请求的收尾：系统授权提示出现即结束，等待超时则打开设置页。
     private var pendingRequest: Task<Void, Never>?
     private var activationObserver: (any NSObjectProtocol)?
+    /// 本次运行中已向系统请求过的权限：再次请求时不再经系统授权提示，直接打开设置页。
+    private var requestedPermissions: Set<Permission> = []
 
     var isAccessibilityTrusted: Bool {
         Permission.accessibility.isGranted
@@ -70,11 +73,19 @@ final class SystemTranslatorEnvironment: TranslatorEnvironmentHandling {
 
     private func requestAccess(_ permission: Permission) {
         guard pendingRequest == nil else { return }
+        // 同一次运行只经系统授权提示请求一次，之后直接打开设置页，免得每次都先点掉辅助功能的提示。
+        // 不跨运行记住：重新打开 OI 后再经提示请求一次，OI 被移出列表或重新编译（临时签名，系统视为
+        // 另一个程序）后仍能由提示加回列表。
+        guard requestedPermissions.insert(permission).inserted else {
+            if !permission.isGranted {
+                open(permission.settingsURL)
+            }
+            return
+        }
         guard !permission.request() else { return }
 
-        // 系统只在 OI 尚未出现在权限列表中时弹出授权提示（并把 OI 加入列表），提示自带「打开系统设置」，
-        // 此时再打开设置页会抢在用户作答前盖住提示、抢走焦点。之后 OI 已在列表中（未勾选），系统不再提示，
-        // 才需要直接打开设置页。无从查询 OI 是否已在列表中，改为观察提示框：它出现时会切到前台。
+        // 提示自带「打开系统设置」，此时再打开设置页会抢在用户作答前盖住提示、抢走焦点；系统没有弹出提示
+        // （屏幕录制此前已请求过）时才需要直接打开设置页。无从预知是否会弹出，改为观察提示框：它出现时会切到前台。
         activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
