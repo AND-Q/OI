@@ -36,6 +36,10 @@ final class SettingsWindowController {
         let window = self.window ?? makeWindow()
         self.window = window
         setActivationPolicy(.regular)
+        // 最小化后再从菜单栏打开设置：先从程序坞还原。
+        if window.isMiniaturized {
+            window.deminiaturize(nil)
+        }
         window.orderFrontRegardless()
         // 从状态栏菜单触发时菜单仍在收起，推迟到菜单收起后再激活，并用 orderFrontRegardless
         // 保证窗口位于所有应用之上。激活与启动器一致用 activate(ignoringOtherApps:)：macOS 14 起
@@ -56,17 +60,21 @@ final class SettingsWindowController {
     private func makeWindow() -> NSWindow {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 760, height: 560),
-            styleMask: [.titled, .closable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
+        // 可最小化、拉大与全屏（同 Raycast）；拉大时侧边栏宽度不变，右侧设置页随之加宽。
+        window.collectionBehavior.insert(.fullScreenPrimary)
         window.title = "OI 设置"
         // 侧边栏延伸到标题栏下方，红绿灯叠在侧边栏上（同系统设置）；标题只用于窗口菜单与调度中心，不显示。
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
         let controller = NSHostingController(rootView: SettingsView(viewModel: viewModel))
-        controller.sizingOptions = [.preferredContentSize]
+        // 只按 SwiftUI 的最小尺寸约束窗口，不跟随理想尺寸：跟随时用户拉大的窗口会被弹回，
+        // 内容理想高度超出屏幕时还会反复压回撑大、陷入约束更新死循环。
+        controller.sizingOptions = [.minSize]
         window.contentViewController = controller
         window.center()
         // 输入框失焦不覆盖所有离开方式：直接点关闭按钮，或不点别处就按快捷键切到启动器

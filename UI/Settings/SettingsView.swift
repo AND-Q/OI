@@ -32,9 +32,9 @@ struct SettingsView: View {
             viewModel.commitQuickAIAPIKey()
             viewModel.commitTranslationAPIKey()
         }
-        // 固定尺寸、内容在各页内滚动：窗口按 preferredContentSize 跟随理想高度时，
-        // 分组增多后理想高度超出屏幕，窗口被压回又被撑大，会触发约束更新死循环崩溃。
-        .frame(width: 760, height: 560)
+        // 最小尺寸放得下左右两栏，窗口可拉大与全屏；内容在各页内滚动，窗口不跟随内容的理想高度
+        // （见 SettingsWindowController 的 sizingOptions）。
+        .frame(minWidth: 760, minHeight: 560)
         .onAppear {
             viewModel.refreshLaunchAtLoginStatus()
             viewModel.refreshPermissionStatus()
