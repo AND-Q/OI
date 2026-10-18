@@ -55,6 +55,14 @@ struct AppDependencies {
             aliases: configuration.applicationAliases,
             fileSearchMinimumQueryLength: configuration.fileSearchMinimumQueryLength
         )
+        let translateText = TranslateText(
+            answerer: quickAIClient,
+            languageDetector: NaturalLanguageDetector(),
+            settingsStore: settingsStore,
+            keyStore: translatorKeyStore
+        )
+        let wordSelector = DoubleClickWordSelector(textCapturer: textCapturer)
+        let screenTextRecognizer = VisionScreenTextRecognizer()
 
         return AppDependencies(
             launcherViewModel: launcherViewModel,
@@ -76,19 +84,16 @@ struct AppDependencies {
                 }
             },
             translator: TranslatorDependencies(
-                viewModel: TranslatorViewModel(
-                    translateText: TranslateText(
-                        answerer: quickAIClient,
-                        languageDetector: NaturalLanguageDetector(),
-                        settingsStore: settingsStore,
-                        keyStore: translatorKeyStore
-                    ),
-                    textCapturer: textCapturer,
-                    wordSelector: DoubleClickWordSelector(textCapturer: textCapturer),
-                    screenTextRecognizer: VisionScreenTextRecognizer(),
-                    environment: translatorEnvironment,
-                    settingsStore: settingsStore
-                ),
+                makeViewModel: {
+                    TranslatorViewModel(
+                        translateText: translateText,
+                        textCapturer: textCapturer,
+                        wordSelector: wordSelector,
+                        screenTextRecognizer: screenTextRecognizer,
+                        environment: translatorEnvironment,
+                        settingsStore: settingsStore
+                    )
+                },
                 shortcutService: CarbonGlobalShortcutService(hotKeyIdentifier: 2),
                 screenShortcutService: CarbonGlobalShortcutService(hotKeyIdentifier: 3),
                 forceTouchMonitor: GlobalForceTouchMonitor()
@@ -101,7 +106,8 @@ struct AppDependencies {
 /// 划词翻译的依赖。翻译与截图翻译快捷键各使用独立的热键服务实例，与呼出快捷键按热键 ID 区分。
 @MainActor
 struct TranslatorDependencies {
-    let viewModel: TranslatorViewModel
+    /// 每个翻译气泡各建一份视图模型：固定的气泡保留自己的内容，与之后的翻译互不影响。
+    let makeViewModel: @MainActor () -> TranslatorViewModel
     let shortcutService: any GlobalShortcutHandling
     let screenShortcutService: any GlobalShortcutHandling
     let forceTouchMonitor: any ForceTouchMonitoring

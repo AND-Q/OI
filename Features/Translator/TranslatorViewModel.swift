@@ -8,9 +8,8 @@ final class TranslatorViewModel: ObservableObject {
 
     @Published private(set) var session: TranslatorSession?
     @Published private(set) var notice: TranslatorNotice?
-    /// 气泡被拖离了弹出位置：之后只能手动关闭，气泡上显示关闭按钮。由面板在拖动时设置，
-    /// 气泡展示新的内容或收起时复位。
-    @Published var isDetached = false
+    /// 气泡已固定在屏幕上（由面板在点按图钉时设置）：界面显示实心图钉。固定后不能取消，只能关闭。
+    @Published var isPinned = false
 
     private let translateText: TranslateText
     private let textCapturer: any TextCapturing
@@ -201,7 +200,7 @@ final class TranslatorViewModel: ObservableObject {
         translationBuffer.discard()
         session = nil
         notice = nil
-        isDetached = false
+        isPinned = false
     }
 
     func markCopied() {

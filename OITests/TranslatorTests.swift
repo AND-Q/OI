@@ -539,12 +539,10 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(viewModel.session?.translation, "部分")
         XCTAssertEqual(viewModel.session?.state, .finished)
 
-        viewModel.isDetached = true
         viewModel.reset()
 
         XCTAssertNil(viewModel.session)
         XCTAssertNil(viewModel.notice)
-        XCTAssertFalse(viewModel.isDetached, "气泡收起后，下次弹出回到自动摆放与收起")
     }
 
     func testTranslationToCopyExcludesThinkingAndMarksCopied() async throws {
@@ -1010,7 +1008,7 @@ final class TranslatorTests: XCTestCase {
                 applicationIconProvider: StubIconProvider(),
                 globalShortcutService: launcherService,
                 translator: TranslatorDependencies(
-                    viewModel: makeTranslatorViewModel(settings: AppSettings()),
+                    makeViewModel: { self.makeTranslatorViewModel(settings: AppSettings()) },
                     shortcutService: translatorService,
                     screenShortcutService: screenService,
                     forceTouchMonitor: monitor
@@ -1048,7 +1046,7 @@ final class TranslatorTests: XCTestCase {
                 applicationIconProvider: StubIconProvider(),
                 globalShortcutService: RecordingShortcutService(),
                 translator: TranslatorDependencies(
-                    viewModel: makeTranslatorViewModel(settings: AppSettings()),
+                    makeViewModel: { self.makeTranslatorViewModel(settings: AppSettings()) },
                     shortcutService: RecordingShortcutService(),
                     screenShortcutService: RecordingShortcutService(),
                     forceTouchMonitor: monitor

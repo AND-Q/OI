@@ -118,6 +118,7 @@
 		A100000100000067 /* ScreenTextRecognizing.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000067 /* ScreenTextRecognizing.swift */; };
 		A100000100000068 /* VisionScreenTextRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000068 /* VisionScreenTextRecognizer.swift */; };
 		A100000100000069 /* ScreenSelectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000069 /* ScreenSelectionOverlay.swift */; };
+		A10000010000006A /* TranslatorBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000006A /* TranslatorBubble.swift */; };
 		B10000010000001D /* TranslatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001E /* TranslatorTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -246,6 +247,7 @@
 		A200000100000067 /* ScreenTextRecognizing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenTextRecognizing.swift; sourceTree = "<group>"; };
 		A200000100000068 /* VisionScreenTextRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionScreenTextRecognizer.swift; sourceTree = "<group>"; };
 		A200000100000069 /* ScreenSelectionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenSelectionOverlay.swift; sourceTree = "<group>"; };
+		A20000010000006A /* TranslatorBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorBubble.swift; sourceTree = "<group>"; };
 		B20000010000001E /* TranslatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -632,6 +634,7 @@
 			children = (
 				A20000010000005D /* TranslatorPanelController.swift */,
 				A200000100000069 /* ScreenSelectionOverlay.swift */,
+				A20000010000006A /* TranslatorBubble.swift */,
 			);
 			path = Translator;
 			sourceTree = "<group>";
@@ -832,6 +835,7 @@
 				A100000100000067 /* ScreenTextRecognizing.swift in Sources */,
 				A100000100000068 /* VisionScreenTextRecognizer.swift in Sources */,
 				A100000100000069 /* ScreenSelectionOverlay.swift in Sources */,
+				A10000010000006A /* TranslatorBubble.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

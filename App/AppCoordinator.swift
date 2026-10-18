@@ -41,7 +41,7 @@ final class AppCoordinator {
             iconProvider: dependencies.applicationIconProvider
         )
         self.translatorPanelController = dependencies.translator.map {
-            TranslatorPanelController(viewModel: $0.viewModel)
+            TranslatorPanelController(makeViewModel: $0.makeViewModel)
         }
         // 设置面板切换呼出快捷键时经由同一注册路径生效。直接强引用服务与面板：
         // 闭包被调用时面板必须存在（否则注册出的热键呼不出任何东西），

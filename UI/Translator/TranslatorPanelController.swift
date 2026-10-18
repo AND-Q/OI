@@ -1,30 +1,14 @@
 import AppKit
 import Carbon.HIToolbox
 import os
-import SwiftUI
 
-/// 划词翻译气泡的 AppKit 壳：不激活 OI 的浮动面板，弹在原文旁边。
-/// 面板成为 key 窗口以接收 Esc / 回车与原文编辑，但 OI 不切到前台，原应用保持激活。
-/// 用力点按取到单词时，另用一个不接收鼠标的窗口在原文单词上叠加黄色高亮，随气泡出现与收起。
-/// 截图翻译时先进入框选（`ScreenSelectionOverlay`），框选完成后气泡贴着选框弹出、显示在遮罩之上。
-/// 气泡可以拖动：拖动过的气泡留在放下的位置，点到别处、切换应用、退出框选都不收起，
-/// 只由关闭按钮、`Esc`、回车复制或新的翻译关闭。
+/// 划词翻译气泡的管理：每次翻译弹出「当前气泡」（`TranslatorBubble`），点到其他应用、`Esc` 或再按快捷键即收起；
+/// 点按气泡右上角的图钉后，这个气泡固定在屏幕上，与之后的翻译互相隔离——点到别处、切换应用、退出框选都不收起，
+/// 只由它自己的关闭按钮、`Esc` 或回车复制关闭；之后的翻译另开新的当前气泡。可以同时固定多个。
+/// 截图翻译时先进入框选（`ScreenSelectionOverlay`），框选完成后当前气泡贴着选框弹出、显示在遮罩之上。
 @MainActor
 final class TranslatorPanelController {
-    private enum Layout {
-        static let fadeInDuration: TimeInterval = 0.12
-        static let fadeOutDuration: TimeInterval = 0.15
-        /// 首次排版完成前的估计高度。
-        static let initialHeight: CGFloat = 120
-        /// 高亮比单词区域向外扩展的距离。
-        static let highlightPadding: CGFloat = 2
-        /// 等待鼠标按键松开时的检查间隔。
-        static let mouseReleasePollInterval: Duration = .milliseconds(10)
-        /// 松开后等原应用处理完这次点击，再让气泡接管键盘。
-        static let keyFocusDelayAfterRelease: Duration = .milliseconds(100)
-    }
-
-    /// 气泡收起的原因，记入日志以便排查气泡意外收起。
+    /// 当前气泡收起的原因，记入日志以便排查气泡意外收起。
     private enum DismissReason: String {
         case lostKeyFocus = "lost key focus"
         case clickOutside = "click outside"
@@ -35,86 +19,25 @@ final class TranslatorPanelController {
         case reselect = "reselect"
         /// 截图翻译中右键或有其他应用切到前台：退出框选。
         case selectionCancelled = "selection cancelled"
-        /// 拖动过的气泡上的关闭按钮。
+        /// 左上角的关闭按钮：只关闭气泡，截图翻译的框选继续。
         case closeButton = "close button"
     }
 
-    private let viewModel: TranslatorViewModel
-    let panel: TranslatorPanel
-    private let highlight: NSPanel
+    private let makeViewModel: @MainActor () -> TranslatorViewModel
+    /// 跟随每次翻译弹出的气泡。
+    private var current: TranslatorBubble
+    /// 已固定的气泡，各自关闭后移除。
+    private var pinnedBubbles: [TranslatorBubble] = []
     private let selectionOverlay = ScreenSelectionOverlay()
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "OI", category: "Translator")
     private var keyMonitor: Any?
     private var clickMonitor: Any?
-    private var scrollMonitor: Any?
-    /// 鼠标按键松开后让气泡接管键盘的等待任务。
-    private var keyFocusTask: Task<Void, Never>?
-    private var placement: TranslatorPlacement?
-    private var contentHeight = Layout.initialHeight
-    /// 每次弹出递增：淡出完成时据此判断期间是否又弹出了新的气泡。
-    private var presentationGeneration = 0
-    private var isDismissing = false
-    /// 正在按内容调整气泡位置与尺寸：期间的移动通知来自 OI 自己，不是用户拖动。
-    private var isApplyingFrame = false
-    private var moveObservers: [any NSObjectProtocol] = []
 
-    init(viewModel: TranslatorViewModel) {
-        self.viewModel = viewModel
-        panel = TranslatorPanel(
-            contentRect: NSRect(x: 0, y: 0, width: TranslatorLayout.width, height: Layout.initialHeight),
-            styleMask: [.borderless, .nonactivatingPanel],
-            backing: .buffered,
-            defer: true
-        )
-        highlight = NSPanel(
-            contentRect: .zero,
-            styleMask: [.borderless, .nonactivatingPanel],
-            backing: .buffered,
-            defer: true
-        )
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.hasShadow = true
-        panel.level = .floating
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
-        panel.hidesOnDeactivate = false
-        panel.becomesKeyOnlyIfNeeded = false
-        // 只能按住气泡顶部或底部拖动（见 TranslatorView），不随背景拖动，以免与选中译文冲突。
-        panel.isMovable = true
-        panel.isMovableByWindowBackground = false
-        panel.animationBehavior = .none
-
-        let hostingView = NSHostingView(
-            rootView: TranslatorView(
-                viewModel: viewModel,
-                onClose: { [weak self] in self?.hide(reason: .closeButton) }
-            ) { [weak self] height in
-                self?.updateContentHeight(height)
-            }
-        )
-        // 窗口高度由内容上报的自然高度驱动，不让托管视图的固有尺寸约束反过来牵制窗口。
-        hostingView.sizingOptions = []
-        hostingView.autoresizingMask = [.width, .height]
-        panel.contentView = TranslatorPanelSurface(
-            contentView: hostingView,
-            cornerRadius: TranslatorLayout.cornerRadius
-        )
-
-        highlight.isOpaque = false
-        highlight.backgroundColor = .clear
-        highlight.hasShadow = false
-        // 点击穿透到下面的应用，不影响原应用的操作。
-        highlight.ignoresMouseEvents = true
-        highlight.level = .floating
-        highlight.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
-        highlight.hidesOnDeactivate = false
-        highlight.animationBehavior = .none
-        let highlightView = TranslatorHighlightView()
-        highlightView.wantsLayer = true
-        highlight.contentView = highlightView
-
-        // 点到其他应用（包括原应用）时面板失去 key，气泡随之收起。
-        panel.onResignKey = { [weak self] in self?.hide(reason: .lostKeyFocus) }
+    /// `makeViewModel` 为每个气泡新建一份翻译状态：固定的气泡保留自己的内容，与之后的翻译互不影响。
+    init(makeViewModel: @escaping @MainActor () -> TranslatorViewModel) {
+        self.makeViewModel = makeViewModel
+        current = TranslatorBubble(viewModel: makeViewModel())
+        configureCurrent()
         selectionOverlay.onSelectionStart = { [weak self] in self?.hide(reason: .reselect) }
         selectionOverlay.onSelection = { [weak self] rect in self?.translateScreenRegion(rect) }
         selectionOverlay.onCancel = { [weak self] in self?.hide(reason: .selectionCancelled) }
@@ -122,51 +45,40 @@ final class TranslatorPanelController {
             guard let self else { return event }
             return self.handleKeyDown(event)
         }
-        // 用户按住气泡顶部或底部拖动（见 TranslatorView）后，气泡不再自动摆放与收起。
-        moveObservers = [NSWindow.willMoveNotification, NSWindow.didMoveNotification].map { name in
-            NotificationCenter.default.addObserver(forName: name, object: panel, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated {
-                    self?.panelDidMoveByUser()
-                }
-            }
-        }
     }
 
     isolated deinit {
-        for observer in moveObservers {
-            NotificationCenter.default.removeObserver(observer)
-        }
         if let keyMonitor {
             NSEvent.removeMonitor(keyMonitor)
         }
         if let clickMonitor {
             NSEvent.removeMonitor(clickMonitor)
         }
-        if let scrollMonitor {
-            NSEvent.removeMonitor(scrollMonitor)
-        }
-        keyFocusTask?.cancel()
     }
 
-    var isVisible: Bool { panel.isVisible && !isDismissing }
+    /// 当前气泡是否显示中（不含固定的气泡）。
+    var isVisible: Bool { current.isVisible }
 
-    /// 翻译快捷键：气泡已显示时收起，否则翻译选中的文字或剪贴板。
-    /// 拖动过的气泡留在屏幕上供参考，此时按快捷键直接翻译新的内容，取代气泡中的译文。
+    /// 翻译快捷键：当前气泡已显示时收起，否则翻译选中的文字或剪贴板。
     func toggleShortcutTranslation() {
-        if isVisible, !viewModel.isDetached {
+        if isVisible {
             hide(reason: .shortcut)
             return
         }
+        let bubble = current
         Task { [weak self] in
-            guard let self, let presentation = await self.viewModel.captureFromShortcut() else { return }
+            guard let presentation = await bubble.viewModel.captureFromShortcut(),
+                  let self, bubble === self.current else { return }
             self.present(presentation, pointer: nil)
         }
     }
 
     /// 触控板用力点按：翻译该处的单词；该处不是文字时什么也不做。
     func translateText(at point: CGPoint) {
+        let bubble = current
         Task { [weak self] in
-            guard let self, let presentation = await self.viewModel.captureFromForceTouch(at: point) else { return }
+            guard let presentation = await bubble.viewModel.captureFromForceTouch(at: point),
+                  let self, bubble === self.current else { return }
             self.present(presentation, pointer: point)
         }
     }
@@ -180,15 +92,52 @@ final class TranslatorPanelController {
         if isVisible {
             hide(reason: .shortcut)
         }
-        guard viewModel.beginScreenTranslation() else {
+        guard current.viewModel.beginScreenTranslation() else {
             present(TranslatorPresentation(anchorRect: nil), pointer: nil)
             return
         }
         selectionOverlay.begin()
     }
 
+    func stop() {
+        if let keyMonitor {
+            NSEvent.removeMonitor(keyMonitor)
+            self.keyMonitor = nil
+        }
+        endSelection()
+        removeClickMonitor()
+        current.stop()
+        for bubble in pinnedBubbles {
+            bubble.stop()
+        }
+        pinnedBubbles.removeAll()
+    }
+
     private func translateScreenRegion(_ rect: CGRect) {
-        present(viewModel.translateScreenRegion(rect), pointer: nil)
+        present(current.viewModel.translateScreenRegion(rect), pointer: nil)
+    }
+
+    // MARK: - Current bubble
+
+    private func configureCurrent() {
+        current.onClose = { [weak self] in self?.hide(reason: .closeButton) }
+        current.onPin = { [weak self] in self?.pinCurrent() }
+        // 点到其他应用（包括原应用）或其他气泡时面板失去 key，气泡随之收起。
+        current.onResignKey = { [weak self] in self?.hide(reason: .lostKeyFocus) }
+        current.onHidden = nil
+    }
+
+    /// `pointer` 为用力点按位置（全局显示坐标）；快捷键触发时为 nil，取当前鼠标位置。
+    private func present(_ presentation: TranslatorPresentation, pointer: CGPoint?) {
+        current.present(presentation, pointer: pointer, level: bubbleLevel)
+        installClickMonitor()
+    }
+
+    /// 截图翻译框选期间，气泡与高亮显示在遮罩之上。
+    private var bubbleLevel: NSWindow.Level {
+        selectionOverlay.isActive
+            ? NSWindow.Level(rawValue: ScreenSelectionOverlay.level.rawValue + 1)
+            : .floating
     }
 
     private func hide(reason: DismissReason) {
@@ -197,216 +146,55 @@ final class TranslatorPanelController {
             case .lostKeyFocus:
                 // 框选期间点按遮罩会让气泡失去 key：气泡保留，按键改由遮罩接收。
                 return
-            case .reselect:
+            case .reselect, .closeButton:
                 break
-            case .returnKey, .closeButton:
-                selectionOverlay.end()
-            case .clickOutside, .escapeKey, .shortcut, .selectionCancelled:
-                selectionOverlay.end()
-                // 拖动过的气泡退出框选后保留，回到普通的浮动层级。
-                if viewModel.isDetached {
-                    panel.level = .floating
-                    highlight.level = .floating
-                    return
-                }
-            }
-        } else if viewModel.isDetached {
-            switch reason {
-            case .lostKeyFocus, .clickOutside, .selectionCancelled:
-                // 拖动过的气泡只能手动关闭。
-                return
-            case .escapeKey, .returnKey, .shortcut, .reselect, .closeButton:
-                break
+            case .clickOutside, .escapeKey, .returnKey, .shortcut, .selectionCancelled:
+                endSelection()
             }
         }
-        guard panel.isVisible, !isDismissing else { return }
+        guard current.isVisible else { return }
         logger.debug("Translator bubble hidden: \(reason.rawValue, privacy: .public)")
-        isDismissing = true
-        viewModel.stopTranslation()
-        cancelKeyFocusTask()
         removeClickMonitor()
-        removeScrollMonitor()
-        let generation = presentationGeneration
-        guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
-            finishHiding(generation: generation)
-            return
-        }
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = Layout.fadeOutDuration
-            self.panel.animator().alphaValue = 0
-            self.highlight.animator().alphaValue = 0
-        } completionHandler: { [weak self] in
-            MainActor.assumeIsolated {
-                self?.finishHiding(generation: generation)
-            }
-        }
+        current.hide()
     }
 
-    func stop() {
-        if let keyMonitor {
-            NSEvent.removeMonitor(keyMonitor)
-            self.keyMonitor = nil
-        }
+    /// 退出框选：固定的气泡留在屏幕上，从遮罩之上降回普通浮动层级。
+    private func endSelection() {
         selectionOverlay.end()
+        for bubble in pinnedBubbles {
+            bubble.setLevel(.floating)
+        }
+    }
+
+    // MARK: - Pinned bubbles
+
+    /// 固定当前气泡：同一个窗口与翻译状态移入固定的一组，进行中的翻译或识别不中断；之后的翻译另开新的当前气泡。
+    /// 只有提示的气泡不能固定。
+    private func pinCurrent() {
+        let bubble = current
+        guard bubble.isVisible, bubble.viewModel.session != nil else { return }
+        logger.debug("Translator bubble pinned")
         removeClickMonitor()
-        removeHighlight()
-        cancelKeyFocusTask()
-        presentationGeneration += 1
-        // 标记为收起中：下屏触发的 resignKey 不再走淡出流程。
-        isDismissing = true
-        panel.orderOut(nil)
-        isDismissing = false
-        viewModel.reset()
-    }
-
-    // MARK: - Presentation
-
-    /// `pointer` 为用力点按位置（全局显示坐标）；快捷键触发时为 nil，取当前鼠标位置。
-    private func present(_ presentation: TranslatorPresentation, pointer: CGPoint?) {
-        let screens = NSScreen.screens
-        let primaryScreenHeight = screens.first?.frame.maxY ?? 0
-        let pointerLocation = pointer.map {
-            TranslatorPlacement.appKitPoint(fromGlobal: $0, primaryScreenHeight: primaryScreenHeight)
-        } ?? NSEvent.mouseLocation
-        // 部分应用报告的文字位置在屏幕之外（如已滚出可见区域），此时改为贴着指针弹出。
-        let anchor = presentation.anchorRect
-            .map { TranslatorPlacement.appKitRect(fromGlobal: $0, primaryScreenHeight: primaryScreenHeight) }
-            .flatMap { rect in screens.contains { $0.frame.intersects(rect) } ? rect : nil }
-        // 只给用力点按取到的单词加高亮：选区由原应用显示选中状态，剪贴板没有位置。
-        let highlightFrame = viewModel.session?.source == .word
-            ? anchor?.insetBy(dx: -Layout.highlightPadding, dy: -Layout.highlightPadding)
-            : nil
-        let focusPoint = anchor.map { NSPoint(x: $0.midX, y: $0.midY) } ?? pointerLocation
-        guard let screen = screens.first(where: { $0.frame.contains(focusPoint) })
-                ?? screens.first(where: { $0.frame.contains(pointerLocation) })
-                ?? NSScreen.main else { return }
-
-        placement = TranslatorPlacement(
-            anchor: anchor ?? TranslatorPlacement.pointerAnchor(at: pointerLocation),
-            pointer: pointerLocation,
-            visibleFrame: screen.visibleFrame,
-            width: TranslatorLayout.width,
-            expectedHeight: TranslatorLayout.maximumHeight
-        )
-        presentationGeneration += 1
-        isDismissing = false
-        // 新的内容贴着原文弹出，此前拖动过的气泡也回到自动摆放与收起。
-        viewModel.isDetached = false
-        // 截图翻译框选期间，气泡与高亮显示在遮罩之上。
-        let level = selectionOverlay.isActive
-            ? NSWindow.Level(rawValue: ScreenSelectionOverlay.level.rawValue + 1)
-            : .floating
-        panel.level = level
-        highlight.level = level
-
-        // 先让 SwiftUI 按新内容排版，尽量以正确高度弹出。
-        panel.contentView?.layoutSubtreeIfNeeded()
-        applyFrame()
-        if !panel.isVisible {
-            panel.alphaValue = 0
+        bubble.removeHighlight()
+        bubble.viewModel.isPinned = true
+        bubble.onPin = nil
+        bubble.onResignKey = nil
+        bubble.onClose = { [weak bubble] in bubble?.hide() }
+        bubble.onHidden = { [weak self, weak bubble] in
+            self?.pinnedBubbles.removeAll { $0 === bubble }
         }
-        // 高亮先上屏，气泡随后排在它之上。
-        if let highlightFrame {
-            highlight.setFrame(highlightFrame, display: true)
-            if !highlight.isVisible {
-                highlight.alphaValue = 0
-            }
-            highlight.orderFrontRegardless()
-            installScrollMonitor()
-        } else {
-            removeHighlight()
-        }
-        panel.orderFrontRegardless()
-        makeKeyAfterMouseRelease()
-        panel.invalidateShadow()
-        installClickMonitor()
-
-        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
-            panel.alphaValue = 1
-            highlight.alphaValue = 1
-        } else {
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = Layout.fadeInDuration
-                self.panel.animator().alphaValue = 1
-                self.highlight.animator().alphaValue = 1
-            }
-        }
+        pinnedBubbles.append(bubble)
+        current = TranslatorBubble(viewModel: makeViewModel())
+        configureCurrent()
     }
 
-    /// 用力点按时气泡在手指仍按着时弹出，原应用可能在按住期间（把轻微位移当作开始拖动选中的文字）
-    /// 或松开时（处理点在选区上的点击）拿回键盘焦点；气泡此时若已接管键盘，会因失去 key 而收起。
-    /// 因此按键按着时只显示气泡，松开后稍等原应用处理完这次点击再接管键盘。
-    private func makeKeyAfterMouseRelease() {
-        cancelKeyFocusTask()
-        guard NSEvent.pressedMouseButtons & 1 != 0 else {
-            panel.makeKey()
-            return
-        }
-        let generation = presentationGeneration
-        keyFocusTask = Task { [weak self] in
-            while NSEvent.pressedMouseButtons & 1 != 0 {
-                try? await Task.sleep(for: Layout.mouseReleasePollInterval)
-                guard !Task.isCancelled else { return }
-            }
-            try? await Task.sleep(for: Layout.keyFocusDelayAfterRelease)
-            guard let self, !Task.isCancelled, generation == self.presentationGeneration,
-                  self.panel.isVisible, !self.isDismissing else { return }
-            self.panel.makeKey()
-        }
+    private func pinnedBubble(for window: NSWindow?) -> TranslatorBubble? {
+        pinnedBubbles.first { $0.panel === window && $0.isVisible }
     }
 
-    private func cancelKeyFocusTask() {
-        keyFocusTask?.cancel()
-        keyFocusTask = nil
-    }
+    // MARK: - Monitors
 
-    private func finishHiding(generation: Int) {
-        guard generation == presentationGeneration, isDismissing else { return }
-        // 先下屏再复位：下屏触发的 resignKey 看到淡出仍在进行会直接跳过。
-        highlight.orderOut(nil)
-        panel.orderOut(nil)
-        panel.alphaValue = 1
-        isDismissing = false
-        placement = nil
-        viewModel.reset()
-    }
-
-    private func updateContentHeight(_ height: CGFloat) {
-        guard height > 0, abs(height - contentHeight) >= 0.5 else { return }
-        contentHeight = height
-        // 高度在 SwiftUI 排版过程中上报，推迟到本轮排版结束后再改窗口尺寸。
-        DispatchQueue.main.async { [weak self] in
-            self?.applyFrame()
-        }
-    }
-
-    private func applyFrame() {
-        guard var placement else { return }
-        if viewModel.isDetached {
-            // 拖动过的气泡：左上角留在放下的位置（按当前位置计算，拖动途中调整高度也不会跳回），内容增长时向下伸长。
-            placement = TranslatorPlacement(
-                keepingTopLeftOf: panel.frame,
-                visibleFrame: panel.screen?.visibleFrame ?? placement.visibleFrame
-            )
-        }
-        let frame = placement.frame(height: contentHeight)
-        guard frame != panel.frame else { return }
-        isApplyingFrame = true
-        panel.setFrame(frame, display: true)
-        isApplyingFrame = false
-        panel.invalidateShadow()
-    }
-
-    /// 用户拖动了气泡：不再贴着原文摆放，只能手动关闭；原文上的高亮标的是原来的位置，一并去掉。
-    private func panelDidMoveByUser() {
-        guard !isApplyingFrame, panel.isVisible, !isDismissing, !viewModel.isDetached else { return }
-        logger.debug("Translator bubble detached by dragging")
-        viewModel.isDetached = true
-        removeClickMonitor()
-        removeHighlight()
-    }
-
-    /// 全局监听只会收到发往其他应用的点击，即气泡之外的点击。
+    /// 全局监听只会收到发往其他应用的点击，即 OI 窗口之外的点击。
     private func installClickMonitor() {
         guard clickMonitor == nil else { return }
         clickMonitor = NSEvent.addGlobalMonitorForEvents(
@@ -423,60 +211,56 @@ final class TranslatorPanelController {
         clickMonitor = nil
     }
 
-    /// 原文随滚动移动后高亮会错位：滚动其他应用时先收起高亮，气泡保留。
-    /// 全局监听只会收到发往其他应用的滚动，在气泡内滚动译文不受影响。
-    private func installScrollMonitor() {
-        guard scrollMonitor == nil else { return }
-        scrollMonitor = NSEvent.addGlobalMonitorForEvents(matching: .scrollWheel) { [weak self] _ in
-            self?.removeHighlight()
-        }
-    }
-
-    private func removeScrollMonitor() {
-        if let scrollMonitor {
-            NSEvent.removeMonitor(scrollMonitor)
-        }
-        scrollMonitor = nil
-    }
-
-    private func removeHighlight() {
-        removeScrollMonitor()
-        highlight.orderOut(nil)
-    }
-
     // MARK: - Keyboard
 
     private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
-        // 截图翻译框选期间按键也可能发往遮罩（尚未弹出气泡，或点按遮罩后遮罩成为 key），按同样规则处理。
-        let isBubbleEvent = event.window === panel && panel.isVisible && !isDismissing
-        guard isBubbleEvent || selectionOverlay.contains(event.window) else { return event }
+        // 按键发给所在窗口对应的气泡：固定的气泡只处理自己的按键，Esc 只关闭它自己；
+        // 截图翻译框选期间按键也可能发往遮罩（尚未弹出气泡，或点按遮罩后遮罩成为 key），按当前气泡的规则处理。
+        let bubble: TranslatorBubble
+        if let pinned = pinnedBubble(for: event.window) {
+            bubble = pinned
+        } else if (event.window === current.panel && current.isVisible) || selectionOverlay.contains(event.window) {
+            bubble = current
+        } else {
+            return event
+        }
         // 输入法组字期间回车上屏、Esc 取消组字，都交给输入法。
-        if (panel.firstResponder as? NSTextInputClient)?.hasMarkedText() == true {
+        if (bubble.panel.firstResponder as? NSTextInputClient)?.hasMarkedText() == true {
             return event
         }
 
         let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
         switch Int(event.keyCode) {
         case kVK_Escape:
-            hide(reason: .escapeKey)
+            close(bubble, reason: .escapeKey)
             return nil
         case kVK_Return, kVK_ANSI_KeypadEnter:
             // 带修饰键的回车（如 ⌥↩ 换行）交给原文输入框。
             guard modifiers.isEmpty else { return event }
-            performReturn()
+            performReturn(in: bubble)
             return nil
         default:
             guard modifiers == .command, let key = event.charactersIgnoringModifiers?.lowercased() else {
                 return event
             }
-            return handleCommandKey(key, event: event)
+            return handleCommandKey(key, event: event, in: bubble)
         }
     }
 
-    private func performReturn() {
+    /// 当前气泡按收起规则处理；固定的气泡直接关闭它自己。
+    private func close(_ bubble: TranslatorBubble, reason: DismissReason) {
+        if bubble === current {
+            hide(reason: reason)
+        } else {
+            bubble.hide()
+        }
+    }
+
+    private func performReturn(in bubble: TranslatorBubble) {
+        let viewModel = bubble.viewModel
         guard let session = viewModel.session else {
             // 只有提示时回车即关闭。
-            hide(reason: .returnKey)
+            close(bubble, reason: .returnKey)
             return
         }
         switch session.returnAction {
@@ -485,7 +269,7 @@ final class TranslatorPanelController {
         case .copyAndClose:
             if let translation = viewModel.translationToCopy {
                 writeToPasteboard(translation)
-                hide(reason: .returnKey)
+                close(bubble, reason: .returnKey)
             }
         case .none:
             break
@@ -493,7 +277,9 @@ final class TranslatorPanelController {
     }
 
     /// OI 没有可见的主菜单、气泡出现时也不激活 OI，编辑快捷键在这里直接分派给第一响应者。
-    private func handleCommandKey(_ key: String, event: NSEvent) -> NSEvent? {
+    private func handleCommandKey(_ key: String, event: NSEvent, in bubble: TranslatorBubble) -> NSEvent? {
+        let panel = bubble.panel
+        let viewModel = bubble.viewModel
         switch key {
         case "c":
             // 选中了部分原文或译文时复制选中的部分；都没有选中时复制整段译文并保留气泡。
@@ -502,7 +288,7 @@ final class TranslatorPanelController {
                     editor.copy(nil)
                     return nil
                 }
-            } else if copySelectionFromFirstResponder() {
+            } else if copySelectionFromFirstResponder(of: panel) {
                 viewModel.markCopied()
                 return nil
             }
@@ -524,7 +310,7 @@ final class TranslatorPanelController {
     }
 
     /// 让第一响应者（译文的可选中文字）执行复制；剪贴板有变化才算复制成功。
-    private func copySelectionFromFirstResponder() -> Bool {
+    private func copySelectionFromFirstResponder(of panel: NSPanel) -> Bool {
         let changeCount = NSPasteboard.general.changeCount
         NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: panel)
         return NSPasteboard.general.changeCount != changeCount

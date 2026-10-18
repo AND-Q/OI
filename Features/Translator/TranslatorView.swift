@@ -12,12 +12,14 @@ enum TranslatorLayout {
 }
 
 /// 划词翻译气泡：语言方向与目标语言切换、原文（点按可修改）、流式译文与快捷键提示。
-/// 按住顶部的语言行或底部的提示栏可拖动气泡；拖动过的气泡只能手动关闭，右上角显示关闭按钮。
+/// 左上角为关闭按钮，右上角为图钉（固定在屏幕上）；按住顶部一行或底部的提示栏可拖动气泡。
 @MainActor
 struct TranslatorView: View {
     @ObservedObject var viewModel: TranslatorViewModel
-    /// 点按关闭按钮。
+    /// 点按左上角的关闭按钮。
     let onClose: () -> Void
+    /// 点按右上角的图钉。
+    let onPin: () -> Void
     /// 内容自然高度变化时通知面板同步窗口高度。
     let onHeightChange: (CGFloat) -> Void
 
@@ -27,18 +29,14 @@ struct TranslatorView: View {
                 TranslatorSessionView(
                     session: session,
                     notice: viewModel.notice,
-                    isDetached: viewModel.isDetached,
+                    isPinned: viewModel.isPinned,
                     viewModel: viewModel,
-                    onClose: onClose
+                    onClose: onClose,
+                    onPin: onPin
                 )
                 .id(session.id)
             } else if let notice = viewModel.notice {
-                TranslatorNoticeView(
-                    notice: notice,
-                    isDetached: viewModel.isDetached,
-                    viewModel: viewModel,
-                    onClose: onClose
-                )
+                TranslatorNoticeView(notice: notice, viewModel: viewModel, onClose: onClose)
             }
         }
         .frame(width: TranslatorLayout.width)
@@ -56,9 +54,10 @@ struct TranslatorView: View {
 private struct TranslatorSessionView: View {
     let session: TranslatorSession
     let notice: TranslatorNotice?
-    let isDetached: Bool
+    let isPinned: Bool
     let viewModel: TranslatorViewModel
     let onClose: () -> Void
+    let onPin: () -> Void
 
     @State private var isEditingSource = false
     @FocusState private var isSourceFocused: Bool
@@ -88,6 +87,8 @@ private struct TranslatorSessionView: View {
 
     private var header: some View {
         HStack(spacing: 6) {
+            TranslatorCloseButton(action: onClose)
+                .padding(.trailing, 4)
             Text(session.sourceLanguageName ?? "自动识别")
             Image(systemName: "arrow.right")
                 .font(.system(size: 9, weight: .semibold))
@@ -121,9 +122,7 @@ private struct TranslatorSessionView: View {
             case .selection, .word:
                 EmptyView()
             }
-            if isDetached {
-                TranslatorCloseButton(action: onClose)
-            }
+            TranslatorPinButton(isPinned: isPinned, action: onPin)
         }
         .font(.system(size: 12))
         .foregroundStyle(.secondary)
@@ -307,22 +306,19 @@ private struct TranslationArea: View {
 @MainActor
 private struct TranslatorNoticeView: View {
     let notice: TranslatorNotice
-    let isDetached: Bool
     let viewModel: TranslatorViewModel
     let onClose: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .top, spacing: 10) {
+                    TranslatorCloseButton(action: onClose)
+                        .allowsWindowActivationEvents(true)
+                        .padding(.top, 2)
                     Label(message, systemImage: "text.badge.xmark")
                         .font(.system(size: 13))
                         .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
-                    if isDetached {
-                        TranslatorCloseButton(action: onClose)
-                            .allowsWindowActivationEvents(true)
-                    }
                 }
                 switch notice {
                 case .accessibilityRequired:
@@ -386,18 +382,50 @@ private struct TranslatorShortcutHint: View {
     }
 }
 
-/// 拖动过的气泡点击外部、切换应用都不再收起，用此按钮关闭。
+/// 仿 macOS 窗口左上角的红色关闭按钮，指针移上去时显示 ×。
 private struct TranslatorCloseButton: View {
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Circle()
+                .fill(Color(nsColor: .systemRed))
+                .overlay {
+                    Circle().strokeBorder(Color.black.opacity(0.15), lineWidth: 0.5)
+                }
+                .overlay {
+                    if isHovered {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 6.5, weight: .bold))
+                            .foregroundStyle(Color.black.opacity(0.55))
+                    }
+                }
+                .frame(width: 12, height: 12)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help("关闭")
+    }
+}
+
+/// 右上角的图钉：点按后气泡固定在屏幕上，点到别处不再收起，之后的翻译另开新的气泡；固定后显示为实心，不能取消。
+private struct TranslatorPinButton: View {
+    let isPinned: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 13))
-                .foregroundStyle(.tertiary)
+            Image(systemName: isPinned ? "pin.fill" : "pin")
+                .font(.system(size: 12))
+                .foregroundStyle(isPinned ? Color.accentColor : Color.secondary)
+                .frame(width: 16, height: 16)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help("关闭")
+        .help(isPinned ? "已固定，点左上角的关闭按钮关闭" : "固定在屏幕上：点到别处不再收起，之后的翻译另开新的气泡")
     }
 }
 

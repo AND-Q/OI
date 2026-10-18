@@ -209,24 +209,26 @@
 - **涉及文件**：
   - [Application/Ports/ScreenTextRecognizing.swift](Application/Ports/ScreenTextRecognizing.swift)、[Application/Ports/TranslatorEnvironmentHandling.swift](Application/Ports/TranslatorEnvironmentHandling.swift)、[Application/Ports/TextCapturing.swift](Application/Ports/TextCapturing.swift)、[Application/Ports/AppSettingsStoring.swift](Application/Ports/AppSettingsStoring.swift)、[Infrastructure/Translator/VisionScreenTextRecognizer.swift](Infrastructure/Translator/VisionScreenTextRecognizer.swift)、[Infrastructure/Translator/SystemTranslatorEnvironment.swift](Infrastructure/Translator/SystemTranslatorEnvironment.swift)、[Infrastructure/Settings/UserDefaultsAppSettingsStore.swift](Infrastructure/Settings/UserDefaultsAppSettingsStore.swift)、[Features/Translator/TranslatorState.swift](Features/Translator/TranslatorState.swift)、[Features/Translator/TranslatorViewModel.swift](Features/Translator/TranslatorViewModel.swift)、[Features/Translator/TranslatorView.swift](Features/Translator/TranslatorView.swift)、[Features/Settings/SettingsViewModel.swift](Features/Settings/SettingsViewModel.swift)、[UI/Translator/ScreenSelectionOverlay.swift](UI/Translator/ScreenSelectionOverlay.swift)、[UI/Translator/TranslatorPanelController.swift](UI/Translator/TranslatorPanelController.swift)、[UI/Settings/SettingsView.swift](UI/Settings/SettingsView.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[App/AppCoordinator.swift](App/AppCoordinator.swift)、[OITests/TranslatorTests.swift](OITests/TranslatorTests.swift)
 
-## [x] 13. 翻译气泡可拖动，拖动后保留到手动关闭
+## [x] 13. 翻译气泡可拖动、可固定（固定的气泡与之后的翻译互不影响）
 
 - **需求描述**：
-  - 翻译气泡固定贴在原文旁，可能挡住要看的内容；截图翻译退出框选时气泡随之关闭，想一边看译文一边在其他应用里操作做不到。
-  - 气泡始终只有一个，不做多张贴图或独立的固定窗口。
+  - 翻译气泡固定贴在原文旁，可能挡住要看的内容；截图翻译退出框选时气泡随之关闭，想一边看译文一边在其他应用里操作做不到；
+  - 想留下一条译文作参考，同时继续翻译别的内容：留下的译文与新的翻译互相隔离，不被新的翻译取代。
+  - 先前「拖动过就保留」的做法把「挪开」与「留下」两种意图绑在一起（挪开看下面的内容也会变得只能手动关闭，想留下又不想挪则做不到），改为拖动只管位置、固定由按钮单独控制。
 - **需要做到**：
-  - 拖动：按住气泡顶部的语言行或底部的提示栏可以拖动气泡；划词翻译、用力点按、截图翻译的气泡都可以拖动；拖动后留在放下的位置，译文增长时左上角不动、向下伸长（到屏幕底部后整体上移）；
-  - 保留：拖动过的气泡点击外部、切换应用都不收起，截图翻译中退出框选（`Esc`、右键、再按快捷键、切到其他应用）时只关闭遮罩，气泡留在屏幕上；
-  - 关闭：拖动过的气泡右上角显示关闭按钮；点关闭按钮，或在气泡上按 `Esc`、按 `Enter` 复制译文时关闭（截图翻译中点关闭按钮或按 `Enter` 连同遮罩一起退出）；
-  - 新的翻译：拖动过的气泡还在时按翻译快捷键或用力点按，直接翻译新的内容（不再是收起气泡），气泡回到原文旁、恢复自动收起；截图翻译中再拖一个新选框、或按截图翻译快捷键重新进入框选时，关闭它并翻译新的内容；
-  - 拖动后去掉原文单词上的黄色高亮（它标的是原来的位置）。
+  - 拖动：按住气泡顶部一行或底部的提示栏可以拖动气泡；划词翻译、用力点按、截图翻译的气泡都可以拖动；拖动只改位置、不改收起规则，拖动后译文增长时左上角不动、向下伸长（到屏幕底部后整体上移）；
+  - 关闭按钮：每个气泡左上角有仿 macOS 窗口的红色关闭按钮，指针移上去显示 ×，点按关闭这个气泡（截图翻译中只关闭气泡，框选继续）；
+  - 固定：气泡右上角有图钉按钮，点按后图钉变为实心，这个气泡固定在屏幕上——点到别处、切换应用都不收起，截图翻译中按 `Esc`、右键、再按快捷键或切到其他应用时只退出框选，固定的气泡留下；固定后不能取消，只能关闭（关闭按钮，或在气泡上按 `Esc`、按 `Enter` 复制译文）；
+  - 隔离：固定的气泡保留自己的内容与翻译（正在生成的译文继续生成，识别中的截图识别完成后继续翻译，可修改原文重新翻译、切换目标语言、`⌘C` 复制），之后的翻译（翻译快捷键、用力点按、重新框选）照常弹出新的气泡，不影响已固定的；可以同时固定多个，例如截图翻译中连续框选几段并逐一固定；
+  - 固定时去掉原文单词上的黄色高亮（它标的是原来的位置）；提示类气泡（如需要授权、没有识别到文字）只有关闭按钮，不能固定。
 - **实现说明**：
-  - 拖动：[TranslatorView](Features/Translator/TranslatorView.swift) 的顶部语言行与底部提示栏加 `WindowDragGesture`（配合 `allowsWindowActivationEvents`，气泡不是 key 窗口时第一次按下同样生效）；面板 `isMovable` 打开、`isMovableByWindowBackground` 关闭，避免与选中译文冲突；
-  - 识别用户拖动：[TranslatorPanelController](UI/Translator/TranslatorPanelController.swift) 监听面板的 `willMove` / `didMove`，排除按内容调整尺寸时自己触发的移动（`isApplyingFrame`），之后把 [TranslatorViewModel](Features/Translator/TranslatorViewModel.swift) 的 `isDetached` 置为 true，去掉点击外部的监听与高亮；`isDetached` 在弹出新内容与气泡收起时复位；
-  - 摆放：拖动过的气泡按当前窗口位置计算（`TranslatorPlacement(keepingTopLeftOf:visibleFrame:)`），拖动途中译文增长也不会跳回；
-  - 收起规则：`hide(reason:)` 中拖动过的气泡忽略失去 key、点击外部与退出框选，新增「关闭按钮」收起原因；退出框选后气泡从遮罩之上降回普通浮动层级。
+  - 气泡单元：新增 [TranslatorBubble](UI/Translator/TranslatorBubble.swift)，一个气泡一个实例，持有自己的面板、原文高亮与 [TranslatorViewModel](Features/Translator/TranslatorViewModel.swift)，负责摆放、按内容调整高度、淡入淡出与拖动后的位置；
+  - 气泡管理：[TranslatorPanelController](UI/Translator/TranslatorPanelController.swift) 持有一个「当前气泡」（跟随每次翻译弹出，按原有规则收起）与一组固定的气泡；点图钉时把当前气泡移入固定的一组（同一个窗口与翻译状态，进行中的请求不中断），再为之后的翻译新建当前气泡；按键按事件所在的窗口分派给对应的气泡，`Esc` 只关闭它自己；点击外部的监听只作用于当前气泡；退出框选后固定的气泡从遮罩之上降回普通浮动层级；
+  - 翻译状态：[TranslatorDependencies](App/AppDependencies.swift) 由单个视图模型改为工厂闭包，组装根共用同一套翻译、取词、识字与权限依赖，每个气泡各建一份视图模型；视图模型新增 `isPinned` 供界面显示图钉状态；
+  - 拖动：[TranslatorView](Features/Translator/TranslatorView.swift) 顶部一行与底部提示栏加 `WindowDragGesture`（配合 `allowsWindowActivationEvents`，气泡不是 key 窗口时第一次按下同样生效）；面板 `isMovable` 打开、`isMovableByWindowBackground` 关闭，避免与选中译文冲突；监听面板的 `willMove` / `didMove` 并排除按内容调整尺寸时自己触发的移动，拖动过的气泡按当前位置计算（`TranslatorPlacement(keepingTopLeftOf:visibleFrame:)`），拖动途中译文增长也不会跳回；
+  - 截图时 OI 自己的窗口（包括固定的气泡）不入镜，框选到固定气泡上时识别的是它后面的内容。
 - **涉及文件**：
-  - [Features/Translator/TranslatorViewModel.swift](Features/Translator/TranslatorViewModel.swift)、[Features/Translator/TranslatorView.swift](Features/Translator/TranslatorView.swift)、[UI/Translator/TranslatorPanelController.swift](UI/Translator/TranslatorPanelController.swift)、[OITests/TranslatorTests.swift](OITests/TranslatorTests.swift)
+  - [UI/Translator/TranslatorBubble.swift](UI/Translator/TranslatorBubble.swift)、[UI/Translator/TranslatorPanelController.swift](UI/Translator/TranslatorPanelController.swift)、[Features/Translator/TranslatorViewModel.swift](Features/Translator/TranslatorViewModel.swift)、[Features/Translator/TranslatorView.swift](Features/Translator/TranslatorView.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[App/AppCoordinator.swift](App/AppCoordinator.swift)、[OITests/TranslatorTests.swift](OITests/TranslatorTests.swift)
 
 ## [ ] 系统设置项直达
 
