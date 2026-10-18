@@ -9,4 +9,5 @@ enum ApplicationError: Error, Equatable, Sendable {
     case urlOpenFailed(reason: String)
     case quickAINotConfigured
     case quickAIFailed(reason: String)
+    case updateCheckFailed(reason: String)
 }

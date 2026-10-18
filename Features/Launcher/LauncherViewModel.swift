@@ -698,6 +698,8 @@ private enum LauncherErrorMessage {
             return "请先在「设置… → Quick AI」中填写接口地址与模型。"
         case .quickAIFailed(let reason):
             return "回答失败：\(reason)"
+        case .updateCheckFailed(let reason):
+            return "检查更新失败：\(reason)"
         }
     }
 

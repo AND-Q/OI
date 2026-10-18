@@ -16,6 +16,8 @@ struct AppDependencies {
     /// 请求文件搜索所需的桌面、文稿、下载目录授权，由协调者在文件搜索开启时调用；
     /// 测试注入依赖图时可省略，此时不触发授权。
     var fileSearchAccessRequester: (() -> Void)? = nil
+    /// 检查更新；测试注入依赖图时可省略，此时菜单栏的「检查更新…」不做任何事。
+    var updates: UpdateDependencies? = nil
 
     static func live(configuration: AppConfiguration) -> AppDependencies {
         let settingsStore = UserDefaultsAppSettingsStore()
@@ -26,6 +28,7 @@ struct AppDependencies {
         let fileSearcher = SpotlightFileSearcher()
         let fileOpener = WorkspaceFileOpener()
         let urlOpener = WorkspaceURLOpener()
+        let openURL = OpenURL(opener: urlOpener)
         let usageStore = UserDefaultsAppUsageStore()
         let quickAIKeyStore = KeychainQuickAIKeyStore()
         let translatorKeyStore = KeychainQuickAIKeyStore(
@@ -43,7 +46,7 @@ struct AppDependencies {
                 limit: configuration.fileSearchResultLimit
             ),
             openFile: OpenFile(opener: fileOpener),
-            openURL: OpenURL(opener: urlOpener),
+            openURL: openURL,
             askQuickAI: AskQuickAI(
                 answerer: quickAIClient,
                 settingsStore: settingsStore,
@@ -98,7 +101,15 @@ struct AppDependencies {
                 screenShortcutService: CarbonGlobalShortcutService(hotKeyIdentifier: 3),
                 forceTouchMonitor: GlobalForceTouchMonitor()
             ),
-            fileSearchAccessRequester: { fileSearcher.requestProtectedFolderAccess() }
+            fileSearchAccessRequester: { fileSearcher.requestProtectedFolderAccess() },
+            updates: UpdateDependencies(
+                checkForUpdates: CheckForUpdates(
+                    fetcher: GitHubReleaseFetcher(repository: configuration.releaseRepository),
+                    currentVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString")
+                        as? String ?? ""
+                ),
+                openURL: openURL
+            )
         )
     }
 }
@@ -111,4 +122,11 @@ struct TranslatorDependencies {
     let shortcutService: any GlobalShortcutHandling
     let screenShortcutService: any GlobalShortcutHandling
     let forceTouchMonitor: any ForceTouchMonitoring
+}
+
+/// 检查更新的依赖：查询最新发布的版本，有新版本时在浏览器中打开发布页。
+@MainActor
+struct UpdateDependencies {
+    let checkForUpdates: CheckForUpdates
+    let openURL: OpenURL
 }

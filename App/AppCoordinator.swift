@@ -9,10 +9,13 @@ final class AppCoordinator {
     private let shortcutService: any GlobalShortcutHandling
     private let panelController: LauncherPanelController
     private let translatorPanelController: TranslatorPanelController?
+    private let updateCheckController: UpdateCheckController?
     private lazy var statusBarController = StatusBarController(
         onShowLauncher: { [weak self] in self?.panelController.show() },
         onSettings: { [weak self] in self?.showSettings() },
         onAbout: { [weak self] in self?.showAbout() },
+        onCheckForUpdates: { [weak self] in self?.checkForUpdates() },
+        isCheckingForUpdates: { [weak self] in self?.updateCheckController?.isChecking ?? false },
         onQuit: { NSApp.terminate(nil) }
     )
     private lazy var settingsWindowController = SettingsWindowController(
@@ -42,6 +45,9 @@ final class AppCoordinator {
         )
         self.translatorPanelController = dependencies.translator.map {
             TranslatorPanelController(makeViewModel: $0.makeViewModel)
+        }
+        self.updateCheckController = dependencies.updates.map {
+            UpdateCheckController(checkForUpdates: $0.checkForUpdates, openURL: $0.openURL)
         }
         // 设置面板切换呼出快捷键时经由同一注册路径生效。直接强引用服务与面板：
         // 闭包被调用时面板必须存在（否则注册出的热键呼不出任何东西），
@@ -188,6 +194,13 @@ final class AppCoordinator {
 
     func showSettings() {
         settingsWindowController.show()
+    }
+
+    private func checkForUpdates() {
+        guard let updateCheckController else { return }
+        Task {
+            await updateCheckController.check()
+        }
     }
 
     private func showAbout() {

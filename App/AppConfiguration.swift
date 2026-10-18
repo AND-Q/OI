@@ -9,6 +9,8 @@ struct AppConfiguration: Sendable {
     let fileSearchResultLimit: Int
     /// 触发文件搜索所需的最少查询字符数，过短的查询只会返回噪音。
     let fileSearchMinimumQueryLength: Int
+    /// 检查更新查询的 GitHub 仓库（`所有者/仓库名`），即发布安装包的仓库。
+    let releaseRepository: String
 
     static let live = AppConfiguration(
         applicationSearchDirectories: [
@@ -28,6 +30,7 @@ struct AppConfiguration: Sendable {
             "com.microsoft.VSCode": ["vscode"],
         ],
         fileSearchResultLimit: 100,
-        fileSearchMinimumQueryLength: 2
+        fileSearchMinimumQueryLength: 2,
+        releaseRepository: "AND-Q/OI"
     )
 }

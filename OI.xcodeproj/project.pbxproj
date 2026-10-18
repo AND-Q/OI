@@ -120,6 +120,13 @@
 		A100000100000068 /* VisionScreenTextRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000068 /* VisionScreenTextRecognizer.swift */; };
 		A100000100000069 /* ScreenSelectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000069 /* ScreenSelectionOverlay.swift */; };
 		A10000010000006A /* TranslatorBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000006A /* TranslatorBubble.swift */; };
+		A10000010000006C /* AppVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000006C /* AppVersion.swift */; };
+		A10000010000006D /* LatestReleaseFetching.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000006D /* LatestReleaseFetching.swift */; };
+		A10000010000006E /* CheckForUpdates.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000006E /* CheckForUpdates.swift */; };
+		A10000010000006F /* GitHubReleaseFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000006F /* GitHubReleaseFetcher.swift */; };
+		A100000100000070 /* QuickAIMarkdownBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000070 /* QuickAIMarkdownBlockView.swift */; };
+		A100000100000071 /* UpdateCheckController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000071 /* UpdateCheckController.swift */; };
+		B10000010000001E /* UpdateCheckTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001F /* UpdateCheckTests.swift */; };
 		B10000010000001D /* TranslatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001E /* TranslatorTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -250,6 +257,13 @@
 		A200000100000068 /* VisionScreenTextRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionScreenTextRecognizer.swift; sourceTree = "<group>"; };
 		A200000100000069 /* ScreenSelectionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenSelectionOverlay.swift; sourceTree = "<group>"; };
 		A20000010000006A /* TranslatorBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorBubble.swift; sourceTree = "<group>"; };
+		A20000010000006C /* AppVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppVersion.swift; sourceTree = "<group>"; };
+		A20000010000006D /* LatestReleaseFetching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatestReleaseFetching.swift; sourceTree = "<group>"; };
+		A20000010000006E /* CheckForUpdates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckForUpdates.swift; sourceTree = "<group>"; };
+		A20000010000006F /* GitHubReleaseFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubReleaseFetcher.swift; sourceTree = "<group>"; };
+		A200000100000070 /* QuickAIMarkdownBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAIMarkdownBlockView.swift; sourceTree = "<group>"; };
+		A200000100000071 /* UpdateCheckController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateCheckController.swift; sourceTree = "<group>"; };
+		B20000010000001F /* UpdateCheckTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateCheckTests.swift; sourceTree = "<group>"; };
 		B20000010000001E /* TranslatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -333,6 +347,7 @@
 				A40000010000001F /* QuickAI */,
 				A400000100000020 /* Translator */,
 				A400000100000024 /* Notifications */,
+				A400000100000025 /* Update */,
 			);
 			path = Infrastructure;
 			sourceTree = "<group>";
@@ -345,6 +360,7 @@
 				A400000100000012 /* Icons */,
 				A40000010000001E /* Settings */,
 				A400000100000022 /* Translator */,
+				A400000100000026 /* Update */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -373,6 +389,7 @@
 				B20000010000001C /* AppCoordinatorTests.swift */,
 				B20000010000001D /* QuickAITests.swift */,
 				B20000010000001E /* TranslatorTests.swift */,
+				B20000010000001F /* UpdateCheckTests.swift */,
 			);
 			path = OITests;
 			sourceTree = "<group>";
@@ -395,6 +412,7 @@
 				A200000100000038 /* QuickQueryResult.swift */,
 				A200000100000050 /* TranslationLanguage.swift */,
 				A200000100000064 /* WebSearchEngine.swift */,
+				A20000010000006C /* AppVersion.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -420,6 +438,7 @@
 				A20000010000005E /* WordSelecting.swift */,
 				A200000100000065 /* UserNotifying.swift */,
 				A200000100000067 /* ScreenTextRecognizing.swift */,
+				A20000010000006D /* LatestReleaseFetching.swift */,
 			);
 			path = Ports;
 			sourceTree = "<group>";
@@ -527,6 +546,7 @@
 				A20000010000004B /* AskQuickAI.swift */,
 				A200000100000055 /* TranslateText.swift */,
 				A200000100000062 /* QuickAIStreaming.swift */,
+				A20000010000006E /* CheckForUpdates.swift */,
 			);
 			path = UseCases;
 			sourceTree = "<group>";
@@ -646,6 +666,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000010000004E /* QuickAIMarkdown.swift */,
+				A200000100000070 /* QuickAIMarkdownBlockView.swift */,
 				A200000100000063 /* StreamingTextBuffer.swift */,
 			);
 			path = Shared;
@@ -657,6 +678,22 @@
 				A200000100000066 /* UserNotificationCenterNotifier.swift */,
 			);
 			path = Notifications;
+			sourceTree = "<group>";
+		};
+		A400000100000025 /* Update */ = {
+			isa = PBXGroup;
+			children = (
+				A20000010000006F /* GitHubReleaseFetcher.swift */,
+			);
+			path = Update;
+			sourceTree = "<group>";
+		};
+		A400000100000026 /* Update */ = {
+			isa = PBXGroup;
+			children = (
+				A200000100000071 /* UpdateCheckController.swift */,
+			);
+			path = Update;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -840,6 +877,12 @@
 				A100000100000068 /* VisionScreenTextRecognizer.swift in Sources */,
 				A100000100000069 /* ScreenSelectionOverlay.swift in Sources */,
 				A10000010000006A /* TranslatorBubble.swift in Sources */,
+				A10000010000006C /* AppVersion.swift in Sources */,
+				A10000010000006D /* LatestReleaseFetching.swift in Sources */,
+				A10000010000006E /* CheckForUpdates.swift in Sources */,
+				A10000010000006F /* GitHubReleaseFetcher.swift in Sources */,
+				A100000100000070 /* QuickAIMarkdownBlockView.swift in Sources */,
+				A100000100000071 /* UpdateCheckController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -868,6 +911,7 @@
 				B10000010000001B /* AppCoordinatorTests.swift in Sources */,
 				B10000010000001C /* QuickAITests.swift in Sources */,
 				B10000010000001D /* TranslatorTests.swift in Sources */,
+				B10000010000001E /* UpdateCheckTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

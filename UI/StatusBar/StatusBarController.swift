@@ -7,17 +7,23 @@ final class StatusBarController: NSObject {
     private let onShowLauncher: () -> Void
     private let onSettings: () -> Void
     private let onAbout: () -> Void
+    private let onCheckForUpdates: () -> Void
+    private let isCheckingForUpdates: () -> Bool
     private let onQuit: () -> Void
 
     init(
         onShowLauncher: @escaping () -> Void,
         onSettings: @escaping () -> Void,
         onAbout: @escaping () -> Void,
+        onCheckForUpdates: @escaping () -> Void,
+        isCheckingForUpdates: @escaping () -> Bool,
         onQuit: @escaping () -> Void
     ) {
         self.onShowLauncher = onShowLauncher
         self.onSettings = onSettings
         self.onAbout = onAbout
+        self.onCheckForUpdates = onCheckForUpdates
+        self.isCheckingForUpdates = isCheckingForUpdates
         self.onQuit = onQuit
         super.init()
     }
@@ -39,6 +45,11 @@ final class StatusBarController: NSObject {
             keyEquivalent: ""
         )
         let aboutItem = NSMenuItem(title: "关于 OI", action: #selector(about), keyEquivalent: "")
+        let updateItem = NSMenuItem(
+            title: "检查更新…",
+            action: #selector(checkForUpdates),
+            keyEquivalent: ""
+        )
         let settingsItem = NSMenuItem(
             title: "设置…",
             action: #selector(settings),
@@ -47,12 +58,14 @@ final class StatusBarController: NSObject {
         let quitItem = NSMenuItem(title: "退出", action: #selector(quit), keyEquivalent: "q")
         showItem.target = self
         aboutItem.target = self
+        updateItem.target = self
         settingsItem.target = self
         quitItem.target = self
 
         menu.addItem(showItem)
         menu.addItem(.separator())
         menu.addItem(aboutItem)
+        menu.addItem(updateItem)
         menu.addItem(settingsItem)
         menu.addItem(.separator())
         menu.addItem(quitItem)
@@ -80,11 +93,25 @@ final class StatusBarController: NSObject {
         onAbout()
     }
 
+    @objc func checkForUpdates() {
+        onCheckForUpdates()
+    }
+
     @objc func settings() {
         onSettings()
     }
 
     @objc func quit() {
         onQuit()
+    }
+}
+
+extension StatusBarController: NSMenuItemValidation {
+    /// 检查更新期间该项显示「正在检查更新…」且不可点按，避免重复请求；菜单每次弹出时都会重新校验。
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        guard menuItem.action == #selector(checkForUpdates) else { return true }
+        let isChecking = isCheckingForUpdates()
+        menuItem.title = isChecking ? "正在检查更新…" : "检查更新…"
+        return !isChecking
     }
 }

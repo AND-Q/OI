@@ -271,6 +271,22 @@
 - **涉及文件**：
   - [Infrastructure/Translator/SystemTranslatorEnvironment.swift](Infrastructure/Translator/SystemTranslatorEnvironment.swift)、[Application/Ports/TranslatorEnvironmentHandling.swift](Application/Ports/TranslatorEnvironmentHandling.swift)
 
+## [x] 16. 检查更新（GitHub Release）
+
+- **需求描述**：
+  - 菜单栏菜单增加「检查更新」，查询 GitHub 最新 Release 的版本号，比当前版本新时提示并打开下载页。
+- **需要做到**：
+  - 异步请求 GitHub Releases API 对比当前 `CFBundleShortVersionString`；
+  - 检测到新版本时展示更新弹窗与更新日志，提供一键前往下载；已经是最新版本时友好提示。
+- **实现说明**：
+  - 菜单：[StatusBarController](UI/StatusBar/StatusBarController.swift) 在「关于 OI」与「设置…」之间新增「检查更新…」；查询期间该项显示「正在检查更新…」且不可点按，避免重复请求。只在用户选择时检查，不在后台自动检查；
+  - 查询：新增 [LatestReleaseFetching](Application/Ports/LatestReleaseFetching.swift) 端口与 [GitHubReleaseFetcher](Infrastructure/Update/GitHubReleaseFetcher.swift)，不登录请求 `GET /repos/AND-Q/OI/releases/latest`（只返回正式版本，不含草稿与预发布；每个 IP 每小时限 60 次），超时 15 秒，不读本地缓存；仓库地址放在 [AppConfiguration](App/AppConfiguration.swift) 的 `releaseRepository`。网络不通、没有发布过版本（404，仓库不公开时也是 404）、访问次数超限（403 / 429）、其他状态码与无法解析的响应各给出中文原因；
+  - 比较：新增 [AppVersion](Domain/Models/AppVersion.swift)，按数字逐段比较（允许 `v` 前缀，缺少的段按 0 处理，`1.10.0` 比 `1.9.9` 新）；[CheckForUpdates](Application/UseCases/CheckForUpdates.swift) 用例读取当前版本（由 [AppDependencies](App/AppDependencies.swift) 传入 `CFBundleShortVersionString`），标签比当前版本新时为有新版本，相同或更旧（如本地开发版本）时为已是最新；查询失败或版本号无法识别（如 `1.2.0-beta`）时抛出 `ApplicationError.updateCheckFailed`；
+  - 提醒框：[UpdateCheckController](UI/Update/UpdateCheckController.swift) 用系统提醒框告知结果，弹出前用 `activate(ignoringOtherApps:)` 激活（同设置窗口与关于面板）。有新版本时标题为「OI x.y.z 已发布」，说明当前版本与替换方法，下方按 Markdown 显示更新日志（复用 Quick AI 的 Markdown 显示，从 [QuickAIAnswerView](Features/Launcher/QuickAIAnswerView.swift) 提取为 [QuickAIMarkdownBlockView](Features/Shared/QuickAIMarkdownBlockView.swift)；日志在框内滚动、可选中复制，开头与标题重复的一级标题不显示），「前往下载」用默认浏览器打开该版本的发布页，「以后再说」或 `Esc` 关闭；已是最新时提示「OI 已是最新版本」与当前版本号；失败时显示原因；
+  - 测试：版本号解析与比较、用例三种结果与失败原因、GitHub 请求地址与响应解析（含 body 为 null、各错误状态码）、只在选择「前往下载」时打开发布页、更新日志去掉开头标题、菜单项检查期间不可点按。
+- **涉及文件**：
+  - [Domain/Models/AppVersion.swift](Domain/Models/AppVersion.swift)、[Application/Ports/LatestReleaseFetching.swift](Application/Ports/LatestReleaseFetching.swift)、[Application/UseCases/CheckForUpdates.swift](Application/UseCases/CheckForUpdates.swift)、[Application/Errors/ApplicationError.swift](Application/Errors/ApplicationError.swift)、[Infrastructure/Update/GitHubReleaseFetcher.swift](Infrastructure/Update/GitHubReleaseFetcher.swift)、[Features/Shared/QuickAIMarkdownBlockView.swift](Features/Shared/QuickAIMarkdownBlockView.swift)、[Features/Launcher/QuickAIAnswerView.swift](Features/Launcher/QuickAIAnswerView.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[UI/Update/UpdateCheckController.swift](UI/Update/UpdateCheckController.swift)、[UI/StatusBar/StatusBarController.swift](UI/StatusBar/StatusBarController.swift)、[App/AppConfiguration.swift](App/AppConfiguration.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[App/AppCoordinator.swift](App/AppCoordinator.swift)、[OITests/UpdateCheckTests.swift](OITests/UpdateCheckTests.swift)、[OITests/StatusBarControllerTests.swift](OITests/StatusBarControllerTests.swift)
+
 ## [ ] 系统设置项直达
 
 - **需求描述**：
@@ -380,14 +396,6 @@
 - **需要做到**：
   - 接入 macOS 原生高质量语音合成器（`AVSpeechSynthesizer` / `NSSpeechSynthesizer`），自动匹配源语言发音人；
   - 翻译气泡内提供发音图标或快捷键（如 `Cmd+S`），无需调用任何外部网络 API 即可离线发音。
-
-## [ ] 检查更新（GitHub Release）
-
-- **需求描述**：
-  - 菜单栏菜单增加「检查更新」，查询 GitHub 最新 Release 的版本号，比当前版本新时提示并打开下载页。
-- **需要做到**：
-  - 异步请求 GitHub Releases API 对比当前 `CFBundleShortVersionString`；
-  - 检测到新版本时展示更新弹窗与更新日志，提供一键前往下载；已经是最新版本时友好提示。
 
 ## 候选想法（未排期）
 
