@@ -158,6 +158,10 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(answerer.recorder.questions, ["Hello"])
         XCTAssertEqual(answerer.recorder.prompts, [TranslateText.systemPrompt(for: .simplifiedChinese)])
         XCTAssertTrue(TranslateText.systemPrompt(for: .simplifiedChinese).contains("Simplified Chinese"))
+        XCTAssertTrue(
+            TranslateText.systemPrompt(for: .simplifiedChinese).contains("one meaning per line"),
+            "单词的几个释义每行一个，用分号连在一行里分不清是几个释义"
+        )
     }
 
     func testTranslateTextUsesTranslatorEndpointAndKey() async throws {
