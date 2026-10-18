@@ -358,6 +358,8 @@ final class TranslatorCloseButtonView: NSView {
     static let size = NSSize(width: 14, height: 14)
     /// 与系统窗口按钮相同的圆点直径。
     private static let diameter: CGFloat = 12
+    /// 平时圆点叠在背景上的不透明度：浅色外观下略深、深色外观下略浅于背景。
+    private static let restingOpacity: CGFloat = 0.12
     /// 系统关闭按钮的红色、描边与 × 的颜色。
     private static let fillColor = NSColor(srgbRed: 1, green: 0.373, blue: 0.341, alpha: 1)
     private static let pressedFillColor = NSColor(srgbRed: 0.75, green: 0.286, blue: 0.259, alpha: 1)
@@ -431,11 +433,10 @@ final class TranslatorCloseButtonView: NSView {
         let circle = NSBezierPath(ovalIn: rect.insetBy(dx: 0.25, dy: 0.25))
         circle.lineWidth = 0.5
         guard isPressed || isPointerInside else {
-            // 平时：随浅色与深色外观变化的浅灰，与毛玻璃背景接近。
-            NSColor.labelColor.withAlphaComponent(0.16).setFill()
+            // 平时：只比背景略深（深色外观下略浅）的圆点、不描边，与毛玻璃背景融为一体，
+            // 能看出按钮的位置又不抢眼（参照 Termius 等隐藏标题栏应用的交通灯）。
+            NSColor.labelColor.withAlphaComponent(Self.restingOpacity).setFill()
             circle.fill()
-            NSColor.labelColor.withAlphaComponent(0.08).setStroke()
-            circle.stroke()
             return
         }
         (isPressed ? Self.pressedFillColor : Self.fillColor).setFill()
