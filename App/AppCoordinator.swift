@@ -191,11 +191,12 @@ final class AppCoordinator {
     }
 
     private func showAbout() {
-        // 与设置窗口相同：推迟到状态栏菜单收起后再激活，并强制置顶，避免被其他应用压住。
+        // 与设置窗口相同：推迟到状态栏菜单收起后再激活（用 activate(ignoringOtherApps:)，以免被系统拒绝、
+        // 焦点留在原应用），并强制置顶，避免被其他应用压住。
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             let existingWindows = Set(NSApp.windows.map(ObjectIdentifier.init))
-            NSApp.activate()
+            NSApp.activate(ignoringOtherApps: true)
             // 空字符串让系统不在版本号后附带括号中的 build 号
             NSApp.orderFrontStandardAboutPanel(options: [.version: ""])
             if self.aboutWindow == nil {

@@ -37,13 +37,13 @@ final class SettingsWindowController {
         self.window = window
         setActivationPolicy(.regular)
         window.orderFrontRegardless()
-        // macOS 14 起激活是协作式的：从状态栏菜单触发时菜单仍在收起，此时请求激活常被拒绝，
-        // 窗口只会排在本应用内最前、被其他应用压住。推迟到菜单收起后再激活，
-        // 并用 orderFrontRegardless 保证激活未获批准时窗口也位于所有应用之上。
+        // 从状态栏菜单触发时菜单仍在收起，推迟到菜单收起后再激活，并用 orderFrontRegardless
+        // 保证窗口位于所有应用之上。激活与启动器一致用 activate(ignoringOtherApps:)：macOS 14 起
+        // 协作式的 activate() 在用户正使用其他应用时可能被拒绝，窗口虽在最前，键盘焦点仍留在原应用。
         DispatchQueue.main.async {
             // 窗口已在此期间关闭（如紧接着调用了 close()）时不再重新展示。
             guard window.isVisible else { return }
-            NSApp.activate()
+            NSApp.activate(ignoringOtherApps: true)
             window.orderFrontRegardless()
             window.makeKey()
         }
