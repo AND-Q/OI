@@ -333,9 +333,8 @@ final class TranslatorBubble {
     }
 }
 
-/// 气泡左上角的关闭按钮，外观照 macOS 窗口的关闭按钮：平时是与背景接近的浅灰圆点，不抢眼；
-/// 指针移上去时变为系统的红色并显示 ×。系统自带的按钮只在标题栏里才有悬停变色，放进气泡后需借助未公开的接口，
-/// 因此自行绘制。
+/// 气泡左上角的关闭按钮：平时是与背景颜色接近的圆点，不抢眼；指针移上去时显示系统原生的窗口关闭按钮
+/// （红色交通灯与 ×，由系统绘制）。
 struct TranslatorWindowCloseButton: NSViewRepresentable {
     let action: () -> Void
 
@@ -350,30 +349,44 @@ struct TranslatorWindowCloseButton: NSViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: TranslatorCloseButtonView, context: Context) -> CGSize? {
-        TranslatorCloseButtonView.size
+        nsView.intrinsicContentSize
     }
 }
 
+/// 承载系统关闭按钮的容器。系统的窗口按钮只在标题栏里才会在悬停时显示颜色与 ×：按钮重绘时询问父视图
+/// `_mouseInGroup:`（指针是否在按钮组上），标题栏据此回答；放进气泡后由本视图代为回答。该机制没有写进文档
+/// （Electron 的「悬停才显示红绿灯」同样依赖它），将来失效时悬停只显示系统的灰色按钮，仍可点按关闭。
+/// 系统按钮在 OI 不在前台时画成灰色、比背景显眼，因此平时把它设为透明，改画一个与背景颜色接近的圆点。
 final class TranslatorCloseButtonView: NSView {
-    static let size = NSSize(width: 14, height: 14)
-    /// 与系统窗口按钮相同的圆点直径。
+    /// 平时圆点的直径，与系统窗口按钮相同。
     private static let diameter: CGFloat = 12
     /// 平时圆点叠在背景上的不透明度：浅色外观下略深、深色外观下略浅于背景。
     private static let restingOpacity: CGFloat = 0.12
-    /// 系统关闭按钮的红色、描边与 × 的颜色。
-    private static let fillColor = NSColor(srgbRed: 1, green: 0.373, blue: 0.341, alpha: 1)
-    private static let pressedFillColor = NSColor(srgbRed: 0.75, green: 0.286, blue: 0.259, alpha: 1)
-    private static let borderColor = NSColor(srgbRed: 0.878, green: 0.267, blue: 0.243, alpha: 1)
-    private static let glyphColor = NSColor(srgbRed: 0.302, green: 0, blue: 0, alpha: 0.7)
 
     var onClick: (() -> Void)?
-    private var isPressed = false {
-        didSet { needsDisplay = true }
+    private let button: NSButton
+    private var isHovered = false {
+        didSet {
+            guard isHovered != oldValue else { return }
+            button.alphaValue = isHovered ? 1 : 0
+            // 让系统按钮重绘，重绘时会再询问 _mouseInGroup:。
+            button.needsDisplay = true
+            needsDisplay = true
+        }
     }
 
     override init(frame frameRect: NSRect) {
+        button = NSWindow.standardWindowButton(.closeButton, for: [.titled, .closable]) ?? NSButton()
         super.init(frame: frameRect)
-        toolTip = "关闭"
+        let size = button.frame.size == .zero ? NSSize(width: 14, height: 14) : button.frame.size
+        setFrameSize(size)
+        button.setFrameOrigin(.zero)
+        button.target = self
+        button.action = #selector(closeBubble)
+        button.toolTip = "关闭"
+        // 透明而非隐藏：仍可点按，旁白也能读到这个按钮。
+        button.alphaValue = 0
+        addSubview(button)
     }
 
     @available(*, unavailable)
@@ -381,10 +394,7 @@ final class TranslatorCloseButtonView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override var intrinsicContentSize: NSSize { Self.size }
-
-    /// 气泡不是 key 窗口时（如固定后点过别处）点一次即关闭。
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override var intrinsicContentSize: NSSize { button.frame.size }
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -401,82 +411,34 @@ final class TranslatorCloseButtonView: NSView {
     }
 
     override func mouseEntered(with event: NSEvent) {
-        needsDisplay = true
+        isHovered = true
     }
 
     override func mouseExited(with event: NSEvent) {
-        needsDisplay = true
+        isHovered = false
     }
 
-    override func mouseDown(with event: NSEvent) {
-        isPressed = true
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        isPressed = contains(event)
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        isPressed = false
-        if contains(event) {
-            onClick?()
-        }
+    /// 系统按钮询问指针是否在按钮组上，是则画出颜色与 ×。
+    @objc(_mouseInGroup:)
+    func mouseInGroup(_ button: NSButton) -> Bool {
+        isHovered
     }
 
     override func draw(_ dirtyRect: NSRect) {
+        guard !isHovered else { return }
         let rect = NSRect(
             x: (bounds.width - Self.diameter) / 2,
             y: (bounds.height - Self.diameter) / 2,
             width: Self.diameter,
             height: Self.diameter
         )
-        let circle = NSBezierPath(ovalIn: rect.insetBy(dx: 0.25, dy: 0.25))
-        circle.lineWidth = 0.5
-        guard isPressed || isPointerInside else {
-            // 平时：只比背景略深（深色外观下略浅）的圆点、不描边，与毛玻璃背景融为一体，
-            // 能看出按钮的位置又不抢眼（参照 Termius 等隐藏标题栏应用的交通灯）。
-            NSColor.labelColor.withAlphaComponent(Self.restingOpacity).setFill()
-            circle.fill()
-            return
-        }
-        (isPressed ? Self.pressedFillColor : Self.fillColor).setFill()
-        circle.fill()
-        Self.borderColor.setStroke()
-        circle.stroke()
-
-        let inset = Self.diameter * 0.32
-        let glyphRect = rect.insetBy(dx: inset, dy: inset)
-        let glyph = NSBezierPath()
-        glyph.move(to: NSPoint(x: glyphRect.minX, y: glyphRect.minY))
-        glyph.line(to: NSPoint(x: glyphRect.maxX, y: glyphRect.maxY))
-        glyph.move(to: NSPoint(x: glyphRect.minX, y: glyphRect.maxY))
-        glyph.line(to: NSPoint(x: glyphRect.maxX, y: glyphRect.minY))
-        glyph.lineWidth = 1.1
-        glyph.lineCapStyle = .round
-        Self.glyphColor.setStroke()
-        glyph.stroke()
+        // 平时：只比背景略深（深色外观下略浅）的圆点、不描边，与毛玻璃背景融为一体，
+        // 能看出按钮的位置又不抢眼（参照 Termius 等隐藏标题栏应用的交通灯）。
+        NSColor.labelColor.withAlphaComponent(Self.restingOpacity).setFill()
+        NSBezierPath(ovalIn: rect).fill()
     }
 
-    /// 按指针的实际位置判断是否悬停：气泡收起时收不到指针离开，再次弹出时也不会停留在悬停状态。
-    private var isPointerInside: Bool {
-        guard let window else { return false }
-        return bounds.contains(convert(window.mouseLocationOutsideOfEventStream, from: nil))
-    }
-
-    private func contains(_ event: NSEvent) -> Bool {
-        bounds.contains(convert(event.locationInWindow, from: nil))
-    }
-
-    // MARK: - Accessibility
-
-    override func isAccessibilityElement() -> Bool { true }
-
-    override func accessibilityRole() -> NSAccessibility.Role? { .button }
-
-    override func accessibilityLabel() -> String? { "关闭" }
-
-    override func accessibilityPerformPress() -> Bool {
+    @objc private func closeBubble() {
         onClick?()
-        return true
     }
 }
