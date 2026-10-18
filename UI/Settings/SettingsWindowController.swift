@@ -66,9 +66,9 @@ final class SettingsWindowController {
         )
         // 可最小化、拉大与全屏（同 Raycast）；拉大时侧边栏宽度不变，右侧设置页随之加宽。
         window.collectionBehavior.insert(.fullScreenPrimary)
+        // 设置页显示后，标题随当前分类变化，显示在右侧顶部（见 SettingsView 的 navigationTitle），同系统设置。
         window.title = "OI 设置"
-        // 侧边栏延伸到标题栏下方，红绿灯叠在侧边栏上（同系统设置）；标题只用于窗口菜单与调度中心，不显示。
-        window.titleVisibility = .hidden
+        // 侧边栏延伸到标题栏下方，红绿灯叠在侧边栏上（同系统设置）。
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
         let controller = NSHostingController(rootView: SettingsView(viewModel: viewModel))
@@ -76,6 +76,9 @@ final class SettingsWindowController {
         // 内容理想高度超出屏幕时还会反复压回撑大、陷入约束更新死循环。
         controller.sizingOptions = [.minSize]
         window.contentViewController = controller
+        // 先定好尺寸再居中：托管视图此时还没排版，窗口尺寸未定，直接居中后再被撑大会偏到屏幕右下方、
+        // 超出屏幕。之后再打开时停在上次的位置与大小。
+        window.setContentSize(NSSize(width: 760, height: 560))
         window.center()
         // 输入框失焦不覆盖所有离开方式：直接点关闭按钮，或不点别处就按快捷键切到启动器
         // （窗口失去 key 时 SwiftUI 输入框并不失焦），这两种情况都补一次保存。

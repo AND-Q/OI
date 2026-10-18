@@ -248,10 +248,10 @@
   - 只改布局：所有设置项、默认值、UserDefaults 与钥匙串持久化、快捷键试注册与回滚、API Key 的保存时机都不变。
 - **实现说明**：
   - 分类：[SettingsCategory](Features/Settings/SettingsCategory.swift) 定义五个分类——通用（含原「通用」与「快捷键」两组）、搜索、Quick AI、划词翻译、取词环境，各带侧边栏图标与页内设置项名称；`filtered(by:)` 按分类名与设置项名称不区分大小写地过滤，保持侧边栏顺序；
-  - 布局：[SettingsView](UI/Settings/SettingsView.swift) 改用 `NavigationSplitView`：侧边栏为系统 `List` 样式（系统材质背景与选中高亮），分类图标为白色符号配彩色圆角底；`.searchable(placement: .sidebar)` 在侧边栏顶部放系统搜索框，回车（`onSubmit(of: .search)`）跳到第一个结果，没有结果时提示「没有匹配的设置」；详情区按分类显示原有的 `Form` 分组，每页独立滚动、切换时回到顶部；
-  - 划词翻译独占一页后拆成「取词与快捷键」「翻译语言」「翻译接口」三组，原有说明按句分到对应的组，文字不变；其余分组标题、设置项与说明原样保留；
+  - 布局：[SettingsView](UI/Settings/SettingsView.swift) 改用 `NavigationSplitView`：侧边栏为系统 `List` 样式（系统材质背景与选中高亮），分类图标为白色符号配彩色圆角底；`.searchable(placement: .sidebar)` 在侧边栏顶部放系统搜索框，回车（`onSubmit(of: .search)`）跳到第一个结果，没有结果时提示「没有匹配的设置」；详情区按分类显示原有的 `Form` 分组，每页独立滚动、切换时回到顶部；当前分类名用 `navigationTitle` 显示在右侧顶部、与红绿灯同一行（同系统设置，窗口标题随之变为分类名）；设置页最宽 640pt，窗口拉大或全屏时两侧留白居中，名称与右侧的开关、按钮不至于隔得太远；
+  - 划词翻译独占一页后拆成「取词与快捷键」「翻译语言」「翻译接口」三组，原有说明按句分到对应的组，文字不变；与分类名相同的分组标题（通用、搜索、Quick AI、取词环境）不再重复显示，其余分组标题、设置项与说明原样保留；
   - API Key 保存：切换分类时输入框随页面移除、不会触发失焦保存，切换前先保存两个 API Key（与已保存的相同则不写入）；关闭窗口、窗口失去焦点、回车与失焦时的保存不变；点按侧边栏空白处不会取消选中；
-  - 窗口：[SettingsWindowController](UI/Settings/SettingsWindowController.swift) 默认 760×560（也是最小尺寸），可最小化、拉大与全屏（同 Raycast，拉大时侧边栏宽度不变、右侧设置页加宽；最小化后再从菜单栏打开会先还原）；托管视图只按 SwiftUI 的最小尺寸约束窗口（`sizingOptions = [.minSize]`），不跟随理想尺寸，避免拉大的窗口被弹回与约束更新死循环；`fullSizeContentView` 配透明标题栏、隐藏标题，侧边栏延伸到红绿灯下方（同系统设置）；窗口标题仍为「OI 设置」，用于窗口菜单与调度中心；展示、激活、程序坞图标与关闭时的处理不变；
+  - 窗口：[SettingsWindowController](UI/Settings/SettingsWindowController.swift) 默认 760×560（也是最小尺寸），可最小化、拉大与全屏（同 Raycast，拉大时侧边栏宽度不变、右侧设置页加宽；最小化后再从菜单栏打开会先还原）；托管视图只按 SwiftUI 的最小尺寸约束窗口（`sizingOptions = [.minSize]`），不跟随理想尺寸，避免拉大的窗口被弹回与约束更新死循环；`fullSizeContentView` 配透明标题栏，侧边栏延伸到红绿灯下方（同系统设置）；创建时先定好 760×560 再居中（托管视图排版前窗口尺寸未定，先居中再被撑大会偏到屏幕右下方、超出屏幕），之后再打开停在上次的位置与大小；展示、激活、程序坞图标与关闭时的处理不变；
   - 测试：分类过滤（空搜索、分类名、设置项名称、跨分类同名项、无结果）。
 - **涉及文件**：
   - [Features/Settings/SettingsCategory.swift](Features/Settings/SettingsCategory.swift)、[UI/Settings/SettingsView.swift](UI/Settings/SettingsView.swift)、[UI/Settings/SettingsWindowController.swift](UI/Settings/SettingsWindowController.swift)、[OITests/SettingsViewModelTests.swift](OITests/SettingsViewModelTests.swift)

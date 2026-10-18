@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import SwiftUI
 import XCTest
 
 @testable import OI
@@ -16,7 +17,7 @@ final class SettingsWindowControllerTests: XCTestCase {
         )
         let controller = SettingsWindowController(viewModel: viewModel, setActivationPolicy: { _ in })
         defer {
-            NSApplication.shared.windows.first { $0.title == "OI 设置" }?.close()
+            settingsWindow()?.close()
         }
 
         controller.show()
@@ -38,7 +39,7 @@ final class SettingsWindowControllerTests: XCTestCase {
         let controller = SettingsWindowController(viewModel: viewModel, setActivationPolicy: { _ in })
 
         controller.show()
-        let window = try XCTUnwrap(NSApplication.shared.windows.first { $0.title == "OI 设置" })
+        let window = try XCTUnwrap(settingsWindow())
         XCTAssertTrue(window.isVisible)
 
         controller.close()
@@ -62,6 +63,11 @@ final class SettingsWindowControllerTests: XCTestCase {
         controller.show()
         controller.close()
         XCTAssertEqual(policies, [.regular, .regular, .accessory], "再次呼出保持普通应用，关闭后恢复")
+    }
+
+    /// 窗口标题随当前分类变化，按托管的设置页查找窗口。
+    private func settingsWindow() -> NSWindow? {
+        NSApplication.shared.windows.first { $0.contentViewController is NSHostingController<SettingsView> }
     }
 }
 

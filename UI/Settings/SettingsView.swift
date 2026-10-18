@@ -63,9 +63,13 @@ struct SettingsView: View {
         .navigationSplitViewColumnWidth(200)
     }
 
+    /// 设置页的最大宽度：窗口拉大或全屏时两侧留白，名称与右侧的开关、按钮不至于隔得太远。
+    private static let detailMaxWidth: CGFloat = 640
+
     private var detail: some View {
-        Form {
-            switch selection ?? .general {
+        let category = selection ?? .general
+        return Form {
+            switch category {
             case .general:
                 generalSections
             case .search:
@@ -79,8 +83,12 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .frame(maxWidth: Self.detailMaxWidth)
+        .frame(maxWidth: .infinity)
         // 每页从顶部开始显示，不沿用上一页的滚动位置。
-        .id(selection)
+        .id(category)
+        // 当前分类名显示在右侧顶部、与红绿灯同一行（同系统设置），页内分组不再重复分类名。
+        .navigationTitle(category.title)
     }
 
     // MARK: - Pages
@@ -93,8 +101,6 @@ struct SettingsView: View {
                 launchAtLoginNoticeRow(notice)
             }
             Toggle("开机静默启动", isOn: $viewModel.settings.isSilentLaunchEnabled)
-        } header: {
-            Text("通用")
         } footer: {
             Text("开机静默启动开启时，启动 OI 仅驻留菜单栏，不自动呼出启动器面板。")
         }
@@ -135,8 +141,6 @@ struct SettingsView: View {
                     Text(engine.displayName).tag(engine)
                 }
             }
-        } header: {
-            Text("搜索")
         } footer: {
             Text("启动历史排序会记录应用的启动次数与最近使用时间，用于优化常用应用的排序，数据仅保存在本机。在启动器中按 ⌘↩ 会用所选搜索引擎在默认浏览器中搜索输入内容。")
         }
@@ -165,8 +169,6 @@ struct SettingsView: View {
                 .onChange(of: isAPIKeyFocused) { _, isFocused in
                     if !isFocused { viewModel.commitQuickAIAPIKey() }
                 }
-        } header: {
-            Text("Quick AI")
         } footer: {
             Text("在启动器中按 Tab 进入 Quick AI，输入问题后按回车提问。兼容 OpenAI Chat Completions 接口，也可填写 Ollama 等本地服务（如 http://localhost:11434/v1）。提问内容会发送到所填地址，API Key 保存在钥匙串中。思考强度对应接口的 reasoning_effort 参数，常见取值为 low、medium、high，各服务支持的取值不同；留空则不发送，不支持该参数的服务可能报错。")
         }
@@ -309,8 +311,6 @@ struct SettingsView: View {
                 "保持开启「用力点按和触感反馈」",
                 "位于同一页面；关闭后触控板无法识别用力点按"
             )
-        } header: {
-            Text("取词环境")
         } footer: {
             Text("未开启辅助功能权限时，翻译快捷键只能翻译剪贴板内容，用力点按无法取词；未开启屏幕录制权限时无法截图翻译。重新编译或更新 OI 后若取词或截图翻译失效，请在对应的权限列表中移除 OI 后重新添加。")
         }
