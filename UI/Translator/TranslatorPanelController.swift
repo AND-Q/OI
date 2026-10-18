@@ -7,6 +7,8 @@ import SwiftUI
 /// 面板成为 key 窗口以接收 Esc / 回车与原文编辑，但 OI 不切到前台，原应用保持激活。
 /// 用力点按取到单词时，另用一个不接收鼠标的窗口在原文单词上叠加黄色高亮，随气泡出现与收起。
 /// 截图翻译时先进入框选（`ScreenSelectionOverlay`），框选完成后气泡贴着选框弹出、显示在遮罩之上。
+/// 气泡可以拖动：拖动过的气泡留在放下的位置，点到别处、切换应用、退出框选都不收起，
+/// 只由关闭按钮、`Esc`、回车复制或新的翻译关闭。
 @MainActor
 final class TranslatorPanelController {
     private enum Layout {
@@ -33,6 +35,8 @@ final class TranslatorPanelController {
         case reselect = "reselect"
         /// 截图翻译中右键或有其他应用切到前台：退出框选。
         case selectionCancelled = "selection cancelled"
+        /// 拖动过的气泡上的关闭按钮。
+        case closeButton = "close button"
     }
 
     private let viewModel: TranslatorViewModel
@@ -50,6 +54,9 @@ final class TranslatorPanelController {
     /// 每次弹出递增：淡出完成时据此判断期间是否又弹出了新的气泡。
     private var presentationGeneration = 0
     private var isDismissing = false
+    /// 正在按内容调整气泡位置与尺寸：期间的移动通知来自 OI 自己，不是用户拖动。
+    private var isApplyingFrame = false
+    private var moveObservers: [any NSObjectProtocol] = []
 
     init(viewModel: TranslatorViewModel) {
         self.viewModel = viewModel
@@ -72,11 +79,16 @@ final class TranslatorPanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = false
-        panel.isMovable = false
+        // 只能按住气泡顶部或底部拖动（见 TranslatorView），不随背景拖动，以免与选中译文冲突。
+        panel.isMovable = true
+        panel.isMovableByWindowBackground = false
         panel.animationBehavior = .none
 
         let hostingView = NSHostingView(
-            rootView: TranslatorView(viewModel: viewModel) { [weak self] height in
+            rootView: TranslatorView(
+                viewModel: viewModel,
+                onClose: { [weak self] in self?.hide(reason: .closeButton) }
+            ) { [weak self] height in
                 self?.updateContentHeight(height)
             }
         )
@@ -110,9 +122,20 @@ final class TranslatorPanelController {
             guard let self else { return event }
             return self.handleKeyDown(event)
         }
+        // 用户按住气泡顶部或底部拖动（见 TranslatorView）后，气泡不再自动摆放与收起。
+        moveObservers = [NSWindow.willMoveNotification, NSWindow.didMoveNotification].map { name in
+            NotificationCenter.default.addObserver(forName: name, object: panel, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.panelDidMoveByUser()
+                }
+            }
+        }
     }
 
     isolated deinit {
+        for observer in moveObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
         if let keyMonitor {
             NSEvent.removeMonitor(keyMonitor)
         }
@@ -128,8 +151,9 @@ final class TranslatorPanelController {
     var isVisible: Bool { panel.isVisible && !isDismissing }
 
     /// 翻译快捷键：气泡已显示时收起，否则翻译选中的文字或剪贴板。
+    /// 拖动过的气泡留在屏幕上供参考，此时按快捷键直接翻译新的内容，取代气泡中的译文。
     func toggleShortcutTranslation() {
-        if isVisible {
+        if isVisible, !viewModel.isDetached {
             hide(reason: .shortcut)
             return
         }
@@ -175,8 +199,24 @@ final class TranslatorPanelController {
                 return
             case .reselect:
                 break
-            case .clickOutside, .escapeKey, .returnKey, .shortcut, .selectionCancelled:
+            case .returnKey, .closeButton:
                 selectionOverlay.end()
+            case .clickOutside, .escapeKey, .shortcut, .selectionCancelled:
+                selectionOverlay.end()
+                // 拖动过的气泡退出框选后保留，回到普通的浮动层级。
+                if viewModel.isDetached {
+                    panel.level = .floating
+                    highlight.level = .floating
+                    return
+                }
+            }
+        } else if viewModel.isDetached {
+            switch reason {
+            case .lostKeyFocus, .clickOutside, .selectionCancelled:
+                // 拖动过的气泡只能手动关闭。
+                return
+            case .escapeKey, .returnKey, .shortcut, .reselect, .closeButton:
+                break
             }
         }
         guard panel.isVisible, !isDismissing else { return }
@@ -250,6 +290,8 @@ final class TranslatorPanelController {
         )
         presentationGeneration += 1
         isDismissing = false
+        // 新的内容贴着原文弹出，此前拖动过的气泡也回到自动摆放与收起。
+        viewModel.isDetached = false
         // 截图翻译框选期间，气泡与高亮显示在遮罩之上。
         let level = selectionOverlay.isActive
             ? NSWindow.Level(rawValue: ScreenSelectionOverlay.level.rawValue + 1)
@@ -339,11 +381,29 @@ final class TranslatorPanelController {
     }
 
     private func applyFrame() {
-        guard let placement else { return }
+        guard var placement else { return }
+        if viewModel.isDetached {
+            // 拖动过的气泡：左上角留在放下的位置（按当前位置计算，拖动途中调整高度也不会跳回），内容增长时向下伸长。
+            placement = TranslatorPlacement(
+                keepingTopLeftOf: panel.frame,
+                visibleFrame: panel.screen?.visibleFrame ?? placement.visibleFrame
+            )
+        }
         let frame = placement.frame(height: contentHeight)
         guard frame != panel.frame else { return }
+        isApplyingFrame = true
         panel.setFrame(frame, display: true)
+        isApplyingFrame = false
         panel.invalidateShadow()
+    }
+
+    /// 用户拖动了气泡：不再贴着原文摆放，只能手动关闭；原文上的高亮标的是原来的位置，一并去掉。
+    private func panelDidMoveByUser() {
+        guard !isApplyingFrame, panel.isVisible, !isDismissing, !viewModel.isDetached else { return }
+        logger.debug("Translator bubble detached by dragging")
+        viewModel.isDetached = true
+        removeClickMonitor()
+        removeHighlight()
     }
 
     /// 全局监听只会收到发往其他应用的点击，即气泡之外的点击。
@@ -528,6 +588,14 @@ struct TranslatorPlacement: Equatable {
         let minX = visibleFrame.minX + Self.margin
         let maxX = max(visibleFrame.maxX - Self.margin - width, minX)
         x = min(max(chosenAnchor.minX, minX), maxX)
+    }
+
+    /// 被拖动过的气泡：左上角固定在当前位置，内容增长时向下伸长；水平方向保持用户放下的位置。
+    init(keepingTopLeftOf frame: NSRect, visibleFrame: NSRect) {
+        width = frame.width
+        self.visibleFrame = visibleFrame
+        x = frame.minX
+        edge = .below(top: frame.maxY)
     }
 
     /// 给定内容高度时的窗口位置：沿摆放方向伸长，并限制在屏幕可见区域内。

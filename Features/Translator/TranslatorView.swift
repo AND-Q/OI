@@ -12,19 +12,33 @@ enum TranslatorLayout {
 }
 
 /// 划词翻译气泡：语言方向与目标语言切换、原文（点按可修改）、流式译文与快捷键提示。
+/// 按住顶部的语言行或底部的提示栏可拖动气泡；拖动过的气泡只能手动关闭，右上角显示关闭按钮。
 @MainActor
 struct TranslatorView: View {
     @ObservedObject var viewModel: TranslatorViewModel
+    /// 点按关闭按钮。
+    let onClose: () -> Void
     /// 内容自然高度变化时通知面板同步窗口高度。
     let onHeightChange: (CGFloat) -> Void
 
     var body: some View {
         Group {
             if let session = viewModel.session {
-                TranslatorSessionView(session: session, notice: viewModel.notice, viewModel: viewModel)
-                    .id(session.id)
+                TranslatorSessionView(
+                    session: session,
+                    notice: viewModel.notice,
+                    isDetached: viewModel.isDetached,
+                    viewModel: viewModel,
+                    onClose: onClose
+                )
+                .id(session.id)
             } else if let notice = viewModel.notice {
-                TranslatorNoticeView(notice: notice, viewModel: viewModel)
+                TranslatorNoticeView(
+                    notice: notice,
+                    isDetached: viewModel.isDetached,
+                    viewModel: viewModel,
+                    onClose: onClose
+                )
             }
         }
         .frame(width: TranslatorLayout.width)
@@ -42,7 +56,9 @@ struct TranslatorView: View {
 private struct TranslatorSessionView: View {
     let session: TranslatorSession
     let notice: TranslatorNotice?
+    let isDetached: Bool
     let viewModel: TranslatorViewModel
+    let onClose: () -> Void
 
     @State private var isEditingSource = false
     @FocusState private var isSourceFocused: Bool
@@ -105,9 +121,13 @@ private struct TranslatorSessionView: View {
             case .selection, .word:
                 EmptyView()
             }
+            if isDetached {
+                TranslatorCloseButton(action: onClose)
+            }
         }
         .font(.system(size: 12))
         .foregroundStyle(.secondary)
+        .dragsTranslatorWindow()
     }
 
     /// 原文默认只读展示，点按后才变为输入框：气泡弹出时不抢占焦点，⌘C 默认复制译文。
@@ -187,6 +207,7 @@ private struct TranslatorSessionView: View {
         .padding(.horizontal, 14)
         .frame(height: TranslatorLayout.footerHeight)
         .background(Color.primary.opacity(0.03))
+        .dragsTranslatorWindow()
     }
 }
 
@@ -286,14 +307,23 @@ private struct TranslationArea: View {
 @MainActor
 private struct TranslatorNoticeView: View {
     let notice: TranslatorNotice
+    let isDetached: Bool
     let viewModel: TranslatorViewModel
+    let onClose: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 12) {
-                Label(message, systemImage: "text.badge.xmark")
-                    .font(.system(size: 13))
-                    .fixedSize(horizontal: false, vertical: true)
+                HStack(alignment: .top, spacing: 8) {
+                    Label(message, systemImage: "text.badge.xmark")
+                        .font(.system(size: 13))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    if isDetached {
+                        TranslatorCloseButton(action: onClose)
+                            .allowsWindowActivationEvents(true)
+                    }
+                }
                 switch notice {
                 case .accessibilityRequired:
                     Button("开启辅助功能权限…") {
@@ -319,6 +349,7 @@ private struct TranslatorNoticeView: View {
             .padding(.horizontal, 14)
             .frame(height: TranslatorLayout.footerHeight)
             .background(Color.primary.opacity(0.03))
+            .dragsTranslatorWindow()
         }
     }
 
@@ -355,7 +386,31 @@ private struct TranslatorShortcutHint: View {
     }
 }
 
+/// 拖动过的气泡点击外部、切换应用都不再收起，用此按钮关闭。
+private struct TranslatorCloseButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 13))
+                .foregroundStyle(.tertiary)
+        }
+        .buttonStyle(.plain)
+        .help("关闭")
+    }
+}
+
 private struct ScrollState: Equatable {
     var offset: CGFloat
     var isAtBottom: Bool
+}
+
+private extension View {
+    /// 按住此区域拖动气泡窗口；气泡不是 key 窗口时（如拖动后点过别处）第一次按下同样生效。
+    func dragsTranslatorWindow() -> some View {
+        contentShape(Rectangle())
+            .gesture(WindowDragGesture())
+            .allowsWindowActivationEvents(true)
+    }
 }

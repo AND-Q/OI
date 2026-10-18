@@ -539,10 +539,12 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(viewModel.session?.translation, "部分")
         XCTAssertEqual(viewModel.session?.state, .finished)
 
+        viewModel.isDetached = true
         viewModel.reset()
 
         XCTAssertNil(viewModel.session)
         XCTAssertNil(viewModel.notice)
+        XCTAssertFalse(viewModel.isDetached, "气泡收起后，下次弹出回到自动摆放与收起")
     }
 
     func testTranslationToCopyExcludesThinkingAndMarksCopied() async throws {
@@ -805,6 +807,18 @@ final class TranslatorTests: XCTestCase {
 
         XCTAssertEqual(placement.edge, .below(top: 484))
         XCTAssertEqual(placement.x, 276)
+    }
+
+    /// 拖动过的气泡左上角留在放下的位置，译文增长时向下伸长，到屏幕底部后整体上移、不超出屏幕。
+    func testDetachedPlacementKeepsTopLeftAndGrowsDownward() {
+        let placement = TranslatorPlacement(
+            keepingTopLeftOf: NSRect(x: 900, y: 500, width: 380, height: 120),
+            visibleFrame: Self.visibleFrame
+        )
+
+        XCTAssertEqual(placement.frame(height: 120), NSRect(x: 900, y: 500, width: 380, height: 120))
+        XCTAssertEqual(placement.frame(height: 300), NSRect(x: 900, y: 320, width: 380, height: 300))
+        XCTAssertEqual(placement.frame(height: 700), NSRect(x: 900, y: 8, width: 380, height: 700))
     }
 
     func testGlobalCoordinatesConvertToAppKit() {
