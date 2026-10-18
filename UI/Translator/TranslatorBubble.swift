@@ -77,7 +77,7 @@ final class TranslatorBubble {
         let hostingView = NSHostingView(
             rootView: TranslatorView(
                 viewModel: viewModel,
-                onClose: { [weak self] in self?.onClose?() },
+                closeButton: TranslatorWindowCloseButton { [weak self] in self?.onClose?() },
                 onPin: { [weak self] in self?.onPin?() }
             ) { [weak self] height in
                 self?.updateContentHeight(height)
@@ -330,5 +330,44 @@ final class TranslatorBubble {
             NSEvent.removeMonitor(scrollMonitor)
         }
         scrollMonitor = nil
+    }
+}
+
+/// 气泡左上角的关闭按钮：直接使用系统的窗口关闭按钮（红色交通灯），外观由系统绘制，随深色模式与窗口是否活跃变化。
+struct TranslatorWindowCloseButton: NSViewRepresentable {
+    let action: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(action: action)
+    }
+
+    func makeNSView(context: Context) -> NSButton {
+        let button = NSWindow.standardWindowButton(.closeButton, for: [.titled, .closable]) ?? NSButton()
+        button.target = context.coordinator
+        button.action = #selector(Coordinator.performClose)
+        button.toolTip = "关闭"
+        return button
+    }
+
+    func updateNSView(_ button: NSButton, context: Context) {
+        context.coordinator.action = action
+    }
+
+    /// 按系统给出的按钮尺寸排版。
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSButton, context: Context) -> CGSize? {
+        nsView.frame.size == .zero ? nsView.fittingSize : nsView.frame.size
+    }
+
+    @MainActor
+    final class Coordinator: NSObject {
+        var action: () -> Void
+
+        init(action: @escaping () -> Void) {
+            self.action = action
+        }
+
+        @objc func performClose() {
+            action()
+        }
     }
 }

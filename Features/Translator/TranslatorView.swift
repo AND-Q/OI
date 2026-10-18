@@ -14,10 +14,10 @@ enum TranslatorLayout {
 /// 划词翻译气泡：语言方向与目标语言切换、原文（点按可修改）、流式译文与快捷键提示。
 /// 左上角为关闭按钮，右上角为图钉（固定在屏幕上）；按住顶部一行或底部的提示栏可拖动气泡。
 @MainActor
-struct TranslatorView: View {
+struct TranslatorView<CloseButton: View>: View {
     @ObservedObject var viewModel: TranslatorViewModel
-    /// 点按左上角的关闭按钮。
-    let onClose: () -> Void
+    /// 左上角的关闭按钮：由面板提供系统原生的窗口关闭按钮（AppKit 控件不进入本层）。
+    let closeButton: CloseButton
     /// 点按右上角的图钉。
     let onPin: () -> Void
     /// 内容自然高度变化时通知面板同步窗口高度。
@@ -31,12 +31,12 @@ struct TranslatorView: View {
                     notice: viewModel.notice,
                     isPinned: viewModel.isPinned,
                     viewModel: viewModel,
-                    onClose: onClose,
+                    closeButton: closeButton,
                     onPin: onPin
                 )
                 .id(session.id)
             } else if let notice = viewModel.notice {
-                TranslatorNoticeView(notice: notice, viewModel: viewModel, onClose: onClose)
+                TranslatorNoticeView(notice: notice, viewModel: viewModel, closeButton: closeButton)
             }
         }
         .frame(width: TranslatorLayout.width)
@@ -51,12 +51,12 @@ struct TranslatorView: View {
 }
 
 @MainActor
-private struct TranslatorSessionView: View {
+private struct TranslatorSessionView<CloseButton: View>: View {
     let session: TranslatorSession
     let notice: TranslatorNotice?
     let isPinned: Bool
     let viewModel: TranslatorViewModel
-    let onClose: () -> Void
+    let closeButton: CloseButton
     let onPin: () -> Void
 
     @State private var isEditingSource = false
@@ -87,7 +87,7 @@ private struct TranslatorSessionView: View {
 
     private var header: some View {
         HStack(spacing: 6) {
-            TranslatorCloseButton(action: onClose)
+            closeButton
                 .padding(.trailing, 4)
             Text(session.sourceLanguageName ?? "自动识别")
             Image(systemName: "arrow.right")
@@ -304,18 +304,16 @@ private struct TranslationArea: View {
 
 /// 没有可翻译的内容时只展示提示。
 @MainActor
-private struct TranslatorNoticeView: View {
+private struct TranslatorNoticeView<CloseButton: View>: View {
     let notice: TranslatorNotice
     let viewModel: TranslatorViewModel
-    let onClose: () -> Void
+    let closeButton: CloseButton
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 10) {
-                    TranslatorCloseButton(action: onClose)
-                        .allowsWindowActivationEvents(true)
-                        .padding(.top, 2)
+                    closeButton
                     Label(message, systemImage: "text.badge.xmark")
                         .font(.system(size: 13))
                         .fixedSize(horizontal: false, vertical: true)
@@ -379,35 +377,6 @@ private struct TranslatorShortcutHint: View {
                 .clipShape(RoundedRectangle(cornerRadius: 4))
             Text(title)
         }
-    }
-}
-
-/// 仿 macOS 窗口左上角的红色关闭按钮，指针移上去时显示 ×。
-private struct TranslatorCloseButton: View {
-    let action: () -> Void
-
-    @State private var isHovered = false
-
-    var body: some View {
-        Button(action: action) {
-            Circle()
-                .fill(Color(nsColor: .systemRed))
-                .overlay {
-                    Circle().strokeBorder(Color.black.opacity(0.15), lineWidth: 0.5)
-                }
-                .overlay {
-                    if isHovered {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 6.5, weight: .bold))
-                            .foregroundStyle(Color.black.opacity(0.55))
-                    }
-                }
-                .frame(width: 12, height: 12)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
-        .help("关闭")
     }
 }
 
