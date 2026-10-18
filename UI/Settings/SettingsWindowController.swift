@@ -55,12 +55,15 @@ final class SettingsWindowController {
 
     private func makeWindow() -> NSWindow {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 320),
-            styleMask: [.titled, .closable],
+            contentRect: NSRect(x: 0, y: 0, width: 760, height: 560),
+            styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         window.title = "OI 设置"
+        // 侧边栏延伸到标题栏下方，红绿灯叠在侧边栏上（同系统设置）；标题只用于窗口菜单与调度中心，不显示。
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
         let controller = NSHostingController(rootView: SettingsView(viewModel: viewModel))
         controller.sizingOptions = [.preferredContentSize]

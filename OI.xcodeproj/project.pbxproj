@@ -77,6 +77,7 @@
 		A100000100000045 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000045 /* SettingsView.swift */; };
 		A100000100000046 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000046 /* SettingsWindowController.swift */; };
 		A100000100000047 /* ShortcutFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000047 /* ShortcutFormatter.swift */; };
+		A10000010000006B /* SettingsCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000006B /* SettingsCategory.swift */; };
 		A100000100000048 /* ShortcutRecorderField.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000048 /* ShortcutRecorderField.swift */; };
 		B100000100000016 /* SettingsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000017 /* SettingsViewModelTests.swift */; };
 		B100000100000017 /* UserDefaultsAppSettingsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000018 /* UserDefaultsAppSettingsStoreTests.swift */; };
@@ -206,6 +207,7 @@
 		A200000100000045 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A200000100000046 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
 		A200000100000047 /* ShortcutFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutFormatter.swift; sourceTree = "<group>"; };
+		A20000010000006B /* SettingsCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsCategory.swift; sourceTree = "<group>"; };
 		A200000100000048 /* ShortcutRecorderField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutRecorderField.swift; sourceTree = "<group>"; };
 		B200000100000017 /* SettingsViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModelTests.swift; sourceTree = "<group>"; };
 		B200000100000018 /* UserDefaultsAppSettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsAppSettingsStoreTests.swift; sourceTree = "<group>"; };
@@ -575,6 +577,7 @@
 			children = (
 				A200000100000044 /* SettingsViewModel.swift */,
 				A200000100000047 /* ShortcutFormatter.swift */,
+				A20000010000006B /* SettingsCategory.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -801,6 +804,7 @@
 				A100000100000045 /* SettingsView.swift in Sources */,
 				A100000100000046 /* SettingsWindowController.swift in Sources */,
 				A100000100000047 /* ShortcutFormatter.swift in Sources */,
+				A10000010000006B /* SettingsCategory.swift in Sources */,
 				A100000100000048 /* ShortcutRecorderField.swift in Sources */,
 				A100000100000049 /* QuickAIAnswering.swift in Sources */,
 				A10000010000004A /* QuickAIKeyStoring.swift in Sources */,

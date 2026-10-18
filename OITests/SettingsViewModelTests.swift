@@ -373,6 +373,30 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.isTranslationBaseURLPlaintext)
     }
 
+    // MARK: - 侧边栏分类与搜索
+
+    func testEmptySearchShowsAllCategoriesInSidebarOrder() {
+        XCTAssertEqual(SettingsCategory.filtered(by: ""), SettingsCategory.allCases)
+        XCTAssertEqual(SettingsCategory.filtered(by: "   "), SettingsCategory.allCases, "只有空白时视同未输入")
+    }
+
+    func testSearchMatchesCategoryTitleAndItemNamesCaseInsensitively() {
+        XCTAssertEqual(SettingsCategory.filtered(by: "划词"), [.translator])
+        XCTAssertEqual(SettingsCategory.filtered(by: "quick ai"), [.quickAI], "分类名不区分大小写")
+        XCTAssertEqual(SettingsCategory.filtered(by: "静默"), [.general], "按设置项名称找到所在分类")
+        XCTAssertEqual(SettingsCategory.filtered(by: "屏幕录制"), [.environment])
+        XCTAssertEqual(
+            SettingsCategory.filtered(by: "api key"),
+            [.quickAI, .translator],
+            "同名设置项出现在多个分类时都列出，保持侧边栏顺序"
+        )
+        XCTAssertEqual(SettingsCategory.filtered(by: "快捷键"), [.general, .translator])
+    }
+
+    func testSearchWithoutMatchReturnsNoCategory() {
+        XCTAssertTrue(SettingsCategory.filtered(by: "不存在的设置").isEmpty)
+    }
+
     // MARK: - Helpers
 
     private func makeViewModel(
