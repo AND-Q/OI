@@ -64,9 +64,6 @@ final class SettingsViewModel: ObservableObject {
     var fileSearchAccessRequester: (() -> Void)?
     /// 由 AppCoordinator 注入：用力点按取词开关变化时启动（true）或停止（false）全局监听。
     var forceTouchTranslationActivator: ((Bool) -> Void)?
-    /// 由设置窗口注入：设置页即将跳转到系统设置（请求权限、打开触控板设置）时调用，
-    /// 窗口据此在系统设置退出后回到最前面。
-    var willOpenSystemSettings: (() -> Void)?
 
     private let settingsStore: any AppSettingsStoring
     private let loginItemController: any LoginItemControlling
@@ -178,17 +175,14 @@ final class SettingsViewModel: ObservableObject {
     }
 
     func requestAccessibilityAccess() {
-        willOpenSystemSettings?()
         translatorEnvironment.requestAccessibilityAccess()
     }
 
     func requestScreenCaptureAccess() {
-        willOpenSystemSettings?()
         translatorEnvironment.requestScreenCaptureAccess()
     }
 
     func openTrackpadSettings() {
-        willOpenSystemSettings?()
         translatorEnvironment.openTrackpadSettings()
     }
 

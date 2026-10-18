@@ -186,7 +186,7 @@ final class AppCoordinator {
         }
     }
 
-    private func showSettings() {
+    func showSettings() {
         settingsWindowController.show()
     }
 

@@ -10,5 +10,15 @@ struct OIApp: App {
         Settings {
             EmptyView()
         }
+        .commands {
+            // 设置窗口打开期间 OI 作为普通应用显示应用菜单，其中的「设置…」默认打开上面的空场景，
+            // 改为打开自有的设置窗口。
+            CommandGroup(replacing: .appSettings) {
+                Button("设置…") {
+                    appDelegate.showSettings()
+                }
+                .keyboardShortcut(",")
+            }
+        }
     }
 }

@@ -11,4 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         coordinator.stop()
     }
+
+    func showSettings() {
+        coordinator.showSettings()
+    }
 }

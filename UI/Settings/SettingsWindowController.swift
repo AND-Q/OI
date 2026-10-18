@@ -1,29 +1,29 @@
 import AppKit
 import SwiftUI
 
-/// 设置窗口的 AppKit 壳。菜单栏应用没有 app menu，设置入口在状态栏右键菜单，
+/// 设置窗口的 AppKit 壳。设置入口在状态栏右键菜单（窗口打开期间应用菜单中的「设置…」也指向这里），
 /// 这里用固定单实例窗口托管 SwiftUI 表单，避免依赖 showSettingsWindow: 选择器。
+/// 窗口打开期间 OI 作为普通应用（程序坞显示图标、可用 ⌘Tab 切回），关闭后恢复为菜单栏应用：
+/// 菜单栏应用不在程序坞与 ⌘Tab 中，窗口被其他应用盖住后无从切回，前台应用（如系统设置）退出时
+/// 系统也不会把前台交还给它。
 @MainActor
 final class SettingsWindowController {
-    /// 系统设置的 Bundle ID，沿用「系统偏好设置」时期的标识。
-    private static let systemSettingsBundleIdentifier = "com.apple.systempreferences"
-    /// 系统设置退出后稍等再回到最前面：前台交给下一个应用、它的窗口升到最前面，与退出通知的先后不确定。
-    private static let returnDelay: Duration = .milliseconds(300)
-
     private let viewModel: SettingsViewModel
+    /// 切换 OI 的激活策略；测试替换为记录，避免测试宿主的程序坞图标反复出现。
+    private let setActivationPolicy: @MainActor (NSApplication.ActivationPolicy) -> Void
     private var window: NSWindow?
     private var commitObservers: [any NSObjectProtocol] = []
     private var permissionObserver: (any NSObjectProtocol)?
     private var closeObserver: (any NSObjectProtocol)?
-    /// 从设置页跳转到系统设置后，等待系统设置退出。
-    private var systemSettingsObserver: (any NSObjectProtocol)?
-    private var returnTask: Task<Void, Never>?
 
-    init(viewModel: SettingsViewModel) {
-        self.viewModel = viewModel
-        viewModel.willOpenSystemSettings = { [weak self] in
-            self?.returnAfterSystemSettingsQuits()
+    init(
+        viewModel: SettingsViewModel,
+        setActivationPolicy: @escaping @MainActor (NSApplication.ActivationPolicy) -> Void = {
+            _ = NSApp.setActivationPolicy($0)
         }
+    ) {
+        self.viewModel = viewModel
+        self.setActivationPolicy = setActivationPolicy
     }
 
     func show() {
@@ -35,6 +35,7 @@ final class SettingsWindowController {
         viewModel.reloadTranslationAPIKey()
         let window = self.window ?? makeWindow()
         self.window = window
+        setActivationPolicy(.regular)
         window.orderFrontRegardless()
         // macOS 14 起激活是协作式的：从状态栏菜单触发时菜单仍在收起，此时请求激活常被拒绝，
         // 窗口只会排在本应用内最前、被其他应用压住。推迟到菜单收起后再激活，
@@ -91,48 +92,9 @@ final class SettingsWindowController {
             queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.stopWaitingForSystemSettings()
+                self?.setActivationPolicy(.accessory)
             }
         }
         return window
-    }
-
-    /// 设置页跳转到系统设置后，等系统设置退出再把设置窗口带回最前面：系统设置退出后前台交给上一个
-    /// 普通应用，它的窗口会盖住设置窗口，而 OI 没有程序坞图标、也不在 ⌘Tab 中，用户难以找回。
-    /// 设置窗口关闭后不再等待；用户自行打开的系统设置不受影响。
-    private func returnAfterSystemSettingsQuits() {
-        guard systemSettingsObserver == nil else { return }
-        systemSettingsObserver = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.didTerminateApplicationNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
-            let bundleIdentifier = application?.bundleIdentifier
-            MainActor.assumeIsolated {
-                guard bundleIdentifier == SettingsWindowController.systemSettingsBundleIdentifier else { return }
-                self?.systemSettingsDidQuit()
-            }
-        }
-    }
-
-    private func systemSettingsDidQuit() {
-        stopWaitingForSystemSettings()
-        returnTask = Task { [weak self] in
-            try? await Task.sleep(for: SettingsWindowController.returnDelay)
-            // 等待期间窗口已关闭时任务被取消，不再重新打开。
-            guard let self, !Task.isCancelled else { return }
-            self.returnTask = nil
-            self.show()
-        }
-    }
-
-    private func stopWaitingForSystemSettings() {
-        returnTask?.cancel()
-        returnTask = nil
-        if let systemSettingsObserver {
-            NSWorkspace.shared.notificationCenter.removeObserver(systemSettingsObserver)
-            self.systemSettingsObserver = nil
-        }
     }
 }
