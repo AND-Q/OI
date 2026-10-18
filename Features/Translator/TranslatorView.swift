@@ -105,20 +105,27 @@ private struct TranslatorSessionView<CloseButton: View>: View {
                     }
                 }
             } label: {
-                Text(session.targetLanguage.displayName)
-                    .foregroundStyle(.primary)
+                // 字重与原文语言一致，以颜色与下拉箭头表明可以点按切换。
+                HStack(spacing: 3) {
+                    Text(session.targetLanguage.displayName)
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundStyle(.primary)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8, weight: .semibold))
+                }
+                .contentShape(Rectangle())
             }
             .menuStyle(.button)
             .buttonStyle(.plain)
-            .menuIndicator(.visible)
+            .menuIndicator(.hidden)
             .fixedSize()
             .help("切换本次翻译的目标语言")
             Spacer(minLength: 8)
             switch session.source {
             case .clipboard:
-                Label("剪贴板", systemImage: "doc.on.clipboard")
+                TranslatorSourceTag(title: "剪贴板")
             case .screen:
-                Label("截图", systemImage: "text.viewfinder")
+                TranslatorSourceTag(title: "截图")
             case .selection, .word:
                 EmptyView()
             }
@@ -377,6 +384,21 @@ private struct TranslatorShortcutHint: View {
                 .clipShape(RoundedRectangle(cornerRadius: 4))
             Text(title)
         }
+    }
+}
+
+/// 原文来源的说明标签（剪贴板、截图）：浅底色胶囊、只有文字，与旁边的图钉按钮区分开，不像可点按的按钮。
+private struct TranslatorSourceTag: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.system(size: 10.5, weight: .medium))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(Color.primary.opacity(0.07), in: Capsule())
+            .padding(.trailing, 2)
     }
 }
 
