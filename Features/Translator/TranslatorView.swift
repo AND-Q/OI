@@ -52,13 +52,16 @@ private struct TranslatorSessionView: View {
             header
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
-            source
-                .padding(.horizontal, 16)
-                .padding(.top, 6)
-                .padding(.bottom, 10)
-            Color.primary.opacity(0.08)
-                .frame(height: 1)
-                .padding(.horizontal, 12)
+            // 截图翻译识别期间还没有原文。
+            if session.state != .recognizing {
+                source
+                    .padding(.horizontal, 16)
+                    .padding(.top, 6)
+                    .padding(.bottom, 10)
+                Color.primary.opacity(0.08)
+                    .frame(height: 1)
+                    .padding(.horizontal, 12)
+            }
             TranslationArea(session: session)
             if notice == .clipboardUsedWithoutAccessibility {
                 accessibilityHint
@@ -94,8 +97,13 @@ private struct TranslatorSessionView: View {
             .fixedSize()
             .help("切换本次翻译的目标语言")
             Spacer(minLength: 8)
-            if session.source == .clipboard {
+            switch session.source {
+            case .clipboard:
                 Label("剪贴板", systemImage: "doc.on.clipboard")
+            case .screen:
+                Label("截图", systemImage: "text.viewfinder")
+            case .selection, .word:
+                EmptyView()
             }
         }
         .font(.system(size: 12))
@@ -238,6 +246,13 @@ private struct TranslationArea: View {
                 }
             } else {
                 switch session.state {
+                case .recognizing:
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("正在识别文字…")
+                            .foregroundStyle(.secondary)
+                    }
                 case .draft:
                     Text("原文已修改，按回车重新翻译")
                         .foregroundStyle(.secondary)
@@ -279,11 +294,19 @@ private struct TranslatorNoticeView: View {
                 Label(message, systemImage: "text.badge.xmark")
                     .font(.system(size: 13))
                     .fixedSize(horizontal: false, vertical: true)
-                if notice == .accessibilityRequired {
+                switch notice {
+                case .accessibilityRequired:
                     Button("开启辅助功能权限…") {
                         viewModel.requestAccessibilityAccess()
                     }
                     .controlSize(.small)
+                case .screenRecordingRequired:
+                    Button("开启屏幕录制权限…") {
+                        viewModel.requestScreenCaptureAccess()
+                    }
+                    .controlSize(.small)
+                case .clipboardUsedWithoutAccessibility, .nothingToTranslate, .noTextInSelection, .screenCaptureFailed:
+                    EmptyView()
                 }
             }
             .padding(16)
@@ -305,6 +328,12 @@ private struct TranslatorNoticeView: View {
             "没有选中的文字，剪贴板中也没有可翻译的内容。"
         case .accessibilityRequired, .clipboardUsedWithoutAccessibility:
             "需要辅助功能权限才能读取选中的文字；也可以先复制文字，再按快捷键翻译剪贴板内容。"
+        case .screenRecordingRequired:
+            "截图翻译需要屏幕录制权限，用于截取框选的区域并在本机识别其中的文字。开启后请按系统提示重新打开 OI。"
+        case .noTextInSelection:
+            "选区中没有识别到文字，请重新框选。"
+        case .screenCaptureFailed:
+            "截图失败，请重新框选。如果刚开启屏幕录制权限，需要重新打开 OI 才能截图。"
         }
     }
 }

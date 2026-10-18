@@ -78,6 +78,20 @@ final class AppCoordinator {
                 )
             }
         }
+        if let screenShortcutService = dependencies.translator?.screenShortcutService,
+           let translatorPanelController {
+            dependencies.settingsViewModel.screenTranslatorShortcutActivator = { shortcut in
+                try screenShortcutService.register(
+                    keyCode: shortcut.keyCode,
+                    modifiers: shortcut.modifiers,
+                    handler: {
+                        Task { @MainActor in
+                            translatorPanelController.toggleScreenTranslation()
+                        }
+                    }
+                )
+            }
+        }
         // 用力点按监听随设置启停：关闭时不安装全局事件监听，也不在未授权时轮询重试。
         if let forceTouchMonitor = dependencies.translator?.forceTouchMonitor,
            let translatorPanelController {
@@ -100,6 +114,7 @@ final class AppCoordinator {
         statusBarController.start()
         registerLauncherShortcut()
         registerTranslatorShortcut()
+        registerScreenTranslatorShortcut()
         if dependencies.settingsStore.load().isForceTouchTranslationEnabled {
             dependencies.settingsViewModel.forceTouchTranslationActivator?(true)
         }
@@ -119,6 +134,7 @@ final class AppCoordinator {
         didStart = false
         shortcutService.unregister()
         dependencies.translator?.shortcutService.unregister()
+        dependencies.translator?.screenShortcutService.unregister()
         dependencies.translator?.forceTouchMonitor.stop()
         panelController.stop()
         translatorPanelController?.stop()
@@ -153,6 +169,20 @@ final class AppCoordinator {
         } catch {
             logger.error("Translator shortcut registration failed: \(error.localizedDescription, privacy: .public)")
             dependencies.settingsViewModel.reportTranslatorShortcutRegistrationFailure(error)
+        }
+    }
+
+    /// 按用户设置注册截图翻译快捷键；失败处理与呼出快捷键一致。
+    private func registerScreenTranslatorShortcut() {
+        guard let activator = dependencies.settingsViewModel.screenTranslatorShortcutActivator else {
+            return
+        }
+        let shortcut = dependencies.settingsStore.load().screenTranslatorShortcut
+        do {
+            try activator(shortcut)
+        } catch {
+            logger.error("Screen translator shortcut registration failed: \(error.localizedDescription, privacy: .public)")
+            dependencies.settingsViewModel.reportScreenTranslatorShortcutRegistrationFailure(error)
         }
     }
 

@@ -8,7 +8,7 @@ enum LaunchAtLoginNotice: Equatable {
     case failure(String)
 }
 
-/// 全局快捷键（呼出启动器、划词翻译）切换需要注意的用户可见状态。
+/// 全局快捷键（呼出启动器、划词翻译、截图翻译）切换需要注意的用户可见状态。
 enum LauncherShortcutNotice: Equatable {
     /// 新快捷键注册失败（如被其他应用占用），携带原因。
     case failure(String)
@@ -33,12 +33,15 @@ final class SettingsViewModel: ObservableObject {
     @Published private(set) var launchAtLoginNotice: LaunchAtLoginNotice?
     @Published private(set) var launcherShortcutNotice: LauncherShortcutNotice?
     @Published private(set) var translatorShortcutNotice: LauncherShortcutNotice?
+    @Published private(set) var screenTranslatorShortcutNotice: LauncherShortcutNotice?
     /// Quick AI API Key 存于独立的密钥存储，设置窗口展示时才读取，不在启动期访问钥匙串。
     @Published private(set) var quickAIAPIKey = ""
     /// 划词翻译的 API Key，与 Quick AI 的分开存放，读取时机同上。
     @Published private(set) var translationAPIKey = ""
     /// 辅助功能权限由系统持有，设置窗口展示或重新获得焦点时刷新（用户可能刚在系统设置中授权）。
     @Published private(set) var isAccessibilityTrusted: Bool
+    /// 截图翻译所需的屏幕录制权限，刷新时机同上。
+    @Published private(set) var isScreenCaptureTrusted: Bool
 
     /// Quick AI 接口地址经 http 访问公网主机时为 true，设置面板据此在地址栏下方提示明文传输。
     var isQuickAIBaseURLPlaintext: Bool {
@@ -55,6 +58,8 @@ final class SettingsViewModel: ObservableObject {
     var launcherShortcutActivator: ((LauncherShortcut) throws -> Void)?
     /// 由 AppCoordinator 注入：翻译快捷键的激活闭包，约定同上。
     var translatorShortcutActivator: ((LauncherShortcut) throws -> Void)?
+    /// 由 AppCoordinator 注入：截图翻译快捷键的激活闭包，约定同上。
+    var screenTranslatorShortcutActivator: ((LauncherShortcut) throws -> Void)?
     /// 由 AppCoordinator 注入：文件搜索从关闭切到开启时请求桌面、文稿、下载目录授权。
     var fileSearchAccessRequester: (() -> Void)?
     /// 由 AppCoordinator 注入：用力点按取词开关变化时启动（true）或停止（false）全局监听。
@@ -85,6 +90,7 @@ final class SettingsViewModel: ObservableObject {
         self.isLaunchAtLoginEnabled = status != .notRegistered
         self.launchAtLoginNotice = status == .requiresApproval ? .approvalPending : nil
         self.isAccessibilityTrusted = translatorEnvironment.isAccessibilityTrusted
+        self.isScreenCaptureTrusted = translatorEnvironment.isScreenCaptureTrusted
     }
 
     /// 注册或移除登录项。失败时回读系统真实状态并给出失败提示，
@@ -116,6 +122,11 @@ final class SettingsViewModel: ObservableObject {
     /// 应用新的翻译快捷键，规则见 `applyShortcut(_:to:)`。
     func applyTranslatorShortcut(_ shortcut: LauncherShortcut) {
         applyShortcut(shortcut, to: .translator)
+    }
+
+    /// 应用新的截图翻译快捷键，规则见 `applyShortcut(_:to:)`。
+    func applyScreenTranslatorShortcut(_ shortcut: LauncherShortcut) {
+        applyShortcut(shortcut, to: .screenTranslator)
     }
 
     /// 设置翻译目标语言。选成与「原文已是目标语言时译为」相同的语言时两者互换：
@@ -152,12 +163,23 @@ final class SettingsViewModel: ObservableObject {
         translatorShortcutNotice = .failure(reason)
     }
 
+    /// 截图翻译快捷键启动期注册失败时同步状态，约定同上。
+    func reportScreenTranslatorShortcutRegistrationFailure(_ error: Error) {
+        let reason = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        screenTranslatorShortcutNotice = .failure(reason)
+    }
+
     func refreshPermissionStatus() {
         isAccessibilityTrusted = translatorEnvironment.isAccessibilityTrusted
+        isScreenCaptureTrusted = translatorEnvironment.isScreenCaptureTrusted
     }
 
     func requestAccessibilityAccess() {
         translatorEnvironment.requestAccessibilityAccess()
+    }
+
+    func requestScreenCaptureAccess() {
+        translatorEnvironment.requestScreenCaptureAccess()
     }
 
     func openTrackpadSettings() {
@@ -211,22 +233,17 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
-    /// 两个全局快捷键：各自有设置值、提示与激活闭包，组合不可相同。
-    private enum ShortcutTarget {
+    /// 三个全局快捷键：各自有设置值、提示与激活闭包，组合互不相同。
+    private enum ShortcutTarget: CaseIterable {
         case launcher
         case translator
+        case screenTranslator
 
         var setting: WritableKeyPath<AppSettings, LauncherShortcut> {
             switch self {
             case .launcher: \.launcherShortcut
             case .translator: \.translatorShortcut
-            }
-        }
-
-        var other: ShortcutTarget {
-            switch self {
-            case .launcher: .translator
-            case .translator: .launcher
+            case .screenTranslator: \.screenTranslatorShortcut
             }
         }
 
@@ -234,12 +251,13 @@ final class SettingsViewModel: ObservableObject {
             switch self {
             case .launcher: "呼出"
             case .translator: "翻译"
+            case .screenTranslator: "截图翻译"
             }
         }
     }
 
     /// 应用新的全局快捷键：先试注册，成功才持久化；失败时回滚注册到原快捷键并提示原因，
-    /// 保证原快捷键始终可用。与另一个快捷键相同的组合直接拒绝，不尝试注册。
+    /// 保证原快捷键始终可用。与其他快捷键相同的组合直接拒绝，不尝试注册。
     /// 重申当前快捷键（冲突后按原键确认、重试默认键）仍执行激活——
     /// 既是重试入口也能自愈回滚失败的场景，仅在无失败提示可清理时跳过。
     private func applyShortcut(_ shortcut: LauncherShortcut, to target: ShortcutTarget) {
@@ -247,8 +265,8 @@ final class SettingsViewModel: ObservableObject {
             setNotice(.failure(ShortcutFormatter.description(of: problem)), for: target)
             return
         }
-        guard shortcut != settings[keyPath: target.other.setting] else {
-            setNotice(.failure("与\(target.other.name)快捷键相同，请换一个组合"), for: target)
+        if let other = ShortcutTarget.allCases.first(where: { $0 != target && settings[keyPath: $0.setting] == shortcut }) {
+            setNotice(.failure("与\(other.name)快捷键相同，请换一个组合"), for: target)
             return
         }
         if shortcut == settings[keyPath: target.setting], notice(for: target) == nil {
@@ -281,6 +299,7 @@ final class SettingsViewModel: ObservableObject {
         switch target {
         case .launcher: launcherShortcutActivator
         case .translator: translatorShortcutActivator
+        case .screenTranslator: screenTranslatorShortcutActivator
         }
     }
 
@@ -288,6 +307,7 @@ final class SettingsViewModel: ObservableObject {
         switch target {
         case .launcher: launcherShortcutNotice
         case .translator: translatorShortcutNotice
+        case .screenTranslator: screenTranslatorShortcutNotice
         }
     }
 
@@ -295,6 +315,7 @@ final class SettingsViewModel: ObservableObject {
         switch target {
         case .launcher: launcherShortcutNotice = notice
         case .translator: translatorShortcutNotice = notice
+        case .screenTranslator: screenTranslatorShortcutNotice = notice
         }
     }
 }

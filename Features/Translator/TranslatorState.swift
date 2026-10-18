@@ -4,6 +4,8 @@ import Foundation
 /// 一次划词翻译：原文（可在气泡中修改）、语言方向与流式到达的译文。
 struct TranslatorSession: Equatable, Sendable {
     enum State: Equatable, Sendable {
+        /// 截图翻译正在识别选区中的文字，尚无原文。
+        case recognizing
         /// 原文已修改、尚未翻译。
         case draft
         case streaming
@@ -39,12 +41,12 @@ struct TranslatorSession: Equatable, Sendable {
         QuickAIMarkdown.removingThinking(from: translation)
     }
 
-    /// 待翻译时翻译（原文为空则不响应）；输出期间不响应；失败或没有译文时重试；否则复制并关闭。
+    /// 待翻译时翻译（原文为空则不响应）；识别与输出期间不响应；失败或没有译文时重试；否则复制并关闭。
     var returnAction: ReturnAction {
         switch state {
         case .draft:
             sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .none : .translate
-        case .streaming:
+        case .recognizing, .streaming:
             .none
         case .failed:
             .retry
@@ -71,6 +73,12 @@ enum TranslatorNotice: Equatable, Sendable {
     case accessibilityRequired
     /// 没有选中的文字，剪贴板中也没有文字。
     case nothingToTranslate
+    /// 未获屏幕录制权限，无法截图翻译。
+    case screenRecordingRequired
+    /// 截图翻译的选区中没有识别到文字。
+    case noTextInSelection
+    /// 截图翻译截取屏幕失败。
+    case screenCaptureFailed
 }
 
 /// 气泡的展示位置：`anchorRect` 为原文所在区域（全局显示坐标），为 nil 时贴着鼠标指针弹出。

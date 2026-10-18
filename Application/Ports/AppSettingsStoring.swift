@@ -1,6 +1,6 @@
 import Foundation
 
-/// 全局快捷键（呼出启动器、划词翻译）。`modifiers` 采用 Carbon 热键掩码约定
+/// 全局快捷键（呼出启动器、划词翻译、截图翻译）。`modifiers` 采用 Carbon 热键掩码约定
 /// （cmdKey = 1 << 8、shiftKey = 1 << 9、optionKey = 1 << 11、controlKey = 1 << 12），
 /// 与 `GlobalShortcutHandling` 注册端口一致，本层无需引入 Carbon。
 struct LauncherShortcut: Sendable, Equatable, Hashable {
@@ -43,6 +43,9 @@ struct LauncherShortcut: Sendable, Equatable, Hashable {
 
     /// 默认划词翻译快捷键：Option + D（keyCode 2 = kVK_ANSI_D）。
     static let standardTranslator = LauncherShortcut(keyCode: 2, modifiers: 1 << 11)
+
+    /// 默认截图翻译快捷键：Option + Shift + D。
+    static let standardScreenTranslator = LauncherShortcut(keyCode: 2, modifiers: 1 << 11 | 1 << 9)
 }
 
 /// 应用级用户设置（设置面板读写）。开机自启动不在此存储：其状态由系统登录项持有，
@@ -66,6 +69,8 @@ struct AppSettings: Sendable, Equatable {
     var isForceTouchTranslationEnabled: Bool = true
     /// 划词翻译快捷键：翻译选中的文字，未选中时翻译剪贴板。
     var translatorShortcut: LauncherShortcut = .standardTranslator
+    /// 截图翻译快捷键：框选屏幕区域，识别其中的文字并翻译。
+    var screenTranslatorShortcut: LauncherShortcut = .standardScreenTranslator
     /// 翻译目标语言。
     var translationTargetLanguage: TranslationLanguage = .simplifiedChinese
     /// 原文已是目标语言时改译为此语言，默认组合即中文与外文双向互译。

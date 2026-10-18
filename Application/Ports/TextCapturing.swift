@@ -11,6 +11,8 @@ struct CapturedText: Equatable, Sendable {
         case word
         /// 系统剪贴板。
         case clipboard
+        /// 截图翻译中框选的屏幕区域里识别出的文字。
+        case screen
     }
 
     let text: String

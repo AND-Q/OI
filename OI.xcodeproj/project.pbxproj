@@ -115,6 +115,9 @@
 		A100000100000064 /* WebSearchEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000064 /* WebSearchEngine.swift */; };
 		A100000100000065 /* UserNotifying.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000065 /* UserNotifying.swift */; };
 		A100000100000066 /* UserNotificationCenterNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000066 /* UserNotificationCenterNotifier.swift */; };
+		A100000100000067 /* ScreenTextRecognizing.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000067 /* ScreenTextRecognizing.swift */; };
+		A100000100000068 /* VisionScreenTextRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000068 /* VisionScreenTextRecognizer.swift */; };
+		A100000100000069 /* ScreenSelectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000069 /* ScreenSelectionOverlay.swift */; };
 		B10000010000001D /* TranslatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001E /* TranslatorTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -240,6 +243,9 @@
 		A200000100000064 /* WebSearchEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSearchEngine.swift; sourceTree = "<group>"; };
 		A200000100000065 /* UserNotifying.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserNotifying.swift; sourceTree = "<group>"; };
 		A200000100000066 /* UserNotificationCenterNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserNotificationCenterNotifier.swift; sourceTree = "<group>"; };
+		A200000100000067 /* ScreenTextRecognizing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenTextRecognizing.swift; sourceTree = "<group>"; };
+		A200000100000068 /* VisionScreenTextRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionScreenTextRecognizer.swift; sourceTree = "<group>"; };
+		A200000100000069 /* ScreenSelectionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenSelectionOverlay.swift; sourceTree = "<group>"; };
 		B20000010000001E /* TranslatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -409,6 +415,7 @@
 				A200000100000054 /* LanguageDetecting.swift */,
 				A20000010000005E /* WordSelecting.swift */,
 				A200000100000065 /* UserNotifying.swift */,
+				A200000100000067 /* ScreenTextRecognizing.swift */,
 			);
 			path = Ports;
 			sourceTree = "<group>";
@@ -605,6 +612,7 @@
 				A200000100000058 /* SystemTranslatorEnvironment.swift */,
 				A200000100000059 /* NaturalLanguageDetector.swift */,
 				A20000010000005F /* DoubleClickWordSelector.swift */,
+				A200000100000068 /* VisionScreenTextRecognizer.swift */,
 			);
 			path = Translator;
 			sourceTree = "<group>";
@@ -623,6 +631,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000010000005D /* TranslatorPanelController.swift */,
+				A200000100000069 /* ScreenSelectionOverlay.swift */,
 			);
 			path = Translator;
 			sourceTree = "<group>";
@@ -820,6 +829,9 @@
 				A100000100000064 /* WebSearchEngine.swift in Sources */,
 				A100000100000065 /* UserNotifying.swift in Sources */,
 				A100000100000066 /* UserNotificationCenterNotifier.swift in Sources */,
+				A100000100000067 /* ScreenTextRecognizing.swift in Sources */,
+				A100000100000068 /* VisionScreenTextRecognizer.swift in Sources */,
+				A100000100000069 /* ScreenSelectionOverlay.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

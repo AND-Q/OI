@@ -85,10 +85,12 @@ struct AppDependencies {
                     ),
                     textCapturer: textCapturer,
                     wordSelector: DoubleClickWordSelector(textCapturer: textCapturer),
+                    screenTextRecognizer: VisionScreenTextRecognizer(),
                     environment: translatorEnvironment,
                     settingsStore: settingsStore
                 ),
                 shortcutService: CarbonGlobalShortcutService(hotKeyIdentifier: 2),
+                screenShortcutService: CarbonGlobalShortcutService(hotKeyIdentifier: 3),
                 forceTouchMonitor: GlobalForceTouchMonitor()
             ),
             fileSearchAccessRequester: { fileSearcher.requestProtectedFolderAccess() }
@@ -96,10 +98,11 @@ struct AppDependencies {
     }
 }
 
-/// 划词翻译的依赖。翻译快捷键使用独立的热键服务实例，与呼出快捷键按热键 ID 区分。
+/// 划词翻译的依赖。翻译与截图翻译快捷键各使用独立的热键服务实例，与呼出快捷键按热键 ID 区分。
 @MainActor
 struct TranslatorDependencies {
     let viewModel: TranslatorViewModel
     let shortcutService: any GlobalShortcutHandling
+    let screenShortcutService: any GlobalShortcutHandling
     let forceTouchMonitor: any ForceTouchMonitoring
 }

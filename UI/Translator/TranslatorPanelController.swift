@@ -6,6 +6,7 @@ import SwiftUI
 /// 划词翻译气泡的 AppKit 壳：不激活 OI 的浮动面板，弹在原文旁边。
 /// 面板成为 key 窗口以接收 Esc / 回车与原文编辑，但 OI 不切到前台，原应用保持激活。
 /// 用力点按取到单词时，另用一个不接收鼠标的窗口在原文单词上叠加黄色高亮，随气泡出现与收起。
+/// 截图翻译时先进入框选（`ScreenSelectionOverlay`），框选完成后气泡贴着选框弹出、显示在遮罩之上。
 @MainActor
 final class TranslatorPanelController {
     private enum Layout {
@@ -28,11 +29,16 @@ final class TranslatorPanelController {
         case escapeKey = "escape key"
         case returnKey = "return key"
         case shortcut = "shortcut"
+        /// 截图翻译中开始拖出新的选框：只收起气泡，框选继续。
+        case reselect = "reselect"
+        /// 截图翻译中右键或有其他应用切到前台：退出框选。
+        case selectionCancelled = "selection cancelled"
     }
 
     private let viewModel: TranslatorViewModel
     let panel: TranslatorPanel
     private let highlight: NSPanel
+    private let selectionOverlay = ScreenSelectionOverlay()
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "OI", category: "Translator")
     private var keyMonitor: Any?
     private var clickMonitor: Any?
@@ -97,6 +103,9 @@ final class TranslatorPanelController {
 
         // 点到其他应用（包括原应用）时面板失去 key，气泡随之收起。
         panel.onResignKey = { [weak self] in self?.hide(reason: .lostKeyFocus) }
+        selectionOverlay.onSelectionStart = { [weak self] in self?.hide(reason: .reselect) }
+        selectionOverlay.onSelection = { [weak self] rect in self?.translateScreenRegion(rect) }
+        selectionOverlay.onCancel = { [weak self] in self?.hide(reason: .selectionCancelled) }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
             return self.handleKeyDown(event)
@@ -138,7 +147,38 @@ final class TranslatorPanelController {
         }
     }
 
+    /// 截图翻译快捷键：进入框选，框选中再按则退出；未获屏幕录制权限时只弹出说明与授权入口。
+    func toggleScreenTranslation() {
+        if selectionOverlay.isActive {
+            hide(reason: .shortcut)
+            return
+        }
+        if isVisible {
+            hide(reason: .shortcut)
+        }
+        guard viewModel.beginScreenTranslation() else {
+            present(TranslatorPresentation(anchorRect: nil), pointer: nil)
+            return
+        }
+        selectionOverlay.begin()
+    }
+
+    private func translateScreenRegion(_ rect: CGRect) {
+        present(viewModel.translateScreenRegion(rect), pointer: nil)
+    }
+
     private func hide(reason: DismissReason) {
+        if selectionOverlay.isActive {
+            switch reason {
+            case .lostKeyFocus:
+                // 框选期间点按遮罩会让气泡失去 key：气泡保留，按键改由遮罩接收。
+                return
+            case .reselect:
+                break
+            case .clickOutside, .escapeKey, .returnKey, .shortcut, .selectionCancelled:
+                selectionOverlay.end()
+            }
+        }
         guard panel.isVisible, !isDismissing else { return }
         logger.debug("Translator bubble hidden: \(reason.rawValue, privacy: .public)")
         isDismissing = true
@@ -167,6 +207,7 @@ final class TranslatorPanelController {
             NSEvent.removeMonitor(keyMonitor)
             self.keyMonitor = nil
         }
+        selectionOverlay.end()
         removeClickMonitor()
         removeHighlight()
         cancelKeyFocusTask()
@@ -209,6 +250,12 @@ final class TranslatorPanelController {
         )
         presentationGeneration += 1
         isDismissing = false
+        // 截图翻译框选期间，气泡与高亮显示在遮罩之上。
+        let level = selectionOverlay.isActive
+            ? NSWindow.Level(rawValue: ScreenSelectionOverlay.level.rawValue + 1)
+            : .floating
+        panel.level = level
+        highlight.level = level
 
         // 先让 SwiftUI 按新内容排版，尽量以正确高度弹出。
         panel.contentView?.layoutSubtreeIfNeeded()
@@ -340,7 +387,9 @@ final class TranslatorPanelController {
     // MARK: - Keyboard
 
     private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
-        guard event.window === panel, panel.isVisible, !isDismissing else { return event }
+        // 截图翻译框选期间按键也可能发往遮罩（尚未弹出气泡，或点按遮罩后遮罩成为 key），按同样规则处理。
+        let isBubbleEvent = event.window === panel && panel.isVisible && !isDismissing
+        guard isBubbleEvent || selectionOverlay.contains(event.window) else { return event }
         // 输入法组字期间回车上屏、Esc 取消组字，都交给输入法。
         if (panel.firstResponder as? NSTextInputClient)?.hasMarkedText() == true {
             return event
@@ -510,6 +559,11 @@ struct TranslatorPlacement: Equatable {
 
     static func appKitPoint(fromGlobal point: CGPoint, primaryScreenHeight: CGFloat) -> NSPoint {
         NSPoint(x: point.x, y: primaryScreenHeight - point.y)
+    }
+
+    /// AppKit 屏幕坐标转为全局显示坐标，`appKitRect(fromGlobal:primaryScreenHeight:)` 的逆变换。
+    static func globalRect(fromAppKit rect: NSRect, primaryScreenHeight: CGFloat) -> CGRect {
+        CGRect(x: rect.minX, y: primaryScreenHeight - rect.maxY, width: rect.width, height: rect.height)
     }
 }
 

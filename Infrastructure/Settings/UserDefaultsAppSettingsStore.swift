@@ -15,6 +15,8 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
     private static let forceTouchTranslationKey = "settings.translator.isForceTouchEnabled"
     private static let translatorShortcutKeyCodeKey = "settings.translator.shortcut.keyCode"
     private static let translatorShortcutModifiersKey = "settings.translator.shortcut.modifiers"
+    private static let screenTranslatorShortcutKeyCodeKey = "settings.translator.screenShortcut.keyCode"
+    private static let screenTranslatorShortcutModifiersKey = "settings.translator.screenShortcut.modifiers"
     private static let translationTargetLanguageKey = "settings.translator.targetLanguage"
     private static let translationAlternateLanguageKey = "settings.translator.alternateLanguage"
     private static let translationBaseURLKey = "settings.translator.baseURL"
@@ -53,6 +55,10 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
                 keyCodeKey: Self.translatorShortcutKeyCodeKey,
                 modifiersKey: Self.translatorShortcutModifiersKey
             ) ?? fallback.translatorShortcut,
+            screenTranslatorShortcut: loadShortcut(
+                keyCodeKey: Self.screenTranslatorShortcutKeyCodeKey,
+                modifiersKey: Self.screenTranslatorShortcutModifiersKey
+            ) ?? fallback.screenTranslatorShortcut,
             translationTargetLanguage: loadLanguage(forKey: Self.translationTargetLanguageKey)
                 ?? fallback.translationTargetLanguage,
             translationAlternateLanguage: loadLanguage(forKey: Self.translationAlternateLanguageKey)
@@ -80,6 +86,8 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
         defaults.set(settings.isForceTouchTranslationEnabled, forKey: Self.forceTouchTranslationKey)
         defaults.set(Int(settings.translatorShortcut.keyCode), forKey: Self.translatorShortcutKeyCodeKey)
         defaults.set(Int(settings.translatorShortcut.modifiers), forKey: Self.translatorShortcutModifiersKey)
+        defaults.set(Int(settings.screenTranslatorShortcut.keyCode), forKey: Self.screenTranslatorShortcutKeyCodeKey)
+        defaults.set(Int(settings.screenTranslatorShortcut.modifiers), forKey: Self.screenTranslatorShortcutModifiersKey)
         defaults.set(settings.translationTargetLanguage.rawValue, forKey: Self.translationTargetLanguageKey)
         defaults.set(settings.translationAlternateLanguage.rawValue, forKey: Self.translationAlternateLanguageKey)
         defaults.set(settings.translationBaseURL, forKey: Self.translationBaseURLKey)

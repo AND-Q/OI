@@ -12,10 +12,13 @@ final class TranslatorViewModel: ObservableObject {
     private let translateText: TranslateText
     private let textCapturer: any TextCapturing
     private let wordSelector: any WordSelecting
+    private let screenTextRecognizer: any ScreenTextRecognizing
     private let environment: any TranslatorEnvironmentHandling
     private let settingsStore: any AppSettingsStoring
 
     private var translationTask: Task<Void, Never>?
+    /// 截图翻译中识别选区文字的任务。
+    private var recognitionTask: Task<Void, Never>?
     private lazy var translationBuffer = StreamingTextBuffer(interval: TranslatorViewModel.flushInterval) { [weak self] text in
         self?.session?.translation += text
         self?.session?.isCopied = false
@@ -27,18 +30,21 @@ final class TranslatorViewModel: ObservableObject {
         translateText: TranslateText,
         textCapturer: any TextCapturing,
         wordSelector: any WordSelecting,
+        screenTextRecognizer: any ScreenTextRecognizing,
         environment: any TranslatorEnvironmentHandling,
         settingsStore: any AppSettingsStoring
     ) {
         self.translateText = translateText
         self.textCapturer = textCapturer
         self.wordSelector = wordSelector
+        self.screenTextRecognizer = screenTextRecognizer
         self.environment = environment
         self.settingsStore = settingsStore
     }
 
     deinit {
         translationTask?.cancel()
+        recognitionTask?.cancel()
     }
 
     /// 复制与回车使用的译文；尚无可见译文时为 nil。
@@ -98,6 +104,51 @@ final class TranslatorViewModel: ObservableObject {
         return TranslatorPresentation(anchorRect: captured.screenRect)
     }
 
+    /// 截图翻译快捷键：清空当前会话；已获屏幕录制权限时返回 true，由界面进入框选，
+    /// 否则只展示需要授权的提示。
+    func beginScreenTranslation() -> Bool {
+        _ = beginCapture()
+        cancelRecognition()
+        stopTranslation()
+        session = nil
+        guard environment.isScreenCaptureTrusted else {
+            notice = .screenRecordingRequired
+            return false
+        }
+        notice = nil
+        return true
+    }
+
+    /// 框选完成：识别 `rect`（全局显示坐标）中的文字后翻译。识别期间会话处于识别中，气泡随即贴着选区弹出；
+    /// 没有识别到文字或截屏失败时改为提示。重新框选会取代进行中的识别。
+    func translateScreenRegion(_ rect: CGRect) -> TranslatorPresentation {
+        let generation = beginCapture()
+        cancelRecognition()
+        stopTranslation()
+        notice = nil
+        session = TranslatorSession(
+            sourceText: "",
+            source: .screen,
+            sourceLanguageCode: nil,
+            targetLanguage: settingsStore.load().translationTargetLanguage,
+            state: .recognizing
+        )
+        let recognizer = screenTextRecognizer
+        recognitionTask = Task { [weak self] in
+            let result: Result<String, Error>
+            do {
+                let text = try await recognizer.recognizeText(in: rect)
+                result = .success(text)
+            } catch {
+                result = .failure(error)
+            }
+            guard let self, generation == self.captureGeneration else { return }
+            self.recognitionTask = nil
+            self.finishRecognition(result, in: rect)
+        }
+        return TranslatorPresentation(anchorRect: rect)
+    }
+
     /// 修改原文即丢弃旧译文、回到待翻译状态，按回车以新原文重新翻译。
     func updateSourceText(_ text: String) {
         guard let current = session, text != current.sourceText else { return }
@@ -142,6 +193,7 @@ final class TranslatorViewModel: ObservableObject {
 
     /// 气泡隐藏后清空会话与提示。
     func reset() {
+        cancelRecognition()
         stopTranslation()
         translationBuffer.discard()
         session = nil
@@ -156,21 +208,46 @@ final class TranslatorViewModel: ObservableObject {
         environment.requestAccessibilityAccess()
     }
 
+    func requestScreenCaptureAccess() {
+        environment.requestScreenCaptureAccess()
+    }
+
     private func beginCapture() -> Int {
         captureGeneration += 1
         return captureGeneration
     }
 
-    private func start(with captured: CapturedText, notice: TranslatorNotice?) {
-        let request = translateText.makeRequest(for: captured.text)
+    /// `target` 为用户已手动选过的目标语言（如识别期间在气泡中切换），为 nil 时按原文语言选定。
+    private func start(with captured: CapturedText, notice: TranslatorNotice?, target: TranslationLanguage? = nil) {
+        let request = translateText.makeRequest(for: captured.text, target: target)
         self.notice = notice
         session = TranslatorSession(
             sourceText: captured.text,
             source: captured.source,
             sourceLanguageCode: request.sourceLanguageCode,
-            targetLanguage: request.targetLanguage
+            targetLanguage: request.targetLanguage,
+            isTargetLanguagePinned: target != nil
         )
         stream(request)
+    }
+
+    private func finishRecognition(_ result: Result<String, Error>, in rect: CGRect) {
+        switch result {
+        case .success(let text) where !text.isEmpty:
+            let pinnedTarget = session?.isTargetLanguagePinned == true ? session?.targetLanguage : nil
+            start(with: CapturedText(text: text, source: .screen, screenRect: rect), notice: nil, target: pinnedTarget)
+        case .success:
+            session = nil
+            notice = .noTextInSelection
+        case .failure:
+            session = nil
+            notice = .screenCaptureFailed
+        }
+    }
+
+    private func cancelRecognition() {
+        recognitionTask?.cancel()
+        recognitionTask = nil
     }
 
     private func stream(_ request: TranslationRequest) {

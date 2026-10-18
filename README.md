@@ -10,7 +10,7 @@ OI 是一个原生 macOS 菜单栏启动器：按 `⌥Space` 呼出 Spotlight �
 - **网址与网页搜索**：输入网址直接打开；`⌘Enter` 用所选搜索引擎（必应、Google、百度、DuckDuckGo）搜索当前输入。
 - **结果操作**：`⌘F` 在 Finder 中显示，`⌘Y` 用 Quick Look 预览，`⌘K` 打开快捷操作菜单。
 - **Quick AI**：按 `Tab` 向 OpenAI 兼容接口（也可以是 Ollama 等本地模型）提问，流式显示 Markdown 回答。
-- **划词翻译**：触控板用力点按翻译光标下的单词，`⌥D` 翻译选中的文字或剪贴板，译文在原文旁的气泡中流式显示。
+- **划词翻译**：触控板用力点按翻译光标下的单词，`⌥D` 翻译选中的文字或剪贴板，`⌥⇧D` 框选屏幕区域识别文字后翻译，译文在原文旁的气泡中流式显示。
 - **设置**：开机自启、自定义快捷键、文件搜索与使用历史开关、网页搜索引擎、Quick AI 与划词翻译各自的接口、翻译语言。
 
 完整说明见 [OI 功能清单](docs/OI%20功能清单.md) 与 [OI 使用指南](docs/OI%20使用指南.md)。
@@ -19,7 +19,7 @@ OI 是一个原生 macOS 菜单栏启动器：按 `⌥Space` 呼出 Spotlight �
 
 - macOS 27.0 或更高版本。OI 常驻系统菜单栏，没有 Dock 图标。
 - 文件搜索需要桌面、文稿、下载目录的访问授权，首次启动时请求；在设置中关闭文件搜索后不再请求。
-- 划词翻译需要「辅助功能」权限（系统设置 → 隐私与安全性 → 辅助功能），设置窗口中有授权入口。
+- 划词翻译需要「辅助功能」权限（系统设置 → 隐私与安全性 → 辅助功能），截图翻译需要「屏幕录制」权限（系统设置 → 隐私与安全性 → 屏幕与系统录音），设置窗口中都有授权入口；截图只在本机识别，不保存也不上传。
 - 回车打开应用或文件失败时以系统通知说明原因，第一次需要时才请求通知权限。
 - Quick AI 与划词翻译需要在设置中分别填写接口地址与模型（可以使用不同的服务），API Key 保存在钥匙串中。只有这两个功能会发起网络请求，其余检索都在本地完成。
 
@@ -62,7 +62,7 @@ Infrastructure/              系统能力实现
   Shortcut/                  Carbon 全局快捷键实现
   LoginItem/                 SMAppService 开机自启动实现
   QuickAI/                   OpenAI 兼容接口客户端与钥匙串存储
-  Translator/                辅助功能取词、用力点按监听、双击选词与语种识别
+  Translator/                辅助功能取词、用力点按监听、双击选词、截图识字与语种识别
   Notifications/             系统通知中心提示（后台打开失败）
   Settings/                  UserDefaults 用户设置
   Usage/                     UserDefaults 启动历史
@@ -72,7 +72,7 @@ UI/                          AppKit/SwiftUI 桥接
   Panel/                     NSPanel、启动器界面、Quick Look 与键盘事件适配
   StatusBar/                 NSStatusItem 适配
   Settings/                  设置窗口、表单与快捷键录制
-  Translator/                翻译气泡面板与单词高亮
+  Translator/                翻译气泡面板、单词高亮与截图框选
 
 Assets.xcassets/             App 图标与全局 Accent Color
 assets/AppIcon.svg           App 图标源文件

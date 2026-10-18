@@ -584,6 +584,9 @@ final class TranslatorTests: XCTestCase {
 
         session.sourceText = "  "
         XCTAssertEqual(session.returnAction, .none, "原文为空时不翻译")
+
+        session.state = .recognizing
+        XCTAssertEqual(session.returnAction, .none, "截图识别期间不响应回车")
     }
 
     func testSourceLanguageNameUsesSupportedAndSystemNames() {
@@ -600,6 +603,152 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(name("zh-Hant"), "繁体中文")
         XCTAssertNotNil(name("sw"), "不在支持列表中的语言使用系统的本地化名称")
         XCTAssertNil(name(nil))
+    }
+
+    // MARK: - Screen translation
+
+    func testScreenTranslationRequiresScreenRecordingPermission() {
+        let untrusted = makeTranslatorViewModel()
+        let trusted = makeTranslatorViewModel(environment: MemoryTranslatorEnvironment(isScreenCaptureTrusted: true))
+
+        XCTAssertFalse(untrusted.beginScreenTranslation())
+        XCTAssertNil(untrusted.session)
+        XCTAssertEqual(untrusted.notice, .screenRecordingRequired)
+
+        XCTAssertTrue(trusted.beginScreenTranslation())
+        XCTAssertNil(trusted.session)
+        XCTAssertNil(trusted.notice)
+    }
+
+    func testScreenRegionIsRecognizedThenTranslatedBesideSelection() async throws {
+        let rect = CGRect(x: 100, y: 200, width: 300, height: 80)
+        let recognizer = RecordingScreenTextRecognizer { _ in "Hello" }
+        let viewModel = makeTranslatorViewModel(screenRecognizer: recognizer)
+
+        let presentation = viewModel.translateScreenRegion(rect)
+
+        XCTAssertEqual(presentation, TranslatorPresentation(anchorRect: rect))
+        XCTAssertEqual(viewModel.session?.state, .recognizing, "识别期间气泡先弹出")
+        XCTAssertEqual(viewModel.session?.source, .screen)
+        try await waitUntil { viewModel.session?.state == .finished }
+        XCTAssertEqual(recognizer.rects, [rect])
+        XCTAssertEqual(viewModel.session?.sourceText, "Hello")
+        XCTAssertEqual(viewModel.session?.source, .screen)
+        XCTAssertEqual(viewModel.translationToCopy, "你好")
+        XCTAssertNil(viewModel.notice)
+    }
+
+    func testScreenRegionWithoutTextOrFailedCaptureShowsNotice() async throws {
+        let rect = CGRect(x: 0, y: 0, width: 200, height: 40)
+        let empty = makeTranslatorViewModel(screenRecognizer: RecordingScreenTextRecognizer())
+        let failing = makeTranslatorViewModel(
+            screenRecognizer: RecordingScreenTextRecognizer(error: StubError(message: "未获授权"))
+        )
+
+        _ = empty.translateScreenRegion(rect)
+        _ = failing.translateScreenRegion(rect)
+        try await waitUntil { empty.notice != nil && failing.notice != nil }
+
+        XCTAssertNil(empty.session)
+        XCTAssertEqual(empty.notice, .noTextInSelection)
+        XCTAssertNil(failing.session)
+        XCTAssertEqual(failing.notice, .screenCaptureFailed)
+    }
+
+    /// 重新框选取代进行中的识别：旧选区的结果到达后被丢弃。
+    func testNewSelectionSupersedesPendingRecognition() async throws {
+        let first = CGRect(x: 0, y: 0, width: 200, height: 40)
+        let second = CGRect(x: 0, y: 300, width: 200, height: 40)
+        let recognizer = RecordingScreenTextRecognizer { rect in rect.minY == 0 ? "first" : "second" }
+        let viewModel = makeTranslatorViewModel(screenRecognizer: recognizer)
+
+        _ = viewModel.translateScreenRegion(first)
+        let presentation = viewModel.translateScreenRegion(second)
+        try await waitUntil { viewModel.session?.state == .finished }
+
+        XCTAssertEqual(presentation, TranslatorPresentation(anchorRect: second))
+        XCTAssertEqual(viewModel.session?.sourceText, "second")
+    }
+
+    /// 识别期间在气泡中切换的目标语言，识别完成后仍然沿用。
+    func testTargetLanguageChosenWhileRecognizingIsKept() async throws {
+        let viewModel = makeTranslatorViewModel(screenRecognizer: RecordingScreenTextRecognizer { _ in "Hello" })
+
+        _ = viewModel.translateScreenRegion(CGRect(x: 0, y: 0, width: 200, height: 40))
+        viewModel.selectTargetLanguage(.japanese)
+        try await waitUntil { viewModel.session?.state == .finished }
+
+        XCTAssertEqual(viewModel.session?.sourceText, "Hello")
+        XCTAssertEqual(viewModel.session?.targetLanguage, .japanese)
+        XCTAssertEqual(viewModel.session?.isTargetLanguagePinned, true)
+    }
+
+    func testParagraphsJoinWrappedEnglishLines() {
+        let text = VisionScreenTextRecognizer.paragraphs(from: [
+            line("The quick brown fox jumps over", y: 0, width: 300),
+            line("the lazy dog.", y: 26, width: 130),
+        ])
+
+        XCTAssertEqual(text, "The quick brown fox jumps over the lazy dog.")
+    }
+
+    func testParagraphsRestoreHyphenatedWordsAndJoinChineseWithoutSpaces() {
+        let english = VisionScreenTextRecognizer.paragraphs(from: [
+            line("This is an extraordi-", y: 0, width: 210),
+            line("nary example.", y: 26, width: 130),
+        ])
+        let chinese = VisionScreenTextRecognizer.paragraphs(from: [
+            line("截图中的文字按版面折行，", y: 0, width: 240),
+            line("翻译前要接回一行。", y: 26, width: 180),
+        ])
+
+        XCTAssertEqual(english, "This is an extraordinary example.")
+        XCTAssertEqual(chinese, "截图中的文字按版面折行，翻译前要接回一行。")
+    }
+
+    /// 标题、段落末行等没写到行尾的行，以及段落间距之后的行，都保留换行。
+    func testParagraphsKeepBreaksAfterShortLinesAndParagraphGaps() {
+        let text = VisionScreenTextRecognizer.paragraphs(from: [
+            line("Settings", y: 0, width: 80),
+            line("Turn on notifications to receive", y: 30, width: 320),
+            line("updates.", y: 56, width: 80),
+            line("Next paragraph starts here.", y: 110, width: 270),
+            line("   ", y: 140, width: 30),
+        ])
+
+        XCTAssertEqual(text, "Settings\nTurn on notifications to receive updates.\nNext paragraph starts here.")
+        XCTAssertEqual(VisionScreenTextRecognizer.paragraphs(from: []), "")
+    }
+
+    /// 不在上一行下方的行（换栏、并排的文字）不接在上一行之后。
+    func testParagraphsDoNotJoinLinesBesideOrAbovePreviousLine() {
+        let text = VisionScreenTextRecognizer.paragraphs(from: [
+            line("Left column fills its width", y: 100, width: 270),
+            line("right column", x: 400, y: 0, width: 120),
+        ])
+
+        XCTAssertEqual(text, "Left column fills its width\nright column")
+    }
+
+    func testSelectionRectNormalizesDragDirectionAndStaysOnScreen() {
+        let bounds = NSRect(x: 0, y: 0, width: 1440, height: 900)
+
+        XCTAssertEqual(
+            ScreenSelectionOverlay.selectionRect(from: NSPoint(x: 300, y: 400), to: NSPoint(x: 100, y: 250), within: bounds),
+            NSRect(x: 100, y: 250, width: 200, height: 150)
+        )
+        XCTAssertEqual(
+            ScreenSelectionOverlay.selectionRect(from: NSPoint(x: 1400, y: 50), to: NSPoint(x: 1600, y: -20), within: bounds),
+            NSRect(x: 1400, y: 0, width: 40, height: 50),
+            "拖出屏幕时选区停在屏幕边缘"
+        )
+    }
+
+    func testAppKitCoordinatesConvertBackToGlobal() {
+        let global = CGRect(x: 100, y: 200, width: 80, height: 18)
+        let appKit = TranslatorPlacement.appKitRect(fromGlobal: global, primaryScreenHeight: 900)
+
+        XCTAssertEqual(TranslatorPlacement.globalRect(fromAppKit: appKit, primaryScreenHeight: 900), global)
     }
 
     // MARK: - Placement
@@ -678,6 +827,7 @@ final class TranslatorTests: XCTestCase {
         let settings = AppSettings(
             isForceTouchTranslationEnabled: false,
             translatorShortcut: LauncherShortcut(keyCode: 17, modifiers: 1 << 8 | 1 << 11),
+            screenTranslatorShortcut: LauncherShortcut(keyCode: 1, modifiers: 1 << 11 | 1 << 12),
             translationTargetLanguage: .japanese,
             translationAlternateLanguage: .french,
             translationBaseURL: "http://localhost:11434/v1",
@@ -697,11 +847,14 @@ final class TranslatorTests: XCTestCase {
         defaults.set("xx", forKey: "settings.translator.targetLanguage")
         defaults.set(2, forKey: "settings.translator.shortcut.keyCode")
         defaults.set(0, forKey: "settings.translator.shortcut.modifiers")
+        defaults.set(2, forKey: "settings.translator.screenShortcut.keyCode")
+        defaults.set(1 << 9, forKey: "settings.translator.screenShortcut.modifiers")
 
         let settings = UserDefaultsAppSettingsStore(defaults: defaults).load()
 
         XCTAssertEqual(settings.translationTargetLanguage, .simplifiedChinese)
         XCTAssertEqual(settings.translatorShortcut, .standardTranslator)
+        XCTAssertEqual(settings.screenTranslatorShortcut, .standardScreenTranslator, "只有 ⇧ 不能用作全局快捷键")
     }
 
     func testApplyTranslatorShortcutActivatesAndPersists() {
@@ -740,15 +893,42 @@ final class TranslatorTests: XCTestCase {
         viewModel.launcherShortcutActivator = launcherActivator.activate
         viewModel.translatorShortcutActivator = translatorActivator.activate
 
+        let screenActivator = RecordingActivator()
+        viewModel.screenTranslatorShortcutActivator = screenActivator.activate
+
         viewModel.applyTranslatorShortcut(.standard)
         viewModel.applyLauncherShortcut(.standardTranslator)
+        viewModel.applyScreenTranslatorShortcut(.standardTranslator)
+        viewModel.applyTranslatorShortcut(.standardScreenTranslator)
 
         XCTAssertEqual(translatorActivator.attempts, [])
         XCTAssertEqual(launcherActivator.attempts, [])
-        XCTAssertEqual(viewModel.translatorShortcutNotice, .failure("与呼出快捷键相同，请换一个组合"))
+        XCTAssertEqual(screenActivator.attempts, [])
+        XCTAssertEqual(viewModel.translatorShortcutNotice, .failure("与截图翻译快捷键相同，请换一个组合"))
         XCTAssertEqual(viewModel.launcherShortcutNotice, .failure("与翻译快捷键相同，请换一个组合"))
+        XCTAssertEqual(viewModel.screenTranslatorShortcutNotice, .failure("与翻译快捷键相同，请换一个组合"))
         XCTAssertEqual(viewModel.settings.translatorShortcut, .standardTranslator)
         XCTAssertEqual(viewModel.settings.launcherShortcut, .standard)
+        XCTAssertEqual(viewModel.settings.screenTranslatorShortcut, .standardScreenTranslator)
+    }
+
+    func testApplyScreenTranslatorShortcutActivatesAndPersists() {
+        let settingsStore = MemoryAppSettingsStore()
+        let viewModel = makeSettingsViewModel(settingsStore: settingsStore)
+        let activator = RecordingActivator()
+        viewModel.screenTranslatorShortcutActivator = activator.activate
+        let shortcut = LauncherShortcut(keyCode: 1, modifiers: 1 << 11 | 1 << 12)
+
+        viewModel.applyScreenTranslatorShortcut(shortcut)
+
+        XCTAssertEqual(activator.attempts, [shortcut])
+        XCTAssertEqual(settingsStore.load().screenTranslatorShortcut, shortcut)
+        XCTAssertNil(viewModel.screenTranslatorShortcutNotice)
+
+        viewModel.reportScreenTranslatorShortcutRegistrationFailure(StubError(message: "该快捷键已被其他应用占用"))
+
+        XCTAssertEqual(viewModel.screenTranslatorShortcutNotice, .failure("该快捷键已被其他应用占用"))
+        XCTAssertNil(viewModel.translatorShortcutNotice)
     }
 
     /// 两个翻译语言不会相同：选成另一项的语言时两者互换，否则只改这一项。
@@ -775,14 +955,19 @@ final class TranslatorTests: XCTestCase {
         let environment = MemoryTranslatorEnvironment(isAccessibilityTrusted: false)
         let viewModel = makeSettingsViewModel(environment: environment)
         XCTAssertFalse(viewModel.isAccessibilityTrusted)
+        XCTAssertFalse(viewModel.isScreenCaptureTrusted)
 
         environment.isAccessibilityTrusted = true
+        environment.isScreenCaptureTrusted = true
         viewModel.refreshPermissionStatus()
         viewModel.requestAccessibilityAccess()
+        viewModel.requestScreenCaptureAccess()
         viewModel.openTrackpadSettings()
 
         XCTAssertTrue(viewModel.isAccessibilityTrusted)
+        XCTAssertTrue(viewModel.isScreenCaptureTrusted)
         XCTAssertEqual(environment.accessibilityRequestCount, 1)
+        XCTAssertEqual(environment.screenCaptureRequestCount, 1)
         XCTAssertEqual(environment.trackpadSettingsOpenCount, 1)
     }
 
@@ -801,6 +986,7 @@ final class TranslatorTests: XCTestCase {
         let settingsStore = MemoryAppSettingsStore()
         let launcherService = RecordingShortcutService()
         let translatorService = RecordingShortcutService()
+        let screenService = RecordingShortcutService()
         let monitor = RecordingForceTouchMonitor()
         let coordinator = AppCoordinator(
             dependencies: AppDependencies(
@@ -812,6 +998,7 @@ final class TranslatorTests: XCTestCase {
                 translator: TranslatorDependencies(
                     viewModel: makeTranslatorViewModel(settings: AppSettings()),
                     shortcutService: translatorService,
+                    screenShortcutService: screenService,
                     forceTouchMonitor: monitor
                 )
             )
@@ -823,11 +1010,14 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(launcherService.registeredShortcuts, [.standard])
         XCTAssertEqual(translatorService.registeredShortcuts, [.standardTranslator])
         XCTAssertNotNil(translatorService.handler)
+        XCTAssertEqual(screenService.registeredShortcuts, [.standardScreenTranslator])
+        XCTAssertNotNil(screenService.handler)
         XCTAssertTrue(monitor.isRunning)
 
         coordinator.stop()
 
         XCTAssertNil(translatorService.handler)
+        XCTAssertNil(screenService.handler)
         XCTAssertFalse(monitor.isRunning)
     }
 
@@ -846,6 +1036,7 @@ final class TranslatorTests: XCTestCase {
                 translator: TranslatorDependencies(
                     viewModel: makeTranslatorViewModel(settings: AppSettings()),
                     shortcutService: RecordingShortcutService(),
+                    screenShortcutService: RecordingShortcutService(),
                     forceTouchMonitor: monitor
                 )
             )
@@ -882,6 +1073,7 @@ final class TranslatorTests: XCTestCase {
     private func makeTranslatorViewModel(
         capturer: StubTextCapturer = StubTextCapturer(),
         wordSelector: RecordingWordSelector = RecordingWordSelector(),
+        screenRecognizer: RecordingScreenTextRecognizer = RecordingScreenTextRecognizer(),
         answerer: any QuickAIAnswering = RecordingAnswerer(deltas: ["你好"]),
         detector: StubLanguageDetector = StubLanguageDetector(code: "en"),
         environment: MemoryTranslatorEnvironment? = nil,
@@ -897,6 +1089,7 @@ final class TranslatorTests: XCTestCase {
             ),
             textCapturer: capturer,
             wordSelector: wordSelector,
+            screenTextRecognizer: screenRecognizer,
             environment: environment ?? MemoryTranslatorEnvironment(isAccessibilityTrusted: true),
             settingsStore: settingsStore
         )
@@ -911,6 +1104,17 @@ final class TranslatorTests: XCTestCase {
             loginItemController: StubLoginItemController(),
             translatorEnvironment: environment ?? MemoryTranslatorEnvironment()
         )
+    }
+
+    /// 截图中识别出的一行，`frame` 为像素坐标（原点在左上角）。
+    private func line(
+        _ text: String,
+        x: CGFloat = 0,
+        y: CGFloat,
+        width: CGFloat,
+        height: CGFloat = 20
+    ) -> VisionScreenTextRecognizer.Line {
+        VisionScreenTextRecognizer.Line(text: text, frame: CGRect(x: x, y: y, width: width, height: height))
     }
 
     private func waitUntil(_ condition: () -> Bool) async throws {
@@ -980,6 +1184,31 @@ private final class RecordingWordSelector: WordSelecting, @unchecked Sendable {
     func selectWord(at point: CGPoint) async -> CapturedText? {
         lock.withLock { storedPoints.append(point) }
         return selected
+    }
+}
+
+/// Returns text for each region (or fails with `error`) and records the regions it was asked to recognize.
+private final class RecordingScreenTextRecognizer: ScreenTextRecognizing, @unchecked Sendable {
+    private let lock = NSLock()
+    private let error: StubError?
+    private let text: @Sendable (CGRect) -> String
+    private var storedRects: [CGRect] = []
+
+    init(error: StubError? = nil, text: @escaping @Sendable (CGRect) -> String = { _ in "" }) {
+        self.error = error
+        self.text = text
+    }
+
+    var rects: [CGRect] {
+        lock.withLock { storedRects }
+    }
+
+    func recognizeText(in rect: CGRect) async throws -> String {
+        lock.withLock { storedRects.append(rect) }
+        if let error {
+            throw error
+        }
+        return text(rect)
     }
 }
 

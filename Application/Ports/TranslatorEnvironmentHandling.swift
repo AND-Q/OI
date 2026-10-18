@@ -1,6 +1,6 @@
 import Foundation
 
-/// 划词翻译依赖的系统环境：读取其他应用文字所需的辅助功能权限，
+/// 划词翻译依赖的系统环境：读取其他应用文字所需的辅助功能权限、截图翻译所需的屏幕录制权限，
 /// 以及触控板「用力点按」相关系统设置的入口。
 @MainActor
 protocol TranslatorEnvironmentHandling: AnyObject {
@@ -8,6 +8,10 @@ protocol TranslatorEnvironmentHandling: AnyObject {
     /// 请求辅助功能权限：系统弹出授权提示时交给提示引导（提示中可打开系统设置）；
     /// 系统不再提示（OI 已在辅助功能列表中但未勾选）时直接打开「隐私与安全性 → 辅助功能」。
     func requestAccessibilityAccess()
+    var isScreenCaptureTrusted: Bool { get }
+    /// 请求屏幕录制权限，规则同辅助功能：系统弹出授权提示时交给提示引导；
+    /// 系统不再提示时直接打开「隐私与安全性 → 屏幕与系统录音」。
+    func requestScreenCaptureAccess()
     /// 打开「系统设置 → 触控板」，用于关闭系统查询的用力点按、确认触感反馈已开启。
     func openTrackpadSettings()
 }
@@ -16,15 +20,22 @@ protocol TranslatorEnvironmentHandling: AnyObject {
 @MainActor
 final class MemoryTranslatorEnvironment: TranslatorEnvironmentHandling {
     var isAccessibilityTrusted: Bool
+    var isScreenCaptureTrusted: Bool
     private(set) var accessibilityRequestCount = 0
+    private(set) var screenCaptureRequestCount = 0
     private(set) var trackpadSettingsOpenCount = 0
 
-    init(isAccessibilityTrusted: Bool = false) {
+    init(isAccessibilityTrusted: Bool = false, isScreenCaptureTrusted: Bool = false) {
         self.isAccessibilityTrusted = isAccessibilityTrusted
+        self.isScreenCaptureTrusted = isScreenCaptureTrusted
     }
 
     func requestAccessibilityAccess() {
         accessibilityRequestCount += 1
+    }
+
+    func requestScreenCaptureAccess() {
+        screenCaptureRequestCount += 1
     }
 
     func openTrackpadSettings() {

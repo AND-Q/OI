@@ -109,6 +109,25 @@ struct SettingsView: View {
                 if let notice = viewModel.translatorShortcutNotice {
                     shortcutNoticeRow(notice)
                 }
+                LabeledContent {
+                    HStack(spacing: 12) {
+                        ShortcutRecorderField(shortcut: viewModel.settings.screenTranslatorShortcut) {
+                            viewModel.applyScreenTranslatorShortcut($0)
+                        }
+                        Button("恢复默认") {
+                            viewModel.applyScreenTranslatorShortcut(.standardScreenTranslator)
+                        }
+                        .disabled(
+                            viewModel.settings.screenTranslatorShortcut == .standardScreenTranslator
+                                && viewModel.screenTranslatorShortcutNotice == nil
+                        )
+                    }
+                } label: {
+                    Text("截图翻译快捷键")
+                }
+                if let notice = viewModel.screenTranslatorShortcutNotice {
+                    shortcutNoticeRow(notice)
+                }
                 Picker("目标语言", selection: translationTargetLanguage) {
                     languageOptions
                 }
@@ -139,7 +158,7 @@ struct SettingsView: View {
             } header: {
                 Text("划词翻译")
             } footer: {
-                Text("选中文字后按翻译快捷键即在原处弹出译文，未选中时翻译剪贴板内容；在触控板上用力点按则翻译光标所在的单词。默认外文译为简体中文、中文译为英语，气泡中可临时切换目标语言。翻译接口与 Quick AI 分开填写，可以使用不同的服务与模型，建议选用响应快、不带思考的模型，或把思考强度设低（含义同 Quick AI）；原文会发送到所填地址，API Key 保存在钥匙串中。")
+                Text("选中文字后按翻译快捷键即在原处弹出译文，未选中时翻译剪贴板内容；在触控板上用力点按则翻译光标所在的单词；图片、视频字幕、远程桌面等取不到文字时，按截图翻译快捷键框选屏幕区域，在本机识别其中的文字后翻译。默认外文译为简体中文、中文译为英语，气泡中可临时切换目标语言。翻译接口与 Quick AI 分开填写，可以使用不同的服务与模型，建议选用响应快、不带思考的模型，或把思考强度设低（含义同 Quick AI）；原文会发送到所填地址，API Key 保存在钥匙串中。")
             }
 
             Section {
@@ -159,6 +178,21 @@ struct SettingsView: View {
                     )
                 }
                 LabeledContent {
+                    if viewModel.isScreenCaptureTrusted {
+                        Label("已开启", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    } else {
+                        Button("去开启…") {
+                            viewModel.requestScreenCaptureAccess()
+                        }
+                    }
+                } label: {
+                    guideRow(
+                        "开启屏幕录制权限",
+                        "仅用于截图翻译：截取框选的区域，在本机识别其中的文字，截图不保存也不上传；开启后需按系统提示重新打开 OI"
+                    )
+                }
+                LabeledContent {
                     Button("打开触控板设置…") {
                         viewModel.openTrackpadSettings()
                     }
@@ -175,7 +209,7 @@ struct SettingsView: View {
             } header: {
                 Text("取词环境")
             } footer: {
-                Text("未开启辅助功能权限时，翻译快捷键只能翻译剪贴板内容，用力点按无法取词。重新编译或更新 OI 后若取词失效，请在辅助功能列表中移除 OI 后重新添加。")
+                Text("未开启辅助功能权限时，翻译快捷键只能翻译剪贴板内容，用力点按无法取词；未开启屏幕录制权限时无法截图翻译。重新编译或更新 OI 后若取词或截图翻译失效，请在对应的权限列表中移除 OI 后重新添加。")
             }
         }
         .formStyle(.grouped)
