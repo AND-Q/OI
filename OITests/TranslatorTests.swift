@@ -172,6 +172,10 @@ final class TranslatorTests: XCTestCase {
             TranslateText.systemPrompt(for: .simplifiedChinese).contains("If the whole text is a single code identifier"),
             "整段原文只是一个代码标识符时拆成词组翻译，不当作代码原样返回"
         )
+        XCTAssertTrue(
+            TranslateText.systemPrompt(for: .simplifiedChinese).contains("translate it into one natural"),
+            "短语默认只给一个译文，意思明显不同时才分行列出"
+        )
     }
 
     func testTranslateTextUsesTranslatorEndpointAndKey() async throws {
