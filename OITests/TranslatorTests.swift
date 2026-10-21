@@ -168,6 +168,10 @@ final class TranslatorTests: XCTestCase {
             TranslateText.systemPrompt(for: .simplifiedChinese).contains("Start each line with the part of speech"),
             "单词的每个释义在行首标出词性"
         )
+        XCTAssertTrue(
+            TranslateText.systemPrompt(for: .simplifiedChinese).contains("If the whole text is a single code identifier"),
+            "整段原文只是一个代码标识符时拆成词组翻译，不当作代码原样返回"
+        )
     }
 
     func testTranslateTextUsesTranslatorEndpointAndKey() async throws {
