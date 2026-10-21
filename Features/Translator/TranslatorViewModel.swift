@@ -106,24 +106,30 @@ final class TranslatorViewModel: ObservableObject {
         return TranslatorPresentation(anchorRect: captured.screenRect)
     }
 
-    /// 截图翻译快捷键：清空当前会话；已获屏幕录制权限时返回 true，由界面进入框选，
-    /// 否则只展示需要授权的提示。
-    func beginScreenTranslation() -> Bool {
-        _ = beginCapture()
+    /// 截图翻译快捷键：清空当前会话并定格屏幕画面，由界面铺在遮罩下进入框选；
+    /// 未获屏幕录制权限或截屏失败时只展示提示。被更新的一次触发取代时返回 nil。
+    func beginScreenTranslation() async -> ScreenTranslationStart? {
+        let generation = beginCapture()
         cancelRecognition()
         stopTranslation()
         session = nil
         guard environment.isScreenCaptureTrusted else {
             notice = .screenRecordingRequired
-            return false
+            return .notice
         }
         notice = nil
-        return true
+        let snapshot = try? await screenTextRecognizer.captureScreens()
+        guard generation == captureGeneration else { return nil }
+        guard let snapshot else {
+            notice = .screenCaptureFailed
+            return .notice
+        }
+        return .selection(snapshot)
     }
 
-    /// 框选完成：识别 `rect`（全局显示坐标）中的文字后翻译。识别期间会话处于识别中，气泡随即贴着选区弹出；
-    /// 没有识别到文字或截屏失败时改为提示。重新框选会取代进行中的识别。
-    func translateScreenRegion(_ rect: CGRect) -> TranslatorPresentation {
+    /// 框选完成：识别定格画面 `snapshot` 中 `rect`（全局显示坐标）内的文字后翻译。识别期间会话处于识别中，
+    /// 气泡随即贴着选区弹出；没有识别到文字或识别失败时改为提示。重新框选会取代进行中的识别。
+    func translateScreenRegion(_ rect: CGRect, in snapshot: ScreenSnapshot) -> TranslatorPresentation {
         let generation = beginCapture()
         cancelRecognition()
         stopTranslation()
@@ -139,7 +145,7 @@ final class TranslatorViewModel: ObservableObject {
         recognitionTask = Task { [weak self] in
             let result: Result<String, Error>
             do {
-                let text = try await recognizer.recognizeText(in: rect)
+                let text = try await recognizer.recognizeText(in: rect, of: snapshot)
                 result = .success(text)
             } catch {
                 result = .failure(error)

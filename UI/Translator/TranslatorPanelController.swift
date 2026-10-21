@@ -5,7 +5,7 @@ import os
 /// 划词翻译气泡的管理：每次翻译弹出「当前气泡」（`TranslatorBubble`），点到其他应用、`Esc` 或再按快捷键即收起；
 /// 点按气泡右上角的图钉后，这个气泡固定在屏幕上，与之后的翻译互相隔离——点到别处、切换应用、退出框选都不收起，
 /// 只由它自己的关闭按钮、`Esc` 或回车复制关闭；之后的翻译另开新的当前气泡。可以同时固定多个。
-/// 截图翻译时先进入框选（`ScreenSelectionOverlay`），框选完成后当前气泡贴着选框弹出、显示在遮罩之上。
+/// 截图翻译时先定格屏幕画面并进入框选（`ScreenSelectionOverlay`），框选完成后当前气泡贴着选框弹出、显示在遮罩之上。
 @MainActor
 final class TranslatorPanelController {
     /// 当前气泡收起的原因，记入日志以便排查气泡意外收起。
@@ -41,7 +41,7 @@ final class TranslatorPanelController {
         current = TranslatorBubble(viewModel: makeViewModel())
         configureCurrent()
         selectionOverlay.onSelectionStart = { [weak self] in self?.hide(reason: .reselect) }
-        selectionOverlay.onSelection = { [weak self] rect in self?.translateScreenRegion(rect) }
+        selectionOverlay.onSelection = { [weak self] rect, snapshot in self?.translateScreenRegion(rect, in: snapshot) }
         selectionOverlay.onCancel = { [weak self] in self?.hide(reason: .selectionCancelled) }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
@@ -85,7 +85,7 @@ final class TranslatorPanelController {
         }
     }
 
-    /// 截图翻译快捷键：进入框选，框选中再按则退出；未获屏幕录制权限时只弹出说明与授权入口。
+    /// 截图翻译快捷键：定格屏幕画面后进入框选，框选中再按则退出；未获屏幕录制权限或截屏失败时只弹出提示。
     func toggleScreenTranslation() {
         if selectionOverlay.isActive {
             hide(reason: .shortcut)
@@ -94,11 +94,17 @@ final class TranslatorPanelController {
         if isVisible {
             hide(reason: .shortcut)
         }
-        guard current.viewModel.beginScreenTranslation() else {
-            present(TranslatorPresentation(anchorRect: nil), pointer: nil)
-            return
+        let bubble = current
+        Task { [weak self] in
+            guard let start = await bubble.viewModel.beginScreenTranslation(),
+                  let self, bubble === self.current else { return }
+            switch start {
+            case .selection(let snapshot):
+                self.selectionOverlay.begin(showing: snapshot)
+            case .notice:
+                self.present(TranslatorPresentation(anchorRect: nil), pointer: nil)
+            }
         }
-        selectionOverlay.begin()
     }
 
     func stop() {
@@ -115,8 +121,8 @@ final class TranslatorPanelController {
         pinnedBubbles.removeAll()
     }
 
-    private func translateScreenRegion(_ rect: CGRect) {
-        present(current.viewModel.translateScreenRegion(rect), pointer: nil)
+    private func translateScreenRegion(_ rect: CGRect, in snapshot: ScreenSnapshot) {
+        present(current.viewModel.translateScreenRegion(rect, in: snapshot), pointer: nil)
     }
 
     // MARK: - Current bubble

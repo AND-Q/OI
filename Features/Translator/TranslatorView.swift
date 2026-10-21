@@ -361,11 +361,11 @@ private struct TranslatorNoticeView<CloseButton: View>: View {
         case .accessibilityRequired, .clipboardUsedWithoutAccessibility:
             "需要辅助功能权限才能读取选中的文字；也可以先复制文字，再按快捷键翻译剪贴板内容。"
         case .screenRecordingRequired:
-            "截图翻译需要屏幕录制权限，用于截取框选的区域并在本机识别其中的文字。开启后请按系统提示重新打开 OI。"
+            "截图翻译需要屏幕录制权限，用于定格屏幕画面并在本机识别框选区域中的文字。开启后请按系统提示重新打开 OI。"
         case .noTextInSelection:
             "选区中没有识别到文字，请重新框选。"
         case .screenCaptureFailed:
-            "截图失败，请重新框选。如果刚开启屏幕录制权限，需要重新打开 OI 才能截图。"
+            "截图失败，请重试。如果刚开启屏幕录制权限，需要重新打开 OI 才能截图。"
         }
     }
 }

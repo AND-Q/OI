@@ -77,11 +77,19 @@ enum TranslatorNotice: Equatable, Sendable {
     case screenRecordingRequired
     /// 截图翻译的选区中没有识别到文字。
     case noTextInSelection
-    /// 截图翻译截取屏幕失败。
+    /// 截图翻译截取屏幕或识别文字失败。
     case screenCaptureFailed
 }
 
 /// 气泡的展示位置：`anchorRect` 为原文所在区域（全局显示坐标），为 nil 时贴着鼠标指针弹出。
 struct TranslatorPresentation: Equatable, Sendable {
     let anchorRect: CGRect?
+}
+
+/// 按下截图翻译快捷键的结果。
+enum ScreenTranslationStart: Sendable {
+    /// 已定格屏幕画面，进入框选。
+    case selection(ScreenSnapshot)
+    /// 只弹出提示：未获屏幕录制权限或截屏失败。
+    case notice
 }

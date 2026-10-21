@@ -4,8 +4,9 @@ import ScreenCaptureKit
 import Vision
 import os
 
-/// 截图翻译：用 ScreenCaptureKit 截取框选的屏幕区域，再用 Vision 在本机识别其中的文字并整理成段落。
-/// 截图只在内存中识别，不保存也不上传；OI 自身的窗口（框选遮罩、翻译气泡）不入镜，无需先隐藏。
+/// 截图翻译：进入框选时用 ScreenCaptureKit 截下每块屏幕定格画面，框选完成后从中裁出选区，
+/// 再用 Vision 在本机识别其中的文字并整理成段落。截图只在内存中识别，不保存也不上传；
+/// OI 自身的窗口（框选遮罩、翻译气泡）不入镜，无需先隐藏。
 struct VisionScreenTextRecognizer: ScreenTextRecognizing {
     /// 识别出的一行文字与它在截图中的位置（像素，原点在左上角、y 轴向下）。
     struct Line: Equatable {
@@ -25,9 +26,18 @@ struct VisionScreenTextRecognizer: ScreenTextRecognizing {
     private static let recognitionLanguages = ["zh-Hans", "zh-Hant", "en-US", "ja-JP", "ko-KR"]
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "OI", category: "Translator")
 
-    func recognizeText(in rect: CGRect) async throws -> String {
+    func captureScreens() async throws -> ScreenSnapshot {
         do {
-            let image = try await Self.captureScreen(in: rect)
+            return try await Self.captureDisplays()
+        } catch {
+            Self.logger.error("Screen capture failed: \(error.localizedDescription, privacy: .public)")
+            throw error
+        }
+    }
+
+    func recognizeText(in rect: CGRect, of snapshot: ScreenSnapshot) async throws -> String {
+        do {
+            let image = try Self.image(in: rect, of: snapshot)
             let lines = try await Self.recognizeLines(in: image)
             return AccessibilityTextCapturer.cleaned(Self.paragraphs(from: lines)) ?? ""
         } catch {
@@ -103,29 +113,44 @@ struct VisionScreenTextRecognizer: ScreenTextRecognizing {
 
     // MARK: - Capture
 
-    /// 截取 `rect`（全局显示坐标）在所在屏幕上的区域；按屏幕像素截取，小字号文字也能看清。
-    private static func captureScreen(in rect: CGRect) async throws -> CGImage {
+    /// 截取每块屏幕的整个画面；按屏幕像素截取，小字号文字也能看清。
+    private static func captureDisplays() async throws -> ScreenSnapshot {
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+        let ownProcessID = ProcessInfo.processInfo.processIdentifier
+        let ownApplications = content.applications.filter { $0.processID == ownProcessID }
+        var displays: [ScreenSnapshot.Display] = []
+        for display in content.displays {
+            let filter = SCContentFilter(display: display, excludingApplications: ownApplications, exceptingWindows: [])
+            let configuration = SCStreamConfiguration()
+            let scale = backingScale(of: display.displayID)
+            configuration.width = Int((display.frame.width * scale).rounded())
+            configuration.height = Int((display.frame.height * scale).rounded())
+            configuration.showsCursor = false
+            let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration)
+            displays.append(ScreenSnapshot.Display(displayID: display.displayID, frame: display.frame, image: image))
+        }
+        return ScreenSnapshot(displays: displays)
+    }
+
+    /// 从定格的画面中裁出 `rect`（全局显示坐标）在所在屏幕上的区域。
+    private static func image(in rect: CGRect, of snapshot: ScreenSnapshot) throws -> CGImage {
         let center = CGPoint(x: rect.midX, y: rect.midY)
-        guard let display = content.displays.first(where: { $0.frame.contains(center) }) else {
+        guard let display = snapshot.displays.first(where: { $0.frame.contains(center) }) else {
             throw CaptureError.displayNotFound
         }
         let region = rect.intersection(display.frame)
         guard !region.isEmpty else { throw CaptureError.displayNotFound }
 
-        let ownProcessID = ProcessInfo.processInfo.processIdentifier
-        let filter = SCContentFilter(
-            display: display,
-            excludingApplications: content.applications.filter { $0.processID == ownProcessID },
-            exceptingWindows: []
-        )
-        let configuration = SCStreamConfiguration()
-        configuration.sourceRect = region.offsetBy(dx: -display.frame.minX, dy: -display.frame.minY)
-        let scale = backingScale(of: display.displayID)
-        configuration.width = Int((region.width * scale).rounded())
-        configuration.height = Int((region.height * scale).rounded())
-        configuration.showsCursor = false
-        return try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration)
+        // 画面按屏幕像素截取，选区由点换算为像素；CGImage 的裁剪坐标原点在左上角，与全局显示坐标一致。
+        let scale = CGFloat(display.image.width) / display.frame.width
+        let pixelRect = CGRect(
+            x: (region.minX - display.frame.minX) * scale,
+            y: (region.minY - display.frame.minY) * scale,
+            width: region.width * scale,
+            height: region.height * scale
+        ).integral
+        guard let image = display.image.cropping(to: pixelRect) else { throw CaptureError.displayNotFound }
+        return image
     }
 
     private static func backingScale(of displayID: CGDirectDisplayID) -> CGFloat {

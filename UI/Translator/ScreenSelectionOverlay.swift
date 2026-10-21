@@ -1,8 +1,8 @@
 import AppKit
 
-/// 截图翻译的框选界面：每块屏幕盖一层半透明遮罩，按住拖动框选区域，选区内保持原样、选区外变暗。
+/// 截图翻译的框选界面：每块屏幕铺上进入框选时定格的画面，盖一层半透明遮罩，按住拖动框选区域，
+/// 选区内保持原样、选区外变暗。框选与识别都基于定格的这一帧，期间视频播放、页面滚动都不影响选区。
 /// 遮罩不激活 OI，原应用保持在前台；遮罩可成为 key 窗口，按键由翻译面板的按键监听统一处理。
-/// 不定格画面：框选完成后才截取选区，截图时 OI 自己的窗口不入镜，遮罩无需先隐藏。
 @MainActor
 final class ScreenSelectionOverlay {
     /// 遮罩的窗口层级：盖住菜单栏、程序坞与全屏应用。翻译气泡在框选期间放在更高一层。
@@ -12,18 +12,20 @@ final class ScreenSelectionOverlay {
 
     /// 开始拖出新的选区。
     var onSelectionStart: (() -> Void)?
-    /// 选区确定，参数为全局显示坐标（原点在主屏左上角、y 轴向下）。
-    var onSelection: ((CGRect) -> Void)?
+    /// 选区确定，参数为选区的全局显示坐标（原点在主屏左上角、y 轴向下）与定格的画面。
+    var onSelection: ((CGRect, ScreenSnapshot) -> Void)?
     /// 右键或有其他应用切到前台：退出框选。
     var onCancel: (() -> Void)?
 
     private var surfaces: [(panel: ScreenSelectionPanel, view: ScreenSelectionView)] = []
+    private var snapshot: ScreenSnapshot?
     private var activationObserver: (any NSObjectProtocol)?
 
     var isActive: Bool { !surfaces.isEmpty }
 
-    func begin() {
+    func begin(showing snapshot: ScreenSnapshot) {
         guard !isActive else { return }
+        self.snapshot = snapshot
         for screen in NSScreen.screens {
             let panel = ScreenSelectionPanel(
                 contentRect: screen.frame,
@@ -42,20 +44,29 @@ final class ScreenSelectionOverlay {
             panel.animationBehavior = .none
             panel.isReleasedWhenClosed = false
 
-            let view = ScreenSelectionView(frame: NSRect(origin: .zero, size: screen.frame.size))
+            let bounds = NSRect(origin: .zero, size: screen.frame.size)
+            let view = ScreenSelectionView(frame: bounds)
             view.onDragBegan = { [weak self, weak view] in
                 guard let self, let view else { return }
                 self.clearSelections(except: view)
                 self.onSelectionStart?()
             }
             view.onDragEnded = { [weak self, weak panel, weak view] rect in
-                guard let self, let panel, let view else { return }
-                self.onSelection?(ScreenSelectionOverlay.globalRect(of: rect, in: view, of: panel))
+                guard let self, let panel, let view, let snapshot = self.snapshot else { return }
+                self.onSelection?(ScreenSelectionOverlay.globalRect(of: rect, in: view, of: panel), snapshot)
             }
             view.onRightClick = { [weak self] in
                 self?.onCancel?()
             }
-            panel.contentView = view
+            // 定格的画面铺在遮罩下面；这块屏幕在截屏之后才接入、没有画面时遮罩下仍是实时的屏幕。
+            if let image = Self.image(for: screen, in: snapshot) {
+                let backdrop = ScreenSnapshotView(frame: bounds, image: image)
+                view.autoresizingMask = [.width, .height]
+                backdrop.addSubview(view)
+                panel.contentView = backdrop
+            } else {
+                panel.contentView = view
+            }
             panel.setFrame(screen.frame, display: false)
             _ = panel.makeFirstResponder(view)
             panel.orderFrontRegardless()
@@ -85,6 +96,7 @@ final class ScreenSelectionOverlay {
             surface.panel.orderOut(nil)
         }
         surfaces.removeAll()
+        snapshot = nil
     }
 
     func contains(_ window: NSWindow?) -> Bool {
@@ -111,6 +123,11 @@ final class ScreenSelectionOverlay {
         surface?.panel.makeKey()
     }
 
+    private static func image(for screen: NSScreen, in snapshot: ScreenSnapshot) -> CGImage? {
+        let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
+        return snapshot.displays.first { $0.displayID == displayID }?.image
+    }
+
     /// 新的选区只有一个：在一块屏幕上开始拖动时清除其他屏幕上的旧选区。
     private func clearSelections(except view: ScreenSelectionView) {
         for surface in surfaces where surface.view !== view {
@@ -129,6 +146,28 @@ final class ScreenSelectionOverlay {
 final class ScreenSelectionPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+}
+
+/// 框选遮罩下定格的屏幕画面：作为图层内容由系统合成，拖动选框重绘遮罩时不必重绘整幅画面。
+final class ScreenSnapshotView: NSView {
+    private let image: CGImage
+
+    init(frame: NSRect, image: CGImage) {
+        self.image = image
+        super.init(frame: frame)
+        wantsLayer = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var wantsUpdateLayer: Bool { true }
+
+    override func updateLayer() {
+        layer?.contents = image
+    }
 }
 
 /// 框选遮罩的内容：选区外变暗、选区描边，处理拖动框选与右键。

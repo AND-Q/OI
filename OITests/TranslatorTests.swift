@@ -10,6 +10,8 @@ final class TranslatorTests: XCTestCase {
         translationBaseURL: "https://api.openai.com/v1",
         translationModel: "gpt-4o-mini"
     )
+    /// 截图翻译测试用的定格画面：识别由桩按选区返回文字，不读取画面。
+    private static let snapshot = ScreenSnapshot(displays: [])
 
     // MARK: - Language
 
@@ -615,17 +617,34 @@ final class TranslatorTests: XCTestCase {
 
     // MARK: - Screen translation
 
-    func testScreenTranslationRequiresScreenRecordingPermission() {
+    func testScreenTranslationRequiresScreenRecordingPermission() async {
         let untrusted = makeTranslatorViewModel()
         let trusted = makeTranslatorViewModel(environment: MemoryTranslatorEnvironment(isScreenCaptureTrusted: true))
 
-        XCTAssertFalse(untrusted.beginScreenTranslation())
+        guard case .notice? = await untrusted.beginScreenTranslation() else {
+            return XCTFail("未获屏幕录制权限时只弹出提示")
+        }
         XCTAssertNil(untrusted.session)
         XCTAssertEqual(untrusted.notice, .screenRecordingRequired)
 
-        XCTAssertTrue(trusted.beginScreenTranslation())
+        guard case .selection? = await trusted.beginScreenTranslation() else {
+            return XCTFail("已获屏幕录制权限时定格画面进入框选")
+        }
         XCTAssertNil(trusted.session)
         XCTAssertNil(trusted.notice)
+    }
+
+    func testFailedScreenFreezeShowsNotice() async {
+        let viewModel = makeTranslatorViewModel(
+            screenRecognizer: RecordingScreenTextRecognizer(error: StubError(message: "授权后尚未重新打开")),
+            environment: MemoryTranslatorEnvironment(isScreenCaptureTrusted: true)
+        )
+
+        guard case .notice? = await viewModel.beginScreenTranslation() else {
+            return XCTFail("截屏失败时只弹出提示")
+        }
+        XCTAssertNil(viewModel.session)
+        XCTAssertEqual(viewModel.notice, .screenCaptureFailed)
     }
 
     func testScreenRegionIsRecognizedThenTranslatedBesideSelection() async throws {
@@ -633,7 +652,7 @@ final class TranslatorTests: XCTestCase {
         let recognizer = RecordingScreenTextRecognizer { _ in "Hello" }
         let viewModel = makeTranslatorViewModel(screenRecognizer: recognizer)
 
-        let presentation = viewModel.translateScreenRegion(rect)
+        let presentation = viewModel.translateScreenRegion(rect, in: Self.snapshot)
 
         XCTAssertEqual(presentation, TranslatorPresentation(anchorRect: rect))
         XCTAssertEqual(viewModel.session?.state, .recognizing, "识别期间气泡先弹出")
@@ -653,8 +672,8 @@ final class TranslatorTests: XCTestCase {
             screenRecognizer: RecordingScreenTextRecognizer(error: StubError(message: "未获授权"))
         )
 
-        _ = empty.translateScreenRegion(rect)
-        _ = failing.translateScreenRegion(rect)
+        _ = empty.translateScreenRegion(rect, in: Self.snapshot)
+        _ = failing.translateScreenRegion(rect, in: Self.snapshot)
         try await waitUntil { empty.notice != nil && failing.notice != nil }
 
         XCTAssertNil(empty.session)
@@ -670,8 +689,8 @@ final class TranslatorTests: XCTestCase {
         let recognizer = RecordingScreenTextRecognizer { rect in rect.minY == 0 ? "first" : "second" }
         let viewModel = makeTranslatorViewModel(screenRecognizer: recognizer)
 
-        _ = viewModel.translateScreenRegion(first)
-        let presentation = viewModel.translateScreenRegion(second)
+        _ = viewModel.translateScreenRegion(first, in: Self.snapshot)
+        let presentation = viewModel.translateScreenRegion(second, in: Self.snapshot)
         try await waitUntil { viewModel.session?.state == .finished }
 
         XCTAssertEqual(presentation, TranslatorPresentation(anchorRect: second))
@@ -682,7 +701,7 @@ final class TranslatorTests: XCTestCase {
     func testTargetLanguageChosenWhileRecognizingIsKept() async throws {
         let viewModel = makeTranslatorViewModel(screenRecognizer: RecordingScreenTextRecognizer { _ in "Hello" })
 
-        _ = viewModel.translateScreenRegion(CGRect(x: 0, y: 0, width: 200, height: 40))
+        _ = viewModel.translateScreenRegion(CGRect(x: 0, y: 0, width: 200, height: 40), in: Self.snapshot)
         viewModel.selectTargetLanguage(.japanese)
         try await waitUntil { viewModel.session?.state == .finished }
 
@@ -1207,7 +1226,7 @@ private final class RecordingWordSelector: WordSelecting, @unchecked Sendable {
     }
 }
 
-/// Returns text for each region (or fails with `error`) and records the regions it was asked to recognize.
+/// Returns text for each region (or fails capture and recognition with `error`) and records the regions it was asked to recognize.
 private final class RecordingScreenTextRecognizer: ScreenTextRecognizing, @unchecked Sendable {
     private let lock = NSLock()
     private let error: StubError?
@@ -1223,7 +1242,14 @@ private final class RecordingScreenTextRecognizer: ScreenTextRecognizing, @unche
         lock.withLock { storedRects }
     }
 
-    func recognizeText(in rect: CGRect) async throws -> String {
+    func captureScreens() async throws -> ScreenSnapshot {
+        if let error {
+            throw error
+        }
+        return ScreenSnapshot(displays: [])
+    }
+
+    func recognizeText(in rect: CGRect, of snapshot: ScreenSnapshot) async throws -> String {
         lock.withLock { storedRects.append(rect) }
         if let error {
             throw error
