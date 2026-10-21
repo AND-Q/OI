@@ -16,7 +16,7 @@ struct LauncherActionSheetView: View {
             divider
             actionsList
         }
-        .frame(width: 250)
+        .frame(width: LauncherLayout.actionSheetWidth)
         .background {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(.ultraThinMaterial)

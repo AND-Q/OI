@@ -21,6 +21,23 @@ struct OpenFile {
         }
     }
 
+    func execute(_ file: FileDescriptor, withApplicationAt applicationURL: URL) async throws {
+        do {
+            try await opener.open(file, withApplicationAt: applicationURL)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw ApplicationError.fileOpenFailed(
+                fileName: file.name,
+                reason: error.localizedDescription
+            )
+        }
+    }
+
+    func applications(toOpen file: FileDescriptor) -> [OpenWithApplication] {
+        opener.applications(toOpen: file)
+    }
+
     func reveal(url: URL) {
         opener.revealInFinder(url: url)
     }

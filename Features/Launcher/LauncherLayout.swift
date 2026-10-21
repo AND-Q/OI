@@ -14,6 +14,10 @@ enum LauncherLayout {
     static let expandedCornerRadius: CGFloat = 32
     /// Minimum panel expansion reserved for the floating action sheet.
     static let actionSheetMinHeight: CGFloat = 185
+    /// Floating action sheet width and its insets from the panel's bottom-trailing corner.
+    static let actionSheetWidth: CGFloat = 250
+    static let actionSheetTrailingInset: CGFloat = 16
+    static let actionSheetBottomInset: CGFloat = 12
     /// Launch-failure banner above the results list, including its top inset;
     /// reserved in the expanded height so it never squeezes the rows.
     static let launchErrorBannerHeight: CGFloat = 32

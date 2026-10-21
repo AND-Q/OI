@@ -57,8 +57,8 @@ struct LauncherView: View {
                                 onAction(action, selectedResult)
                             }
                         )
-                        .padding(.trailing, 16)
-                        .padding(.bottom, 12)
+                        .padding(.trailing, LauncherLayout.actionSheetTrailingInset)
+                        .padding(.bottom, LauncherLayout.actionSheetBottomInset)
                         .transition(
                             .asymmetric(
                                 insertion: .scale(scale: 0.94, anchor: .bottomTrailing)

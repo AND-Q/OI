@@ -307,6 +307,25 @@ final class LauncherViewModel: ObservableObject {
         openFile?.openInTerminal(url: url)
     }
 
+    /// Apps offered by「用其他 App 打开…」for a file result, the default app first.
+    func applications(toOpen file: FileDescriptor) -> [OpenWithApplication] {
+        openFile?.applications(toOpen: file) ?? []
+    }
+
+    /// Opens a file with the chosen app in the background, like default opens;
+    /// failures are reported by notification.
+    @discardableResult
+    func open(_ file: FileDescriptor, withApplicationAt applicationURL: URL) -> Task<Void, Never>? {
+        guard let openFile else { return nil }
+        return Task { [weak self] in
+            do {
+                try await openFile.execute(file, withApplicationAt: applicationURL)
+            } catch {
+                self?.notifyOpenFailure(error)
+            }
+        }
+    }
+
     /// Publishes a failure directly when an item cannot be opened or located.
     func publishFileOpenError(fileName: String, reason: String) {
         launchState = .failed(LauncherErrorMessage.message(

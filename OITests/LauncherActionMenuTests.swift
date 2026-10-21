@@ -57,7 +57,15 @@ final class LauncherActionMenuTests: XCTestCase {
         )
         XCTAssertEqual(
             LauncherActionMenu.availableActions(for: file),
-            [.revealInFinder, .copyPath, .openInTerminal]
+            [.revealInFinder, .copyPath, .openInTerminal, .openWith]
+        )
+
+        let folder = SearchResult.file(
+            FileDescriptor(name: "工具", url: URL(fileURLWithPath: "/Users/demo/工具"), isDirectory: true)
+        )
+        XCTAssertEqual(
+            LauncherActionMenu.availableActions(for: folder),
+            [.revealInFinder, .copyPath, .openInTerminal, .openWith]
         )
 
         let quickQuery = SearchResult.quickQuery(.calculation(expression: "1+1", value: "2"))
@@ -83,6 +91,10 @@ final class LauncherActionMenuTests: XCTestCase {
         XCTAssertEqual(ResultMenuAction.openInTerminal.title, "在终端中打开")
         XCTAssertEqual(ResultMenuAction.openInTerminal.systemImage, "terminal")
         XCTAssertEqual(ResultMenuAction.openInTerminal.shortcutKeys, ["⌘", "T"])
+
+        XCTAssertEqual(ResultMenuAction.openWith.title, "用其他 App 打开…")
+        XCTAssertEqual(ResultMenuAction.openWith.systemImage, "arrow.up.forward.app")
+        XCTAssertEqual(ResultMenuAction.openWith.shortcutKeys, [])
     }
 
     // MARK: - 在终端打开
@@ -113,6 +125,33 @@ final class LauncherActionMenuTests: XCTestCase {
         XCTAssertTrue(message.contains("文件已被移动或删除"))
         XCTAssertTrue(controller.isVisible)
         XCTAssertFalse(controller.isDismissalInProgress)
+    }
+
+    func testPerformMenuActionOpenWithFailsWhenFileDoesNotExist() throws {
+        let viewModel = makeViewModel(with: [])
+        let controller = LauncherPanelController(
+            viewModel: viewModel,
+            iconProvider: WorkspaceApplicationIconProvider()
+        )
+        defer { controller.stop() }
+        controller.show()
+
+        let nonExistentResult = SearchResult.file(
+            FileDescriptor(
+                name: "missing.md",
+                url: URL(fileURLWithPath: "/tmp/non-existent-\(UUID().uuidString)/missing.md"),
+                isDirectory: false
+            )
+        )
+
+        controller.performMenuAction(.openWith, for: nonExistentResult)
+
+        guard case .failed(let message) = viewModel.launchState else {
+            XCTFail("Expected launchState to be failed")
+            return
+        }
+        XCTAssertTrue(message.contains("文件已被移动或删除"))
+        XCTAssertTrue(controller.isVisible)
     }
 
     func testPerformMenuActionOpenInTerminalSucceedsWhenDirectoryExists() throws {

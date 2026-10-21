@@ -439,6 +439,33 @@ final class FileSearchTests: XCTestCase {
         XCTAssertEqual(opener.terminalURLs, [plan.url.deletingLastPathComponent()])
     }
 
+    func testViewModelOpensFileWithChosenApplication() async {
+        let opener = StubFileOpener()
+        let editor = OpenWithApplication(
+            url: URL(fileURLWithPath: "/Applications/Visual Studio Code.app"),
+            name: "Visual Studio Code",
+            isDefault: false
+        )
+        opener.applications = [editor]
+        let notifier = MemoryUserNotifier()
+        let viewModel = LauncherViewModel(
+            discoverApplications: DiscoverApplications(catalog: StubAppCatalog(descriptors: [])),
+            launchApplication: LaunchApplication(launcher: StubApplicationLauncher()),
+            openFile: OpenFile(opener: opener),
+            notifier: notifier
+        )
+        let plan = file("plan.md")
+
+        XCTAssertEqual(viewModel.applications(toOpen: plan), [editor])
+        await viewModel.open(plan, withApplicationAt: editor.url)?.value
+        XCTAssertEqual(opener.openedWithApplications.map(\.file), [plan])
+        XCTAssertEqual(opener.openedWithApplications.map(\.applicationURL), [editor.url])
+
+        opener.error = StubFileSearchError()
+        await viewModel.open(plan, withApplicationAt: editor.url)?.value
+        XCTAssertEqual(notifier.records, [MemoryUserNotifier.Record(title: "无法打开 plan.md", body: "文件搜索失败")])
+    }
+
     func testViewModelNotifiesFileOpenFailure() async {
         let opener = StubFileOpener()
         opener.error = StubFileSearchError()
@@ -543,10 +570,21 @@ private final class StubFileOpener: FileOpening {
     private(set) var openedFiles: [FileDescriptor] = []
     private(set) var revealedURLs: [URL] = []
     private(set) var terminalURLs: [URL] = []
+    private(set) var openedWithApplications: [(file: FileDescriptor, applicationURL: URL)] = []
+    var applications: [OpenWithApplication] = []
 
     func open(_ file: FileDescriptor) async throws {
         if let error { throw error }
         openedFiles.append(file)
+    }
+
+    func applications(toOpen file: FileDescriptor) -> [OpenWithApplication] {
+        applications
+    }
+
+    func open(_ file: FileDescriptor, withApplicationAt applicationURL: URL) async throws {
+        if let error { throw error }
+        openedWithApplications.append((file: file, applicationURL: applicationURL))
     }
 
     func revealInFinder(url: URL) {

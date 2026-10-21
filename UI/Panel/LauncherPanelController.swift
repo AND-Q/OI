@@ -16,6 +16,8 @@ final class LauncherPanelController {
     private var activeScreen: NSScreen?
     private var lastHandledEventTimestamp: TimeInterval = 0
     private var lastHandledKeyCode: UInt16 = 0
+    /// 「用其他 App 打开…」菜单项的响应者；菜单项只弱引用它，在此持有到下次弹出菜单。
+    private var openWithMenuTarget: OpenWithMenuTarget?
 
     init(
         viewModel: LauncherViewModel,
@@ -505,7 +507,10 @@ final class LauncherPanelController {
     }
 
     func performMenuAction(_ action: ResultMenuAction, for result: SearchResult) {
-        viewModel.dismissActionSheet()
+        // 「用其他 App 打开…」先保留卡片、在卡片下方弹出 App 菜单，取消时回到卡片改选其他操作。
+        if action != .openWith {
+            viewModel.dismissActionSheet()
+        }
         switch action {
         case .revealInFinder:
             reveal(result)
@@ -526,7 +531,66 @@ final class LauncherPanelController {
             }
             viewModel.openInTerminal(url: directory)
             hide()
+        case .openWith:
+            guard case .file(let file) = result else { return }
+            guard FileManager.default.fileExists(atPath: file.url.path) else {
+                viewModel.dismissActionSheet()
+                viewModel.publishFileOpenError(
+                    fileName: result.name,
+                    reason: "文件已被移动或删除"
+                )
+                return
+            }
+            showOpenWithMenu(for: file)
         }
+    }
+
+    /// 弹出系统菜单列出能打开该文件的 App，与 Finder 的「打开方式」相同：默认 App 在前并标注，
+    /// 其余按名称排序。选中即用该 App 打开并收起面板。
+    private func showOpenWithMenu(for file: FileDescriptor) {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        menu.addItem(.sectionHeader(title: "用其他 App 打开"))
+        let applications = viewModel.applications(toOpen: file)
+        let target = OpenWithMenuTarget { [weak self] applicationURL in
+            guard let self else { return }
+            self.viewModel.dismissActionSheet()
+            self.viewModel.open(file, withApplicationAt: applicationURL)
+            self.hide()
+        }
+        openWithMenuTarget = target
+        for application in applications {
+            let item = NSMenuItem(
+                title: application.isDefault ? "\(application.name)（默认）" : application.name,
+                action: #selector(OpenWithMenuTarget.chooseApplication(_:)),
+                keyEquivalent: ""
+            )
+            item.target = target
+            item.representedObject = application.url
+            item.image = menuIcon(for: application.url)
+            menu.addItem(item)
+            if application.isDefault, applications.count > 1 {
+                menu.addItem(.separator())
+            }
+        }
+        if applications.isEmpty {
+            let item = NSMenuItem(title: "没有可以打开它的 App", action: nil, keyEquivalent: "")
+            item.isEnabled = false
+            menu.addItem(item)
+        }
+        // 菜单左上角对齐操作卡片的左下角（屏幕坐标），像从卡片下方展开。
+        let location = NSPoint(
+            x: panel.frame.maxX - LauncherLayout.actionSheetTrailingInset - LauncherLayout.actionSheetWidth,
+            y: panel.frame.minY + LauncherLayout.actionSheetBottomInset
+        )
+        menu.popUp(positioning: nil, at: location, in: nil)
+    }
+
+    /// 菜单项使用的小图标；图标提供者返回的是缓存中的共享实例，改尺寸前先复制一份。
+    private func menuIcon(for applicationURL: URL) -> NSImage? {
+        let icon = iconProvider.icon(for: applicationURL).copy() as? NSImage
+        icon?.size = NSSize(width: 16, height: 16)
+        return icon
     }
 
     private func copy(_ result: QuickQueryResult) {
@@ -572,6 +636,21 @@ final class LauncherPanelController {
             return true
         }
         return false
+    }
+}
+
+/// 「用其他 App 打开…」菜单项的响应者：选中某个 App 时回调该 App 的地址。
+@MainActor
+private final class OpenWithMenuTarget: NSObject {
+    private let onSelect: (URL) -> Void
+
+    init(onSelect: @escaping (URL) -> Void) {
+        self.onSelect = onSelect
+    }
+
+    @objc func chooseApplication(_ sender: NSMenuItem) {
+        guard let applicationURL = sender.representedObject as? URL else { return }
+        onSelect(applicationURL)
     }
 }
 

@@ -6,6 +6,7 @@ enum ResultMenuAction: CaseIterable, Hashable, Sendable {
     case copyPath
     case copyBundleID
     case openInTerminal
+    case openWith
 
     var title: String {
         switch self {
@@ -13,6 +14,7 @@ enum ResultMenuAction: CaseIterable, Hashable, Sendable {
         case .copyPath: return "复制路径"
         case .copyBundleID: return "复制 Bundle ID"
         case .openInTerminal: return "在终端中打开"
+        case .openWith: return "用其他 App 打开…"
         }
     }
 
@@ -22,6 +24,7 @@ enum ResultMenuAction: CaseIterable, Hashable, Sendable {
         case .copyPath: return "doc.on.doc"
         case .copyBundleID: return "number"
         case .openInTerminal: return "terminal"
+        case .openWith: return "arrow.up.forward.app"
         }
     }
 
@@ -31,6 +34,7 @@ enum ResultMenuAction: CaseIterable, Hashable, Sendable {
         case .copyPath: return ["⌥", "⌘", "C"]
         case .copyBundleID: return ["⌘", "B"]
         case .openInTerminal: return ["⌘", "T"]
+        case .openWith: return []
         }
     }
 }
@@ -49,6 +53,10 @@ enum LauncherActionMenu {
         }
         if result.terminalDirectory != nil {
             actions.append(.openInTerminal)
+        }
+        // 只给文件与文件夹：应用本身直接启动，用编辑器打开 .app 包没有意义。
+        if case .file = result {
+            actions.append(.openWith)
         }
         return actions
     }
