@@ -5,7 +5,7 @@ import XCTest
 
 @MainActor
 final class FileSearchTests: XCTestCase {
-    // MARK: - Quick queries
+    // MARK: - 快速查询
 
     func testQuickQueryResolverEvaluatesArithmeticAndRejectsInvalidExpressions() {
         let resolver = QuickQueryResolver(ipAddressProvider: MemoryLocalIPAddressProvider())
@@ -184,7 +184,7 @@ final class FileSearchTests: XCTestCase {
         XCTAssertEqual(results[1].name, "readme-log-1.txt")
     }
 
-    // MARK: - SpotlightFileSearcher helpers
+    // MARK: - SpotlightFileSearcher 辅助方法
 
     func testQueryStringEscapesMetadataSpecialCharacters() {
         XCTAssertEqual(SpotlightFileSearcher.escape(#"a"b\c*d?"#), #"a\"b\\c\*d\?"#)
@@ -245,7 +245,7 @@ final class FileSearchTests: XCTestCase {
         XCTAssertNil(subtitle("/"))
     }
 
-    // MARK: - ViewModel integration
+    // MARK: - 视图模型集成
 
     func testViewModelAppendsFileResultsAfterApplicationsWithSectionHeader() async {
         let xcode = AppDescriptor(name: "Xcode", url: URL(fileURLWithPath: "/Applications/Xcode.app"))
@@ -527,7 +527,7 @@ final class FileSearchTests: XCTestCase {
         XCTAssertNil(viewModel.launchErrorMessage)
     }
 
-    // MARK: - Helpers
+    // MARK: - 辅助方法
 
     private func file(_ name: String, activityDate: Date = .distantPast) -> FileDescriptor {
         FileDescriptor(
@@ -559,7 +559,7 @@ final class FileSearchTests: XCTestCase {
         XCTAssertEqual(viewModel.fileResults.map(\.name), ["anything.txt"])
     }
 
-    // MARK: - Path
+    // MARK: - 路径直达
 
     /// 输入存在的路径时置顶显示该条目，不做文件搜索；首尾空白去掉后连同 `~` 原样按路径查找。
     func testViewModelPinsExistingPathAndSkipsFileSearch() async throws {
@@ -724,7 +724,7 @@ private final class StubFileOpener: FileOpening {
     private(set) var terminalURLs: [URL] = []
     private(set) var openedWithApplications: [(file: FileDescriptor, applicationURL: URL)] = []
     var applications: [OpenWithApplication] = []
-    /// Items found by `item(atPath:)`, keyed by the path as typed.
+    /// `item(atPath:)` 能取到的条目，以输入的路径为键。
     var items: [String: FileDescriptor] = [:]
     /// 查看这些路径时先等待，且不响应取消，模拟卡住的网络卷。
     var delays: [String: Duration] = [:]

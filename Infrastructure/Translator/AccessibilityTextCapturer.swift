@@ -67,7 +67,7 @@ struct AccessibilityTextCapturer: TextCapturing {
         return match
     }
 
-    // MARK: - Selection
+    // MARK: - 读取选区
 
     @MainActor
     private static func frontmostForeignProcessID() -> pid_t? {
@@ -114,7 +114,7 @@ struct AccessibilityTextCapturer: TextCapturing {
         return nil
     }
 
-    // MARK: - Word at point
+    // MARK: - 按坐标取词
 
     private static func readWord(at point: CGPoint, excludingProcessID ownProcessID: pid_t) -> WordLookup {
         let systemWide = AXUIElementCreateSystemWide()
@@ -308,7 +308,7 @@ struct AccessibilityTextCapturer: TextCapturing {
         String(format: "(%.0f, %.0f, %.0f×%.0f)", rect.minX, rect.minY, rect.width, rect.height)
     }
 
-    // MARK: - Accessibility helpers
+    // MARK: - 辅助功能工具方法
 
     /// Electron 应用默认不构建辅助功能树，按其文档约定由辅助技术开启；其他应用会忽略这个属性。
     private static func enableAccessibilityTree(of application: AXUIElement) {

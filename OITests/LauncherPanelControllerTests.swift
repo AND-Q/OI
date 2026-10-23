@@ -421,14 +421,14 @@ final class LauncherPanelControllerTests: XCTestCase {
         let handled = controller.handleKeyDown(returnEvent)
         XCTAssertNil(handled)
 
-        // Launch completes asynchronously; wait for the panel to start dismissing.
+        // 启动异步完成；等待面板开始收起。
         for _ in 0..<100 where controller.isVisible && !controller.isDismissalInProgress {
             try await Task.sleep(nanoseconds: 10_000_000)
         }
         XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
     }
 
-    // MARK: - Helpers
+    // MARK: - 辅助方法
 
     private func returnKeyEvent(timestamp: TimeInterval, windowNumber: Int) throws -> NSEvent {
         try XCTUnwrap(

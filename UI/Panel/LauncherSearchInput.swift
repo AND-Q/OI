@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Keep placeholder text and its symbol in AppKit's native material rendering path.
+/// 占位文字与搜索图标走 AppKit 原生的材质渲染。
 struct LauncherSearchInput: NSViewRepresentable {
     @Binding var query: String
     let isQuickAIMode: Bool
@@ -78,8 +78,7 @@ final class LauncherSearchInputView: NSView, NSTextFieldDelegate {
             textField.setAccessibilityLabel(placeholder)
         }
 
-        // SwiftUI also updates this bridge during panel animations. Never replace
-        // marked text while the input method is still composing a candidate.
+        // SwiftUI 在面板动画期间也会更新这个桥接视图。输入法仍在组字时，绝不替换未上屏的文字。
         let editor = textField.currentEditor() as? NSTextView
         if textField.stringValue != query, editor?.hasMarkedText() != true {
             textField.stringValue = query

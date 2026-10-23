@@ -125,7 +125,7 @@ final class TranslatorPanelController {
         present(current.viewModel.translateScreenRegion(rect, in: snapshot), pointer: nil)
     }
 
-    // MARK: - Current bubble
+    // MARK: - 当前气泡
 
     private func configureCurrent() {
         current.onClose = { [weak self] in self?.hide(reason: .closeButton) }
@@ -174,7 +174,7 @@ final class TranslatorPanelController {
         }
     }
 
-    // MARK: - Pinned bubbles
+    // MARK: - 固定的气泡
 
     /// 固定当前气泡：同一个窗口与翻译状态移入固定的一组，进行中的翻译或识别不中断；之后的翻译另开新的当前气泡。
     /// 只有提示的气泡不能固定。
@@ -200,7 +200,7 @@ final class TranslatorPanelController {
         pinnedBubbles.first { $0.panel === window && $0.isVisible }
     }
 
-    // MARK: - Monitors
+    // MARK: - 事件监听
 
     /// 全局监听只会收到发往其他应用的点击，即 OI 窗口之外的点击。
     private func installClickMonitor() {
@@ -219,7 +219,7 @@ final class TranslatorPanelController {
         clickMonitor = nil
     }
 
-    // MARK: - Keyboard
+    // MARK: - 按键
 
     private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
         // 按键发给所在窗口对应的气泡：固定的气泡只处理自己的按键，Esc 只关闭它自己；
@@ -439,7 +439,7 @@ struct TranslatorPlacement: Equatable {
 }
 
 final class TranslatorPanel: NSPanel {
-    /// Invoked when the panel loses key window status.
+    /// 面板失去 key 窗口状态时调用。
     var onResignKey: (() -> Void)?
 
     override var canBecomeKey: Bool { true }

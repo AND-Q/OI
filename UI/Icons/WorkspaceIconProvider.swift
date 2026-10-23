@@ -2,7 +2,7 @@ import AppKit
 
 @MainActor
 final class WorkspaceIconProvider: IconProviding {
-    /// File results can produce unbounded distinct URLs; drop the cache once it grows past this.
+    /// 文件结果的地址数量没有上限；缓存超过这个数量时整体清空。
     static let cacheLimit = 500
 
     private var cache: [URL: NSImage] = [:]

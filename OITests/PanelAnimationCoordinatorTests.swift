@@ -116,11 +116,11 @@ final class PanelAnimationCoordinatorTests: XCTestCase {
         let topEdgePoint = NSPoint(x: 500, y: 956)
         let rightEdgePoint = NSPoint(x: 1470, y: 500)
 
-        // NSRect.contains fails on max boundaries due to half-open interval
+        // NSRect.contains 按半开区间判断，落在最大边界上的点会判为不包含
         XCTAssertFalse(screenRect.contains(topEdgePoint))
         XCTAssertFalse(screenRect.contains(rightEdgePoint))
 
-        // Closed-boundary check correctly includes all 4 edges
+        // 按闭区间判断才能包含四条边
         let containsPoint: (NSRect, NSPoint) -> Bool = { frame, point in
             point.x >= frame.minX && point.x <= frame.maxX
                 && point.y >= frame.minY && point.y <= frame.maxY

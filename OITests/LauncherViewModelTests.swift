@@ -574,13 +574,13 @@ final class LauncherViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.results.count, 1)
         XCTAssertFalse(viewModel.isActionSheetVisible)
 
-        // Toggle on
+        // 展开
         viewModel.toggleActionSheet()
         XCTAssertTrue(viewModel.isActionSheetVisible)
         XCTAssertEqual(viewModel.selectedActionIndex, 0)
         XCTAssertEqual(viewModel.selectedAction, .revealInFinder)
 
-        // Navigate down
+        // 向下移动
         viewModel.moveActionSelection(by: 1)
         XCTAssertEqual(viewModel.selectedActionIndex, 1)
         XCTAssertEqual(viewModel.selectedAction, .copyPath)
@@ -593,15 +593,15 @@ final class LauncherViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedActionIndex, 3)
         XCTAssertEqual(viewModel.selectedAction, .openInTerminal)
 
-        // Wrap around down
+        // 向下越过末尾时回到开头
         viewModel.moveActionSelection(by: 1)
         XCTAssertEqual(viewModel.selectedActionIndex, 0)
 
-        // Wrap around up
+        // 向上越过开头时回到末尾
         viewModel.moveActionSelection(by: -1)
         XCTAssertEqual(viewModel.selectedActionIndex, 3)
 
-        // Dismiss
+        // 收起
         viewModel.dismissActionSheet()
         XCTAssertFalse(viewModel.isActionSheetVisible)
     }
@@ -616,19 +616,19 @@ final class LauncherViewModelTests: XCTestCase {
         viewModel.toggleActionSheet()
         XCTAssertTrue(viewModel.isActionSheetVisible)
 
-        // Selection move dismisses action sheet
+        // 移动选择会收起操作卡片
         viewModel.moveSelection(by: 1)
         XCTAssertFalse(viewModel.isActionSheetVisible)
 
         viewModel.toggleActionSheet()
         XCTAssertTrue(viewModel.isActionSheetVisible)
 
-        // Query change dismisses action sheet
+        // 改动输入会收起操作卡片
         viewModel.query = "AppO"
         XCTAssertFalse(viewModel.isActionSheetVisible)
     }
 
-    // MARK: - Helpers
+    // MARK: - 辅助方法
 
     private func pollUsageRecord(
         store: MemoryAppUsageStore,

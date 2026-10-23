@@ -1,6 +1,6 @@
 import Foundation
 
-/// A launcher result from the app catalog, file index or an immediate quick query.
+/// 启动器的一行结果：来自应用目录、文件索引、快速查询或网址识别。
 enum SearchResult: Identifiable, Hashable, Sendable {
     case application(AppDescriptor)
     case file(FileDescriptor)
@@ -39,7 +39,7 @@ enum SearchResult: Identifiable, Hashable, Sendable {
         return false
     }
 
-    /// Target directory for terminal operations: folders target themselves, files and applications target their containing directory.
+    /// 「在终端中打开」的目标目录：文件夹为其自身，文件与应用为其所在目录。
     var terminalDirectory: URL? {
         switch self {
         case .application(let app): return app.url.deletingLastPathComponent()

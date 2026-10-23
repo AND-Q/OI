@@ -52,7 +52,7 @@ final class AppCoordinatorTests: XCTestCase {
         XCTAssertEqual(disabled.folderAccessRequests.count, 1)
     }
 
-    // MARK: - Helpers
+    // MARK: - 辅助方法
 
     private struct Context {
         let coordinator: AppCoordinator

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Quick AI answer area: streamed Markdown plus a footer with state and shortcuts.
+/// Quick AI 回答区：流式显示的 Markdown 回答，以及显示状态与快捷键的页脚。
 @MainActor
 struct QuickAIAnswerView: View {
     let session: QuickAISession

@@ -398,7 +398,7 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertTrue(SettingsCategory.filtered(by: "不存在的设置").isEmpty)
     }
 
-    // MARK: - Helpers
+    // MARK: - 辅助方法
 
     private func makeViewModel(
         settingsStore: any AppSettingsStoring = MemoryAppSettingsStore(),

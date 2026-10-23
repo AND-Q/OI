@@ -19,7 +19,7 @@ extension QuickQueryResult {
 }
 
 extension SearchResult {
-    /// SF Symbol fallback for results without a file-system URL (quick queries and web URLs).
+    /// 没有文件地址的结果（快速查询与网址）使用的 SF Symbols 图标。
     var symbolName: String? {
         switch self {
         case .quickQuery(let result): return result.symbolName

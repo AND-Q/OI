@@ -1,7 +1,6 @@
 import Foundation
 
-/// Watches the application directories and reports changes as a dirty signal;
-/// never rebuilds the snapshot itself (search plan §10.1).
+/// 监听应用目录，把变动作为「需要刷新」的信号报告出去；自身从不重建快照（搜索计划 §10.1）。
 final class AppDirectoryWatcher: @unchecked Sendable {
     private let sources: [DispatchSourceFileSystemObject]
 

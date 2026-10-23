@@ -138,7 +138,7 @@ final class UserDefaultsAppSettingsStoreTests: XCTestCase {
         XCTAssertEqual(context.store.load().launcherShortcut, GlobalShortcut.defaultLauncher)
     }
 
-    // MARK: - Helpers
+    // MARK: - 辅助方法
 
     /// 每个测试使用独立的 defaults suite，结束后删除域避免污染宿主偏好设置。
     private func makeStore() throws -> (

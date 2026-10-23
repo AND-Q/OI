@@ -91,7 +91,7 @@ struct SettingsView: View {
         .navigationTitle(category.title)
     }
 
-    // MARK: - Pages
+    // MARK: - 设置页
 
     @ViewBuilder
     private var generalSections: some View {
@@ -316,7 +316,7 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Rows
+    // MARK: - 设置行
 
     private var languageOptions: some View {
         ForEach(TranslationLanguage.allCases) { language in

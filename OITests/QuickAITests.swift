@@ -6,7 +6,7 @@ import XCTest
 
 @MainActor
 final class QuickAITests: XCTestCase {
-    // MARK: - Configuration
+    // MARK: - 接口配置
 
     func testConfigurationRequiresHTTPURLAndModel() {
         XCTAssertNil(AIEndpointConfiguration(baseURLString: "", model: "gpt", apiKey: nil))
@@ -74,7 +74,7 @@ final class QuickAITests: XCTestCase {
         XCTAssertFalse(isPlaintext(""))
     }
 
-    // MARK: - OpenAI compatible client
+    // MARK: - OpenAI 兼容客户端
 
     func testParseStreamLineExtractsDeltaDoneAndErrors() {
         typealias Client = OpenAICompatibleAIClient
@@ -296,7 +296,7 @@ final class QuickAITests: XCTestCase {
         )
     }
 
-    // MARK: - Use case
+    // MARK: - 用例
 
     func testAskQuickAIThrowsNotConfiguredWithoutRequesting() async {
         let answerer = StubAIAnswerer(deltas: ["不应到达"])
@@ -351,7 +351,7 @@ final class QuickAITests: XCTestCase {
         XCTAssertEqual(answerer.recorder.configurations.first?.reasoningEffort, "high")
     }
 
-    // MARK: - View model
+    // MARK: - 视图模型
 
     func testTabEntersQuickAIModeBeforeTypingQuestion() {
         let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: []))
@@ -550,7 +550,7 @@ final class QuickAITests: XCTestCase {
         XCTAssertFalse(viewModel.isExpanded)
     }
 
-    // MARK: - Streaming buffer
+    // MARK: - 流式合并上屏
 
     /// 增量攒成一批上屏，已上屏的不会重复交出；丢弃的增量不再上屏。
     func testStreamingTextBufferMergesDeltasAndDiscards() {
@@ -569,7 +569,7 @@ final class QuickAITests: XCTestCase {
         XCTAssertEqual(flushed, ["你好"])
     }
 
-    // MARK: - Settings
+    // MARK: - 设置
 
     func testUserDefaultsStoreRoundTripsQuickAISettings() throws {
         let suiteName = "OITests-QuickAI-\(UUID().uuidString)"
@@ -679,7 +679,7 @@ final class QuickAITests: XCTestCase {
         XCTAssertNil(makeTranslatorKeyStore(service: testService).load())
     }
 
-    // MARK: - Helpers
+    // MARK: - 辅助方法
 
     /// 每次新建实例，避免内存缓存掩盖钥匙串中的实际内容。
     private func makeTranslatorKeyStore(service: String) -> KeychainAPIKeyStore {
@@ -723,7 +723,7 @@ final class QuickAITests: XCTestCase {
     }
 }
 
-/// Records the configurations the answerer was asked with.
+/// 记录问答端口收到的接口配置。
 private final class QuickAIRequestRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private var storedConfigurations: [AIEndpointConfiguration] = []
@@ -737,7 +737,7 @@ private final class QuickAIRequestRecorder: @unchecked Sendable {
     }
 }
 
-/// Yields the given deltas, then finishes (or fails with `error`).
+/// 依次产出给定的增量后结束（或以 `error` 失败）。
 private struct StubAIAnswerer: AIAnswering {
     let deltas: [String]
     let error: AIClientError?
@@ -763,8 +763,7 @@ private struct StubAIAnswerer: AIAnswering {
     }
 }
 
-/// Yields one delta and never finishes: an answer still being generated.
-/// Continuations are retained so the stream only ends when the consumer cancels.
+/// 产出一段增量后一直不结束：模拟仍在生成中的回答。保留续体，流只在消费方取消时结束。
 private final class HangingAIAnswerer: AIAnswering, @unchecked Sendable {
     private let lock = NSLock()
     private var continuations: [AsyncThrowingStream<String, Error>.Continuation] = []

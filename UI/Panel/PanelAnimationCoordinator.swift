@@ -1,30 +1,27 @@
 import AppKit
 import QuartzCore
 
-/// Single driver for every window-geometry animation of the launcher panel,
-/// mirroring the native Spotlight `WindowAnimationCoordinator`: a vsync-locked
-/// clock steps the window frame every display refresh and the SwiftUI content
-/// follows the published geometry, so the panel and its content can never
-/// drift apart.
+/// 启动器面板所有窗口几何动画的唯一驱动者，仿照原生聚焦搜索的 `WindowAnimationCoordinator`：
+/// 与垂直同步的时钟在每次屏幕刷新时步进窗口尺寸，SwiftUI 内容跟随发布的几何尺寸，
+/// 因此面板与内容不会错位。
 @MainActor
 final class PanelAnimationCoordinator: ObservableObject {
     private enum Layout {
-        /// Gap below the menu bar, calibrated against the reference display.
+        /// 面板与菜单栏之间的距离，按参考显示器校准。
         static let topGap: CGFloat = 156
-        /// Critically damped spring response; smaller reads snappier.
+        /// 临界阻尼弹簧的响应时间；越小越干脆。
         static let resizeResponse: TimeInterval = 0.20
         static let fadeInDuration: TimeInterval = 0.08
         static let fadeOutDuration: TimeInterval = 0.10
-        /// Snap and finish once the remaining distance is imperceptible.
+        /// 剩余距离小到察觉不出时直接到位并结束。
         static let settleDistance: CGFloat = 0.5
     }
 
-    /// Geometry the SwiftUI content renders with; republished every frame.
+    /// SwiftUI 内容渲染所用的高度；每帧重新发布。
     @Published private(set) var currentHeight: CGFloat
     private(set) var cornerRadius: CGFloat
 
-    /// Display the panel lives on; set by the owner whenever the panel is shown
-    /// or its screen is re-resolved, so resizes never jump across displays.
+    /// 面板所在的显示器；面板显示或重新确定屏幕时由持有者设置，调整尺寸时不会跳到其他显示器。
     var screen: NSScreen?
 
     private let panel: NSPanel
@@ -44,8 +41,7 @@ final class PanelAnimationCoordinator: ObservableObject {
     )?
     private var isDismissing = false
 
-    /// Breaks the clock ⇄ CADisplayLink target retain cycle if the owner is
-    /// released while an animation is still running.
+    /// 持有者释放时若动画仍在进行，打破时钟与 CADisplayLink 目标之间的循环引用。
     isolated deinit {
         clock?.stop()
     }
@@ -68,15 +64,14 @@ final class PanelAnimationCoordinator: ObservableObject {
     var isDismissalInProgress: Bool { isDismissing }
     var targetHeight: CGFloat { resizeState?.target ?? currentHeight }
 
-    /// Capsule radius while collapsed, expanding radius otherwise.
+    /// 收起时为胶囊圆角，展开时为展开圆角。
     static func cornerRadius(forHeight height: CGFloat) -> CGFloat {
         height <= LauncherLayout.searchHeight + 0.5
             ? LauncherLayout.compactCornerRadius
             : LauncherLayout.expandedCornerRadius
     }
 
-    /// The panel keeps a fixed top edge and horizontal center; its height grows
-    /// downward, exactly like the native Spotlight panel.
+    /// 面板顶边与水平中心固定，高度向下增长，与原生聚焦搜索面板一致。
     static func frame(for screen: NSScreen?, height: CGFloat) -> NSRect {
         let visibleFrame = screen?.visibleFrame
             ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
@@ -91,7 +86,7 @@ final class PanelAnimationCoordinator: ObservableObject {
         )
     }
 
-    /// Drops any in-flight transition and adopts `height` immediately.
+    /// 放弃进行中的过渡，立即采用 `height`。
     func prepareForPresentation(height: CGFloat) {
         stopAnimations()
         currentHeight = height
@@ -101,12 +96,11 @@ final class PanelAnimationCoordinator: ObservableObject {
         updateLayerCornerRadius(radius)
     }
 
-    /// Grows/shrinks the window to `height`, retargeting with initial velocity preserved.
+    /// 把窗口伸缩到 `height`；中途改变目标时保留当前速度。
     func resize(toHeight height: CGFloat) {
         guard height != targetHeight else { return }
 
-        // A query can be cleared before the first display tick. Cancel the
-        // pending expansion even when the window is still at compact height.
+        // 输入可能在第一次屏幕刷新之前就被清空：即使窗口仍是收起高度，也要取消待进行的展开。
         if reduceMotion() || height == currentHeight {
             resizeState = nil
             applyGeometry(height: height, radius: Self.cornerRadius(forHeight: height))
@@ -125,7 +119,7 @@ final class PanelAnimationCoordinator: ObservableObject {
         ensureClock()
     }
 
-    /// Fades the panel in after it has been ordered front.
+    /// 面板移到最前之后淡入。
     func fadeIn() {
         if reduceMotion() {
             alphaState = nil
@@ -137,7 +131,7 @@ final class PanelAnimationCoordinator: ObservableObject {
         ensureClock()
     }
 
-    /// Fades the panel out and orders it out once fully transparent.
+    /// 淡出面板，完全透明后移出屏幕。
     func fadeOutAndOrderOut() {
         if reduceMotion() {
             stopAnimations()
@@ -161,8 +155,7 @@ final class PanelAnimationCoordinator: ObservableObject {
         ensureClock()
     }
 
-    /// Reverses an in-flight dismissal, fading back in from the current alpha
-    /// instead of restarting from transparent.
+    /// 撤销进行中的淡出：从当前透明度淡入回来，而不是从完全透明重新开始。
     func cancelDismissal() {
         guard isDismissing else { return }
         isDismissing = false
@@ -181,7 +174,7 @@ final class PanelAnimationCoordinator: ObservableObject {
         ensureClock()
     }
 
-    /// Cancels every running animation without side effects.
+    /// 取消所有进行中的动画，不产生其他副作用。
     func stopAnimations() {
         clock?.stop()
         clock = nil
@@ -199,7 +192,7 @@ final class PanelAnimationCoordinator: ObservableObject {
     }
 
     private func step() {
-        // Honor changes to the preference even during an in-flight animation.
+        // 动画进行中也遵从「减弱动态效果」设置的变化。
         if reduceMotion() {
             if let resize = resizeState {
                 resizeState = nil
@@ -279,25 +272,23 @@ final class PanelAnimationCoordinator: ObservableObject {
         CATransaction.commit()
     }
 
-    /// Per-frame corner radius update only. Shadow recompute is deliberately
-    /// kept off the animation loop: `invalidateShadow` makes WindowServer
-    /// rebuild the shadow from the window's alpha, too costly at display rate.
+    /// 每帧只更新圆角。阴影刻意不在动画循环中重算：`invalidateShadow` 会让 WindowServer
+    /// 按窗口透明度重建阴影，以屏幕刷新率执行代价太高。
     private func setLayerCornerRadius(_ radius: CGFloat) {
         guard let surface = panel.contentView as? LauncherPanelSurface else { return }
         if surface.cornerRadius != radius { surface.updateCornerRadius(radius) }
     }
 
-    /// Let the native glass surface define the outline. Recompute the window
-    /// shadow only when a geometry transition settles, never per frame.
+    /// 由原生玻璃表面决定轮廓。只在几何过渡结束时重算窗口阴影，从不逐帧重算。
     private func updateLayerCornerRadius(_ radius: CGFloat) {
         setLayerCornerRadius(radius)
         panel.invalidateShadow()
     }
 
-    /// Critically damped spring with initial velocity:
-    /// Differential equation: x'' + 2*omega0*x' + omega0^2 * x = 0, where x(t) = y(t) - target.
-    /// Analytical solution:
-    /// x(t) = (x0 + c2 * t) * exp(-omega0 * t), with x0 = start - target, c2 = v0 + omega0 * x0.
+    /// 带初速度的临界阻尼弹簧：
+    /// 微分方程：x'' + 2*omega0*x' + omega0^2 * x = 0，其中 x(t) = y(t) - target。
+    /// 解析解：
+    /// x(t) = (x0 + c2 * t) * exp(-omega0 * t)，其中 x0 = start - target，c2 = v0 + omega0 * x0。
     /// y(t) = target + x(t)
     /// v(t) = (v0 - omega0 * c2 * t) * exp(-omega0 * t)
     static func evaluateSpring(
@@ -323,9 +314,8 @@ final class PanelAnimationCoordinator: ObservableObject {
     }
 }
 
-/// Vsync-locked step clock: one `onTick` per display refresh via `CADisplayLink`.
-/// Synchronizes with the panel window's own screen and delivers on the main thread,
-/// natively supporting ProMotion and mixed-refresh multi-display setups.
+/// 与垂直同步的步进时钟：经 `CADisplayLink` 在每次屏幕刷新时调用一次 `onTick`。
+/// 与面板窗口所在的屏幕同步并在主线程回调，原生支持 ProMotion 与刷新率不同的多显示器。
 @MainActor
 private final class DisplayStepClock {
     private let onTick: @MainActor () -> Void
@@ -356,7 +346,7 @@ private final class DisplayStepClock {
         }
     }
 
-    /// CADisplayLink callback: invoked in-sync with the panel's display.
+    /// CADisplayLink 回调：与面板所在屏幕的刷新同步调用。
     @objc private func stepLink(_ sender: CADisplayLink) {
         onTick()
     }

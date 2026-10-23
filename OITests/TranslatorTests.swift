@@ -14,7 +14,7 @@ final class TranslatorTests: XCTestCase {
     /// 截图翻译测试用的定格画面：识别由桩按选区返回文字，不读取画面。
     private static let snapshot = ScreenSnapshot(displays: [])
 
-    // MARK: - Language
+    // MARK: - 语言
 
     func testTranslationLanguageMatchesDetectedCodes() {
         XCTAssertEqual(TranslationLanguage(languageCode: "zh-Hant"), .traditionalChinese)
@@ -25,7 +25,7 @@ final class TranslatorTests: XCTestCase {
         XCTAssertFalse(TranslationLanguage.english.isSameLanguage(as: "es"))
     }
 
-    // MARK: - Language detection
+    // MARK: - 语种识别
 
     func testDetectorSplitsIdentifiersIntoWords() {
         XCTAssertEqual(NaturalLanguageDetector.words(in: "reduceKernel"), ["reduce", "Kernel"])
@@ -95,7 +95,7 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(chinese.targetLanguage, .english)
     }
 
-    // MARK: - Use case
+    // MARK: - 用例
 
     func testForeignTextTranslatesIntoTargetLanguage() {
         let useCase = makeUseCase(detector: StubLanguageDetector(code: "en"))
@@ -206,7 +206,7 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(answerer.recorder.configurations, [expected])
     }
 
-    // MARK: - Word boundaries
+    // MARK: - 单词边界
 
     func testWordRangeFindsWordAroundOffset() {
         let text = "Hello, wonderful world"
@@ -242,7 +242,7 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(CapturedText.cleaned(long)?.count, CapturedText.maximumLength)
     }
 
-    // MARK: - View model: capture
+    // MARK: - 视图模型：取词
 
     func testShortcutTranslatesSelectionAtItsPosition() async throws {
         let rect = CGRect(x: 100, y: 200, width: 80, height: 18)
@@ -426,7 +426,7 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(selector.points, [])
     }
 
-    // MARK: - Double click word selection
+    // MARK: - 双击选词
 
     func testAcceptedWordRequiresNewSingleWordUnderPointer() {
         let point = CGPoint(x: 100, y: 100)
@@ -476,7 +476,7 @@ final class TranslatorTests: XCTestCase {
         )
     }
 
-    // MARK: - View model: editing and languages
+    // MARK: - 视图模型：修改原文与切换语言
 
     func testEditingSourceReturnsToDraftAndRedetectsLanguage() async throws {
         let answerer = RecordingAnswerer(deltas: ["译文"])
@@ -624,7 +624,7 @@ final class TranslatorTests: XCTestCase {
         XCTAssertNil(name(nil))
     }
 
-    // MARK: - Screen translation
+    // MARK: - 截图翻译
 
     func testScreenTranslationRequiresScreenRecordingPermission() async {
         let untrusted = makeTranslatorViewModel()
@@ -803,7 +803,7 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(TranslatorPlacement.globalRect(fromAppKit: appKit, primaryScreenHeight: 900), global)
     }
 
-    // MARK: - Speech
+    // MARK: - 朗读
 
     /// ⌘⇧S 用原文语言的发音人朗读去掉首尾空白的原文，读完后复位。
     func testSpeechReadsSourceInDetectedLanguage() async throws {
@@ -879,7 +879,7 @@ final class TranslatorTests: XCTestCase {
         }
     }
 
-    // MARK: - Placement
+    // MARK: - 气泡摆放
 
     func testPlacementPrefersBelowAnchorAndGrowsDownward() {
         let placement = TranslatorPlacement(
@@ -958,7 +958,7 @@ final class TranslatorTests: XCTestCase {
         )
     }
 
-    // MARK: - Settings
+    // MARK: - 设置
 
     func testUserDefaultsStoreRoundTripsTranslatorSettings() throws {
         let suiteName = "OITests-Translator-\(UUID().uuidString)"
@@ -1120,7 +1120,7 @@ final class TranslatorTests: XCTestCase {
         XCTAssertNil(viewModel.launcherShortcutNotice)
     }
 
-    // MARK: - Coordinator
+    // MARK: - 协调者
 
     func testCoordinatorRegistersTranslatorShortcutAndForceTouchMonitor() {
         let settingsStore = MemoryAppSettingsStore()
@@ -1193,7 +1193,7 @@ final class TranslatorTests: XCTestCase {
         XCTAssertFalse(monitor.isRunning)
     }
 
-    // MARK: - Helpers
+    // MARK: - 辅助方法
 
     private static let visibleFrame = NSRect(x: 0, y: 0, width: 1440, height: 875)
 
@@ -1282,7 +1282,7 @@ private struct StubLanguageDetector: LanguageDetecting {
 private struct StubTextCapturer: TextCapturing {
     var selection: CapturedText?
     var wordAtPoint: CapturedText?
-    /// The lookup result when there is no word at the point.
+    /// 点按处没有单词时的取词结果。
     var lookupWithoutWord: WordLookup = .notOnText
     var clipboard: CapturedText?
 
@@ -1300,7 +1300,7 @@ private struct StubTextCapturer: TextCapturing {
     }
 }
 
-/// Returns the given word and records the points it was asked to select at.
+/// 返回给定的单词，并记录被要求选词的坐标。
 private final class RecordingWordSelector: WordSelecting, @unchecked Sendable {
     private let lock = NSLock()
     private let selected: CapturedText?
@@ -1320,7 +1320,7 @@ private final class RecordingWordSelector: WordSelecting, @unchecked Sendable {
     }
 }
 
-/// Returns text for each region (or fails capture and recognition with `error`) and records the regions it was asked to recognize.
+/// 按选区返回文字（或以 `error` 让截屏与识别失败），并记录被要求识别的选区。
 private final class RecordingScreenTextRecognizer: ScreenTextRecognizing, @unchecked Sendable {
     private let lock = NSLock()
     private let error: StubError?
@@ -1352,7 +1352,7 @@ private final class RecordingScreenTextRecognizer: ScreenTextRecognizing, @unche
     }
 }
 
-/// Records the questions, system prompts and endpoint configurations the answerer was asked with.
+/// 记录问答端口收到的问题、系统提示词与接口配置。
 private final class TranslationRequestRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private var storedQuestions: [String] = []
@@ -1380,7 +1380,7 @@ private final class TranslationRequestRecorder: @unchecked Sendable {
     }
 }
 
-/// Yields the given deltas, then finishes (or fails with `error`).
+/// 依次产出给定的增量后结束（或以 `error` 失败）。
 private struct RecordingAnswerer: AIAnswering {
     let deltas: [String]
     let error: AIClientError?
@@ -1406,7 +1406,7 @@ private struct RecordingAnswerer: AIAnswering {
     }
 }
 
-/// Records what it was asked to speak; each speech lasts until `finishSpeaking()` or until its task is cancelled.
+/// 记录被要求朗读的内容；每段朗读持续到调用 `finishSpeaking()` 或其任务被取消。
 @MainActor
 private final class RecordingTextSpeaker: TextSpeaking {
     struct Request: Equatable {
@@ -1439,8 +1439,7 @@ private final class RecordingTextSpeaker: TextSpeaking {
     }
 }
 
-/// Yields one delta and never finishes: a translation still being generated.
-/// Continuations are retained so the stream only ends when the consumer cancels.
+/// 产出一段增量后一直不结束：模拟仍在生成中的译文。保留续体，流只在消费方取消时结束。
 private final class HangingAnswerer: AIAnswering, @unchecked Sendable {
     private let lock = NSLock()
     private var continuations: [AsyncThrowingStream<String, Error>.Continuation] = []

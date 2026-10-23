@@ -1,6 +1,6 @@
 import Foundation
 
-/// State owned by the launcher feature while its application catalog is loaded.
+/// 启动器加载应用目录的状态。
 enum LauncherLoadState: Equatable, Sendable {
     case idle
     case loading
@@ -8,28 +8,28 @@ enum LauncherLoadState: Equatable, Sendable {
     case failed(String)
 }
 
-/// Failure banner above the results when the selected item cannot be located (e.g. a moved file).
-/// Opening runs in the background after the panel dismisses, so its failures are notified instead.
+/// 选中项无法定位（如文件已被移动）时结果列表上方的失败横幅。
+/// 打开在面板收起后于后台进行，打开失败改由系统通知告知。
 enum LauncherLaunchState: Equatable, Sendable {
     case idle
     case failed(String)
 }
 
-/// State owned by the launcher feature while the file index is queried.
-/// Failures degrade silently to an empty file section, so there is no failed case.
+/// 启动器查询文件索引的状态。
+/// 查询失败时文件分组静默留空，因此没有失败状态。
 enum LauncherFileSearchState: Equatable, Sendable {
     case idle
     case searching
     case loaded
 }
 
-/// One row of the results list: selectable results plus non-selectable section headers.
+/// 结果列表的一行：可选中的结果，或不可选中的分组标题。
 enum LauncherRow: Hashable, Sendable {
     case sectionHeader(String)
     case result(SearchResult)
 }
 
-/// One Quick AI question and its streamed answer, shown in place of the results list.
+/// 一次 Quick AI 提问及其流式到达的回答，显示在结果列表的位置。
 struct QuickAISession: Equatable, Sendable {
     enum State: Equatable, Sendable {
         case streaming

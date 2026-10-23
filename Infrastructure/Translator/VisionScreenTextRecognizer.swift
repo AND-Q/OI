@@ -46,7 +46,7 @@ struct VisionScreenTextRecognizer: ScreenTextRecognizing {
         }
     }
 
-    // MARK: - Paragraphs
+    // MARK: - 整理段落
 
     /// 把逐行识别的文字整理成段落：截图中的文字按版面折行，原样换行会让一句话被当成几句来翻译。
     /// 相邻两行属于同一段时接成一行，否则换行；判断不准时宁可换行，也不把不相干的行拼在一起。
@@ -111,7 +111,7 @@ struct VisionScreenTextRecognizer: ScreenTextRecognizing {
         }
     }
 
-    // MARK: - Capture
+    // MARK: - 截屏
 
     /// 截取每块屏幕的整个画面；按屏幕像素截取，小字号文字也能看清。
     private static func captureDisplays() async throws -> ScreenSnapshot {
@@ -158,7 +158,7 @@ struct VisionScreenTextRecognizer: ScreenTextRecognizing {
         return CGFloat(mode.pixelWidth) / CGFloat(mode.width)
     }
 
-    // MARK: - Recognition
+    // MARK: - 识别文字
 
     /// 用新版 `RecognizeTextRequest` 识别：旧版 `VNRecognizeTextRequest` 在 macOS 26 上有崩溃报告。
     private static func recognizeLines(in image: CGImage) async throws -> [Line] {

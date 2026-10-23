@@ -54,8 +54,7 @@ struct LauncherResultsList: NSViewRepresentable {
         let selectionChanged = coordinator.selectedRowIndex != selectedRowIndex
         let shouldResetScroll = coordinator.resetRequest != resetRequest
 
-        // The parent re-renders on every animation frame (it observes the panel
-        // geometry), so skip all AppKit work when nothing actually changed.
+        // 父视图每个动画帧都会重新渲染（它观察面板的几何尺寸），没有实际变化时跳过全部 AppKit 工作。
         guard rowsChanged || selectionChanged || shouldResetScroll else { return }
 
         coordinator.parent = self
@@ -75,8 +74,7 @@ struct LauncherResultsList: NSViewRepresentable {
         tableView.selectRowIndexes(IndexSet(integer: selectedRowIndex), byExtendingSelection: false)
         coordinator.refreshSelectionIndicators(in: tableView)
 
-        // Query changes come with a reset request; file results arriving later
-        // must not yank the list away from the row the user has moved to.
+        // 输入变化时带有重置请求；之后才到达的文件结果不能把列表从用户已移到的行拉走。
         if shouldResetScroll {
             tableView.scrollRowToVisible(0)
         } else {
@@ -193,7 +191,7 @@ struct LauncherResultsList: NSViewRepresentable {
             }
         }
 
-        /// Files show their parent folder with `~` abbreviation; applications show nothing.
+        /// 文件显示所在目录（家目录以 `~` 缩写），应用不显示副标题。
         static func subtitle(for result: SearchResult) -> String? {
             switch result {
             case .file(let file):
@@ -251,7 +249,7 @@ private final class LauncherTableView: NSTableView {
     override var acceptsFirstResponder: Bool { false }
 }
 
-/// Neutral gray rounded selection matching Spotlight (never the system accent blue).
+/// 与聚焦搜索一致的中性灰圆角选中背景（不用系统强调色蓝色）。
 private final class LauncherResultRowView: NSTableRowView {
     override var isEmphasized: Bool {
         get { false }
@@ -350,7 +348,7 @@ private final class LauncherResultCellView: NSTableCellView {
                 height: nameHeight
             )
         } else {
-            // Two lines stacked and centred as a block (flipped-off coordinates: y grows upward).
+            // 两行上下叠放、整体垂直居中（未翻转的坐标系：y 轴向上）。
             let blockHeight = nameHeight + 16
             let blockY = (bounds.height - blockHeight) / 2
             subtitleLabel.frame = NSRect(x: labelX, y: blockY, width: labelWidth, height: 16)
@@ -382,7 +380,7 @@ private final class LauncherResultCellView: NSTableCellView {
     }
 }
 
-/// Non-selectable group row separating the file section from the applications.
+/// 不可选中的分组标题行，把文件分组与应用隔开。
 private final class LauncherSectionHeaderView: NSTableCellView {
     private let titleLabel = NSTextField(labelWithString: "")
 
@@ -414,7 +412,7 @@ private final class LauncherSectionHeaderView: NSTableCellView {
     }
 }
 
-/// Small keycap-styled glass badge containing the return glyph, shown on the selected row.
+/// 选中行上显示的小号键帽样式玻璃徽标，内含回车符号。
 private final class LauncherReturnBadge: NSGlassEffectView {
     private let glyphView = NSImageView()
 

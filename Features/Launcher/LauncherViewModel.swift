@@ -4,9 +4,9 @@ import Foundation
 
 @MainActor
 final class LauncherViewModel: ObservableObject {
-    /// How long a snapshot stays fresh before a panel show triggers a rescan.
+    /// 应用快照的有效期：超过后再次呼出面板时重新扫描。
     static let refreshInterval: TimeInterval = 600
-    /// Section title shown above file and folder results.
+    /// 文件与文件夹结果上方的分组标题。
     static let fileSectionTitle = "文件与文件夹"
     /// 流式增量合并上屏的间隔：避免每个 token 都触发整段 Markdown 重新解析与重绘。
     static let quickAIFlushInterval: Duration = .milliseconds(50)
@@ -124,12 +124,12 @@ final class LauncherViewModel: ObservableObject {
         quickAITask?.cancel()
     }
 
-    /// Web URLs and typed paths first (直达), then quick queries, applications and files.
+    /// 全部结果：网址与路径直达在前，其后依次是快速查询、应用与文件。
     var results: [SearchResult] {
         resultsAboveFiles + fileResults.map(SearchResult.file)
     }
 
-    /// Display rows: the file section gets a header, the application section does not.
+    /// 列表显示的行：文件分组带标题，应用分组不带。
     var rows: [LauncherRow] {
         var rows = resultsAboveFiles.map(LauncherRow.result)
         if !fileResults.isEmpty {
@@ -158,7 +158,7 @@ final class LauncherViewModel: ObservableObject {
         return app
     }
 
-    /// Index of the selected result within `rows` (accounts for the file section header).
+    /// 选中结果在 `rows` 中的位置（计入文件分组标题这一行）。
     var selectedRowIndex: Int {
         selectedIndex < results.count - fileResults.count ? selectedIndex : selectedIndex + 1
     }
@@ -173,12 +173,12 @@ final class LauncherViewModel: ObservableObject {
         return false
     }
 
-    /// Whether the panel is expanded (Spotlight collapses to a capsule with an empty query).
+    /// 面板是否展开（与聚焦搜索一致，输入为空时收成胶囊）。
     /// 纯空白输入按空查询处理（搜索计划 §8.3）；Quick AI 输入问题时保持胶囊，有回答时展开。
     var isExpanded: Bool {
         quickAISession != nil || (!isQuickAIModeActive && !normalizedQuery.isEmpty)
     }
-    /// What the expanded area shows; kept here so view and window share one source of truth.
+    /// 展开区域显示的内容；放在这里，视图与窗口尺寸以同一处判断为准。
     var expandedContent: LauncherLayout.ExpandedContent {
         if quickAISession != nil {
             return .quickAI
@@ -215,9 +215,8 @@ final class LauncherViewModel: ObservableObject {
         return refreshApplications(force: true)
     }
 
-    /// Starts a background snapshot refresh. A forced refresh cancels an
-    /// in-flight scan so the newest request wins (search plan §11); an automatic
-    /// one only starts when the snapshot is empty, stale or dirty.
+    /// 在后台刷新应用快照。强制刷新会取消进行中的扫描，最新的请求胜出（搜索计划 §11）；
+    /// 自动刷新只在快照为空、过期或目录有变动时进行。
     @discardableResult
     func refreshApplications(force: Bool) -> Task<Void, Never>? {
         if let loadTask {
@@ -278,9 +277,8 @@ final class LauncherViewModel: ObservableObject {
         return task
     }
 
-    /// Opens a result: web URLs through the default browser, applications launch
-    /// through the catalog, files through the default app. Opening runs in the background
-    /// while the panel dismisses; failures are reported by notification.
+    /// 打开结果：网址经默认浏览器，应用经启动用例，文件用默认 App 打开。
+    /// 打开在后台进行、面板随即收起，失败经系统通知告知。
     @discardableResult
     func open(_ result: SearchResult) -> Task<Void, Never>? {
         switch result {
@@ -295,7 +293,7 @@ final class LauncherViewModel: ObservableObject {
         }
     }
 
-    /// Searches the current query with the chosen search engine in the default browser (`Cmd+Enter`).
+    /// 用设置中选择的搜索引擎在默认浏览器中搜索当前输入（`Cmd+Enter`）。
     @discardableResult
     func searchWeb() -> Task<Void, Never>? {
         let text = normalizedQuery
@@ -304,24 +302,23 @@ final class LauncherViewModel: ObservableObject {
         return openExternalURL(searchURL)
     }
 
-    /// Reveals the selected item in Finder (`Cmd+F`).
+    /// 在 Finder 中显示选中的条目（`Cmd+F`）。
     func reveal(_ result: SearchResult) {
         guard let url = result.url, url.isFileURL else { return }
         openFile?.reveal(url: url)
     }
 
-    /// Opens the item's directory in Terminal (`Cmd+K` action menu).
+    /// 在终端中打开条目所在的目录（`Cmd+K` 操作菜单）。
     func openInTerminal(url: URL) {
         openFile?.openInTerminal(url: url)
     }
 
-    /// Apps offered by「用其他 App 打开…」for a file result, the default app first.
+    /// 「用其他 App 打开…」为文件结果列出的 App，默认 App 在前。
     func applications(toOpen file: FileDescriptor) -> [OpenWithApplication] {
         openFile?.applications(toOpen: file) ?? []
     }
 
-    /// Opens a file with the chosen app in the background, like default opens;
-    /// failures are reported by notification.
+    /// 用选择的 App 在后台打开文件，与默认方式打开一致；失败经系统通知告知。
     @discardableResult
     func open(_ file: FileDescriptor, withApplicationAt applicationURL: URL) -> Task<Void, Never>? {
         guard let openFile else { return nil }
@@ -334,7 +331,7 @@ final class LauncherViewModel: ObservableObject {
         }
     }
 
-    /// Publishes a failure directly when an item cannot be opened or located.
+    /// 条目无法打开或定位时直接显示失败横幅。
     func publishFileOpenError(fileName: String, reason: String) {
         launchState = .failed(LauncherErrorMessage.message(
             for: ApplicationError.fileOpenFailed(fileName: fileName, reason: reason)
@@ -374,7 +371,7 @@ final class LauncherViewModel: ObservableObject {
         refreshApplications(force: false)
     }
 
-    /// Marks the catalog for refresh on the next panel show (directory watcher).
+    /// 标记应用目录有变动，下次呼出面板时刷新（由目录监听调用）。
     func markCatalogDirty() {
         catalogIsDirty = true
     }
@@ -397,15 +394,14 @@ final class LauncherViewModel: ObservableObject {
         }
     }
 
-    /// Answer text to copy (`Enter` / `Cmd+C`) without `<think>` reasoning;
-    /// nil until some visible content has arrived.
+    /// 复制（`Enter` / `Cmd+C`）用的回答，不含 `<think>` 推理内容；尚无可见内容时为 nil。
     var quickAIAnswerToCopy: String? {
         guard let answer = quickAISession.map({ MarkdownParser.removingThinking(from: $0.answer) }),
               !answer.isEmpty else { return nil }
         return answer
     }
 
-    /// Scrolls the answer area one step (`↑` / `↓` in Quick AI).
+    /// 回答区滚动一步（Quick AI 中的 `↑` / `↓`）。
     func scrollQuickAIAnswer(by direction: Int) {
         guard quickAISession != nil else { return }
         quickAIScrollRequest = QuickAIScrollRequest(
@@ -414,8 +410,8 @@ final class LauncherViewModel: ObservableObject {
         )
     }
 
-    /// Switches between search and Quick AI mode (`Tab`). The typed text is kept,
-    /// so it becomes the question draft or the search query again.
+    /// 在检索与 Quick AI 模式之间切换（`Tab`）。已输入的文字保留，
+    /// 切换后成为问题草稿或重新作为检索词。
     func toggleQuickAIMode() {
         if isQuickAIModeActive {
             discardQuickAISession()
@@ -429,8 +425,8 @@ final class LauncherViewModel: ObservableObject {
         }
     }
 
-    /// Asks the current query as a Quick AI question (`Enter` in Quick AI mode) and
-    /// streams the answer into `quickAISession`. Returns nil when there is nothing to ask.
+    /// 把当前输入作为 Quick AI 问题提问（Quick AI 模式下按 `Enter`），回答流式写入 `quickAISession`。
+    /// 没有可提问的内容时返回 nil。
     @discardableResult
     func startQuickAI() -> Task<Void, Never>? {
         let question = normalizedQuery
@@ -467,8 +463,7 @@ final class LauncherViewModel: ObservableObject {
         return task
     }
 
-    /// Interrupts an in-flight answer but keeps what has arrived on screen,
-    /// so hiding the panel does not resize it mid fade-out.
+    /// 中断进行中的回答，保留已经到达的内容，避免隐藏面板时在淡出途中改变面板高度。
     func stopQuickAI() {
         guard quickAITask != nil else { return }
         quickAIGeneration += 1
@@ -527,7 +522,7 @@ final class LauncherViewModel: ObservableObject {
         selectedActionIndex = nextIndex
     }
 
-    /// Opens a file with its default app in the background, like application launches.
+    /// 用默认 App 在后台打开文件，与启动应用一致。
     @discardableResult
     private func open(_ file: FileDescriptor) -> Task<Void, Never>? {
         guard let openFile else { return nil }
@@ -540,7 +535,7 @@ final class LauncherViewModel: ObservableObject {
         }
     }
 
-    /// Opens a web URL in the default browser in the background, like application launches.
+    /// 在默认浏览器中后台打开网址，与启动应用一致。
     @discardableResult
     private func openExternalURL(_ url: URL) -> Task<Void, Never>? {
         guard let openURL else { return nil }
@@ -559,7 +554,7 @@ final class LauncherViewModel: ObservableObject {
         notifier.notify(title: notification.title, body: notification.body)
     }
 
-    /// Drops the current answer; Quick AI mode itself stays as it is.
+    /// 丢弃当前回答；Quick AI 模式本身保持不变。
     private func discardQuickAISession() {
         stopQuickAI()
         quickAIAnswerBuffer.discard()
@@ -667,8 +662,7 @@ final class LauncherViewModel: ObservableObject {
         }
     }
 
-    /// Debounced file lookup; stale results are dropped by generation so the
-    /// newest query always wins. Failures leave the file section empty.
+    /// 带防抖的文件查询；过期结果按 generation 丢弃，最新的查询总是胜出。查询失败时文件分组留空。
     /// 检索期间保留上一批文件结果（与原生 Spotlight 一致），否则每敲一个字
     /// 面板都会先塌成状态页再弹回列表，快速输入时剧烈抖动。只保留名称仍包含
     /// 新查询的条目，回车才不会打开与当前输入不符的旧文件。

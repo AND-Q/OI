@@ -1,6 +1,6 @@
 import Foundation
 
-/// Platform-independent metadata for a file or folder returned by file search.
+/// 文件搜索返回的文件或文件夹元数据，与具体平台无关。
 struct FileDescriptor: Identifiable, Hashable, Sendable {
     let id: String
     let name: String

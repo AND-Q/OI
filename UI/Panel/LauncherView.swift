@@ -14,13 +14,9 @@ struct LauncherView: View {
             searchBar
                 .frame(height: LauncherLayout.searchHeight)
 
-            // The coordinator steps the window height; the content simply fills
-            // whatever space is published each frame, so it can never drift
-            // from the window edge. Mounting follows only the expanded query
-            // state: the list is created before the first geometry tick instead
-            // of mid-animation (its height clamps to 0 until the window grows).
-            // Clearing the query still unmounts it immediately, matching native
-            // Spotlight's collapse back to the capsule.
+            // 窗口高度由动画协调器逐帧设置，内容只是填满每帧发布的空间，因此不会与窗口边缘错位。
+            // 是否挂载只跟随输入是否展开：列表在第一帧几何更新之前就已创建，而不是在动画中途创建
+            // （窗口长高之前它的高度被限制为 0）。清空输入时仍立即卸载，与原生聚焦搜索收回胶囊的表现一致。
             if viewModel.isExpanded {
                 divider
                 Group {
@@ -37,8 +33,7 @@ struct LauncherView: View {
         .overlay(alignment: .bottomTrailing) {
             if viewModel.isActionSheetVisible,
                let selectedResult = viewModel.selectedResult {
-                // Extract once for both the emptiness check and the sheet input;
-                // the computed property rebuilds the array on every access.
+                // 只取一次，空判断与卡片输入共用：该计算属性每次访问都会重建数组。
                 let actions = viewModel.currentAvailableActions
                 if !actions.isEmpty {
                     ZStack(alignment: .bottomTrailing) {

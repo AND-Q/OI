@@ -1,7 +1,7 @@
 import Foundation
 
-/// Block-level Markdown element of a Quick AI answer. SwiftUI `Text` only renders
-/// inline Markdown, so headings, lists, quotes and code blocks are split out here.
+/// Markdown 的块级元素（用于 Quick AI 回答与更新日志）。SwiftUI 的 `Text` 只渲染行内 Markdown，
+/// 因此标题、列表、引用与代码块在这里拆分出来。
 enum MarkdownBlock: Equatable {
     case heading(level: Int, text: String)
     case paragraph(String)
@@ -13,8 +13,7 @@ enum MarkdownBlock: Equatable {
 }
 
 enum MarkdownParser {
-    /// Splits Markdown into blocks line by line. Streaming output is often cut
-    /// mid-block: an unclosed code fence is rendered as code up to the end.
+    /// 按行把 Markdown 拆成块。流式输出常在块的中间截断：未闭合的代码围栏一直按代码显示到末尾。
     static func blocks(from markdown: String) -> [MarkdownBlock] {
         var blocks: [MarkdownBlock] = []
         var paragraph: [String] = []
@@ -108,9 +107,8 @@ enum MarkdownParser {
         return blocks
     }
 
-    /// Removes the leading `<think>…</think>` reasoning that some models (e.g. via
-    /// Ollama) put before the answer. While streaming, an unclosed leading `<think>`
-    /// hides everything after it. 只处理开头的推理块：正文里提到 `<think>` 标签时原样保留。
+    /// 去掉部分模型（如经 Ollama）在回答前输出的 `<think>…</think>` 推理内容；流式输出期间，
+    /// 开头未闭合的 `<think>` 会隐藏其后的全部内容。只处理开头的推理块：正文里提到 `<think>` 标签时原样保留。
     static func removingThinking(from answer: String) -> String {
         let trimmed = answer.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.hasPrefix("<think>") else { return trimmed }
@@ -118,7 +116,7 @@ enum MarkdownParser {
         return trimmed[end.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Inline Markdown (bold, italic, `code`, links) with line breaks preserved.
+    /// 行内 Markdown（粗体、斜体、`代码`、链接），保留换行。
     static func inline(_ text: String) -> AttributedString {
         (try? AttributedString(
             markdown: text,

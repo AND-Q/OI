@@ -25,8 +25,8 @@ struct QuickQueryResolver {
 private enum MathExpressionEvaluator {
     static func evaluate(_ expression: String) -> String? {
         guard expression.count <= 256 else { return nil }
-        // Date-like and numbered terms are common searches, not subtraction expressions.
-        // Two-part slash forms (10/3, 1024/8) are divisions; only a full year/month/day is a date.
+        // 日期样式与编号常是要搜索的内容，不是减法算式。
+        // 两段的斜杠形式（10/3、1024/8）按除法计算；只有完整的年/月/日才算日期。
         let datePatterns = [
             #"^\d{4}[-/]\d{1,2}[-/]\d{1,2}$"#,
             #"^\d{4}-\d{1,2}$"#,

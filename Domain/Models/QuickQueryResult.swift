@@ -1,6 +1,6 @@
 import Foundation
 
-/// A temporary value produced directly from the launcher's search query.
+/// 由启动器输入直接算出的临时结果（计算、本机 IP）。
 enum QuickQueryResult: Hashable, Sendable {
     case calculation(expression: String, value: String)
     case localIPAddress(String?)

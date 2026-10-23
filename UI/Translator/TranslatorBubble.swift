@@ -127,7 +127,7 @@ final class TranslatorBubble {
 
     var isVisible: Bool { panel.isVisible && !isDismissing }
 
-    // MARK: - Presentation
+    // MARK: - 弹出与收起
 
     /// `pointer` 为用力点按位置（全局显示坐标）；快捷键触发时为 nil，取当前鼠标位置。
     func present(_ presentation: TranslatorPresentation, pointer: CGPoint?, level: NSWindow.Level) {
@@ -281,7 +281,7 @@ final class TranslatorBubble {
         onHidden?()
     }
 
-    // MARK: - Frame
+    // MARK: - 位置与尺寸
 
     private func updateContentHeight(_ height: CGFloat) {
         guard height > 0, abs(height - contentHeight) >= 0.5 else { return }
@@ -315,7 +315,7 @@ final class TranslatorBubble {
         isMoved = true
     }
 
-    // MARK: - Highlight
+    // MARK: - 单词高亮
 
     /// 原文随滚动移动后高亮会错位：滚动其他应用时先收起高亮，气泡保留。
     /// 全局监听只会收到发往其他应用的滚动，在气泡内滚动译文不受影响。

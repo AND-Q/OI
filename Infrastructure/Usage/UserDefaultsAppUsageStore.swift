@@ -1,7 +1,7 @@
 import Foundation
 
-/// Launch history persisted to UserDefaults (search plan §9). Writes hop off
-/// the caller's executor so they never block the panel.
+/// 持久化到 UserDefaults 的启动历史（搜索计划 §9）。读写在本 actor 上进行，
+/// 不占用调用方的执行器，不会卡住面板。
 actor UserDefaultsAppUsageStore: AppUsageStoring {
     private static let storageKey = "applicationUsageRecords.v1"
 

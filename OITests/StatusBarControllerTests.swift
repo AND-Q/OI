@@ -29,7 +29,7 @@ final class StatusBarControllerTests: XCTestCase {
         let button = try XCTUnwrap(statusItem.button)
         XCTAssertNotNil(button.image)
 
-        // Menu is attached to the status item so any click presents it
+        // 菜单挂在状态项上，任何点按都会弹出菜单
         let menu = try XCTUnwrap(statusItem.menu)
         XCTAssertTrue(menu === controller.contextMenu)
         XCTAssertEqual(menu.items.count, 7)
@@ -48,7 +48,7 @@ final class StatusBarControllerTests: XCTestCase {
         XCTAssertEqual(menu.items[6].keyEquivalent, "q")
         XCTAssertTrue(menu.items[6].target === controller)
 
-        // Trigger menu item actions
+        // 触发各菜单项的动作
         _ = menu.items[0].target?.perform(menu.items[0].action, with: menu.items[0])
         XCTAssertTrue(showLauncherCalled)
 

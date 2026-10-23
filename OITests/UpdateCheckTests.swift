@@ -5,7 +5,7 @@ import XCTest
 
 @MainActor
 final class UpdateCheckTests: XCTestCase {
-    // MARK: - Version
+    // MARK: - 版本号
 
     func testVersionAcceptsTagPrefixAndRejectsNonNumericParts() {
         XCTAssertEqual(AppVersion("v1.2.0")?.components, [1, 2, 0])
@@ -26,7 +26,7 @@ final class UpdateCheckTests: XCTestCase {
         XCTAssertLessThan(try version("1.2.0"), try version("1.2.1"))
     }
 
-    // MARK: - Use case
+    // MARK: - 用例
 
     func testCheckReportsUpdateOnlyWhenLatestReleaseIsNewer() async throws {
         let newer = release("v1.1.0")
@@ -124,7 +124,7 @@ final class UpdateCheckTests: XCTestCase {
         XCTAssertEqual(failure(status: 200, body: "not json"), .invalidResponse)
     }
 
-    // MARK: - Controller
+    // MARK: - 提醒框控制器
 
     func testControllerOpensReleasePageOnlyWhenDownloadIsChosen() async throws {
         let newer = release("v1.1.0")
@@ -192,7 +192,7 @@ final class UpdateCheckTests: XCTestCase {
         XCTAssertEqual(UpdateCheckController.releaseNoteBlocks(from: ""), [])
     }
 
-    // MARK: - Helpers
+    // MARK: - 辅助方法
 
     private func release(_ tagName: String) -> LatestRelease {
         LatestRelease(

@@ -184,7 +184,7 @@ struct DoubleClickWordSelector: WordSelecting {
         }
     }
 
-    // MARK: - Accessibility helpers
+    // MARK: - 辅助功能工具方法
 
     private static func hitTarget(at point: CGPoint) -> HitTarget? {
         let systemWide = AXUIElementCreateSystemWide()

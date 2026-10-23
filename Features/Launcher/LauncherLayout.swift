@@ -1,6 +1,6 @@
 import Foundation
 
-/// Layout metrics calibrated against the macOS 27 Spotlight reference images.
+/// 启动器面板的尺寸参数，按 macOS 27 聚焦搜索的参考截图校准。
 enum LauncherLayout {
     static let width: CGFloat = 640
     static let searchHeight: CGFloat = 57
@@ -12,20 +12,19 @@ enum LauncherLayout {
 
     static let compactCornerRadius: CGFloat = searchHeight / 2
     static let expandedCornerRadius: CGFloat = 32
-    /// Minimum panel expansion reserved for the floating action sheet.
+    /// 为浮动的操作卡片预留的最小展开高度。
     static let actionSheetMinHeight: CGFloat = 185
-    /// Floating action sheet width and its insets from the panel's bottom-trailing corner.
+    /// 浮动操作卡片的宽度，以及它与面板右下角的间距。
     static let actionSheetWidth: CGFloat = 250
     static let actionSheetTrailingInset: CGFloat = 16
     static let actionSheetBottomInset: CGFloat = 12
-    /// Launch-failure banner above the results list, including its top inset;
-    /// reserved in the expanded height so it never squeezes the rows.
+    /// 结果列表上方失败横幅的高度（含顶部间距），计入展开高度，不挤占结果行。
     static let launchErrorBannerHeight: CGFloat = 32
-    /// Quick AI answer area (answer plus footer), fixed so streaming never resizes the window.
+    /// Quick AI 回答区（回答与页脚）的固定高度，流式输出期间窗口不随内容变化尺寸。
     static let quickAIHeight: CGFloat = 400
     static let quickAIFooterHeight: CGFloat = 32
 
-    /// What the expanded area below the search field shows.
+    /// 输入框下方展开区域显示的内容。
     enum ExpandedContent: Equatable {
         case results(rowCount: Int, sectionHeaderCount: Int = 0, minHeight: CGFloat = 0, hasLaunchError: Bool = false)
         case status

@@ -55,8 +55,7 @@ final class LauncherPanelController {
             initialHeight: LauncherLayout.searchHeight
         )
 
-        // Dismiss when the panel loses key focus (clicking the desktop or another
-        // app), matching native Spotlight's default behavior.
+        // 面板失去 key 窗口（点到桌面或其他应用）时收起，与原生聚焦搜索的默认行为一致。
         panel.onResignKey = { [weak self] in
             guard let self else { return }
             if self.quickLook.isActive,
@@ -100,14 +99,14 @@ final class LauncherPanelController {
             return self.handleKeyDown(event)
         }
 
-        // Grow/shrink the window in step with the SwiftUI layout.
+        // 窗口随 SwiftUI 布局同步伸缩。
         viewModel.$panelHeight
             .sink { [weak self] height in
                 self?.resizePanel(to: height)
             }
             .store(in: &cancellables)
 
-        // Dismiss when user switches away to another application.
+        // 用户切换到其他应用时收起。
         NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
             .sink { [weak self] _ in
                 self?.hide()
@@ -138,16 +137,14 @@ final class LauncherPanelController {
     }
 
     func toggle() {
-        // During an in-flight fade-out route to show(): hide() would drop the
-        // request, leaving the hotkey press swallowed.
+        // 淡出途中改走 show()：此时 hide() 会丢掉这次请求，按下的快捷键被吞掉。
         (isVisible && !animationCoordinator.isDismissalInProgress) ? hide() : show()
     }
 
     func show() {
         guard !panel.isVisible else {
-            // Already showing: refocus instead of resetting the session. Reverse
-            // an in-flight fade-out first, or its completion would order the
-            // panel out right after this wake.
+            // 已经显示：重新聚焦，不重置会话。先撤销进行中的淡出，
+            // 否则淡出完成时会在这次唤起后立即把面板移出屏幕。
             NSApp.activate(ignoringOtherApps: true)
             animationCoordinator.cancelDismissal()
             activeScreen = targetScreen()
@@ -173,8 +170,8 @@ final class LauncherPanelController {
             display: true
         )
         animationCoordinator.prepareForPresentation(height: height)
-        // The panel keeps alpha 1 after a completed fade-out; ordering it front
-        // at full opacity would flash one frame before fadeIn reaches 0.
+        // 淡出完成后面板的透明度保持为 1；以完全不透明的状态移到最前，
+        // 会在 fadeIn 把透明度降到 0 之前闪现一帧。
         panel.alphaValue = 0
         panel.makeKeyAndOrderFront(nil)
         panel.invalidateShadow()
@@ -222,8 +219,7 @@ final class LauncherPanelController {
             ?? NSScreen.screens.first
     }
 
-    /// Keeps the screen picked at show() so the panel never jumps to another display
-    /// mid-session; re-selects only if that display was disconnected.
+    /// 沿用 show() 时选定的屏幕，会话期间面板不会跳到其他显示器；只有该显示器已断开时才重新选择。
     private func resolvedScreen() -> NSScreen? {
         if let activeScreen, NSScreen.screens.contains(activeScreen) {
             return activeScreen
@@ -245,9 +241,8 @@ final class LauncherPanelController {
             return nil
         }
 
-        // When the focused field editor has marked text (e.g. active Pinyin/IME composition),
-        // let the input method handle all keys: Return commits the composition, Escape aborts it,
-        // and arrow keys browse candidate words.
+        // 输入框的字段编辑器有未上屏的组字（如拼音输入法正在组字）时，所有按键交给输入法：
+        // 回车上屏、Esc 取消组字、方向键浏览候选词。
         if hasActiveMarkedText {
             return event
         }
@@ -279,7 +274,7 @@ final class LauncherPanelController {
             quickLook.close()
             return markHandled(event)
         case UInt16(kVK_Return), UInt16(kVK_ANSI_KeypadEnter):
-            // Cmd+Return searches the web via the default browser; plain Return opens the selection.
+            // Cmd+Return 在默认浏览器中网页搜索；单独的 Return 打开选中项。
             if event.modifierFlags.contains(.command) {
                 searchWebAndDismiss()
             } else if viewModel.isQuickAIModeActive {
@@ -311,18 +306,18 @@ final class LauncherPanelController {
         case UInt16(kVK_ANSI_F):
             guard event.modifierFlags.contains(.command) else { return event }
             if let result = viewModel.selectedResult {
-                // Cmd+F reveals the item in Finder; quick queries copy their value instead.
+                // Cmd+F 在 Finder 中显示条目；快速查询改为复制其值。
                 reveal(result)
             }
             return markHandled(event)
         case UInt16(kVK_ANSI_Y):
             guard event.modifierFlags.contains(.command) else { return event }
-            // Cmd+Y toggles the native Quick Look preview of the selection.
+            // Cmd+Y 开关选中项的原生 Quick Look 预览。
             togglePreview()
             return markHandled(event)
         case UInt16(kVK_ANSI_K):
             guard event.modifierFlags.contains(.command) else { return event }
-            // Cmd+K toggles the quick action menu of the selection.
+            // Cmd+K 开关选中项的快捷操作菜单。
             toggleActionMenu()
             return markHandled(event)
         case UInt16(kVK_ANSI_T):
@@ -363,7 +358,7 @@ final class LauncherPanelController {
                 return markHandled(event)
             }
             if event.modifierFlags.contains(.command) && event.modifierFlags.contains(.option) {
-                // Only file URLs have a meaningful path to copy; web URLs would lose the host.
+                // 只有文件地址的路径值得复制；网址只取路径会丢掉主机名。
                 if let result = viewModel.selectedResult, result.url?.isFileURL == true {
                     performMenuAction(.copyPath, for: result)
                     return markHandled(event)
@@ -431,7 +426,7 @@ final class LauncherPanelController {
         return task
     }
 
-    /// Searches the current query in the default browser and dismisses the panel right away.
+    /// 在默认浏览器中搜索当前输入，并立即收起面板。
     @discardableResult
     func searchWebAndDismiss() -> Task<Void, Never>? {
         guard let task = viewModel.searchWeb() else { return nil }
@@ -447,7 +442,7 @@ final class LauncherPanelController {
             copy(quickQuery)
             return
         }
-        // Web URLs have no file-system location; reveal copies the link instead.
+        // 网址没有文件系统位置，改为复制链接。
         if case .webURL(let url) = result {
             copyText(url.absoluteString)
             return
@@ -464,7 +459,7 @@ final class LauncherPanelController {
         hide()
     }
 
-    /// Toggles the native Quick Look preview (`Cmd+Y`) of the selected result.
+    /// 开关选中结果的原生 Quick Look 预览（`Cmd+Y`）。
     private func togglePreview() {
         if quickLook.isActive {
             quickLook.close()
@@ -485,7 +480,7 @@ final class LauncherPanelController {
         quickLook.show(url: url)
     }
 
-    /// Updates the Quick Look preview item to follow selection changes (`↑` / `↓`).
+    /// 选中项变化（`↑` / `↓`）时让 Quick Look 预览跟随。
     private func updateQuickLookPreviewForCurrentSelection() {
         guard quickLook.isActive else { return }
         guard let result = viewModel.selectedResult,
@@ -498,7 +493,7 @@ final class LauncherPanelController {
         quickLook.reloadPreviewItem(with: url)
     }
 
-    /// Toggles the quick action menu (`Cmd+K`).
+    /// 开关快捷操作菜单（`Cmd+K`）。
     private func toggleActionMenu() {
         // 预览与操作卡片互斥：展开卡片前收起 Quick Look 预览。
         // 可用操作校验由 viewModel.toggleActionSheet() 内部完成，此处不重复判断。
@@ -655,7 +650,7 @@ private final class OpenWithMenuTarget: NSObject {
 }
 
 final class LauncherPanel: NSPanel {
-    /// Invoked when the panel loses key window status.
+    /// 面板失去 key 窗口状态时调用。
     var onResignKey: (() -> Void)?
     /// Quick Look 预览会话，由 LauncherPanelController 持有并经响应链转发到这里。
     weak var quickLookPresenter: QuickLookPresenter?

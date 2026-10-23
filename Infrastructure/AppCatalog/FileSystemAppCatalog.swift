@@ -29,9 +29,7 @@ struct FileSystemAppCatalog: AppCatalog, Sendable {
         for directory in searchDirectories {
             try Task.checkCancellation()
 
-            // When a configured path points directly to an application bundle
-            // (e.g. /System/Library/CoreServices/Finder.app), record it directly
-            // rather than enumerating inside its package.
+            // 配置的路径直接指向应用包（如 /System/Library/CoreServices/Finder.app）时直接记录，不进入包内遍历。
             if directory.pathExtension.caseInsensitiveCompare("app") == .orderedSame {
                 let resolvedURL = directory.resolvingSymlinksInPath().standardizedFileURL
                 guard seenPaths.insert(resolvedURL.path).inserted else {
@@ -58,8 +56,7 @@ struct FileSystemAppCatalog: AppCatalog, Sendable {
                     continue
                 }
 
-                // Resolve symlinks before dedup so one bundle mounted at two
-                // paths appears once.
+                // 去重前先解析符号链接，同一个应用包经两个路径发现时只出现一次。
                 let resolvedURL = url.resolvingSymlinksInPath().standardizedFileURL
                 guard seenPaths.insert(resolvedURL.path).inserted else {
                     continue
@@ -92,14 +89,12 @@ struct FileSystemAppCatalog: AppCatalog, Sendable {
         )
     }
 
-    /// Reads the user-facing localized display name using bundle localization resources,
-    /// Spotlight metadata, or standard bundle info keys.
+    /// 读取面向用户的本地化显示名：依次尝试应用包的本地化资源、Spotlight 元数据与标准的 Info.plist 键。
     private static func localizedDisplayName(bundleURL: URL, bundle: Bundle?) -> String {
         let fsBaseName = bundleURL.deletingPathExtension().lastPathComponent
 
-        // 1. Read localized InfoPlist.strings matching the user's preferred languages.
-        // Third-party applications or newly unpacked bundles provide localized display
-        // names here (e.g. zh-Hans.lproj/InfoPlist.strings -> "微信").
+        // 1. 读取与用户首选语言匹配的本地化 InfoPlist.strings：第三方应用或刚解压的应用包
+        // 在这里提供本地化显示名（如 zh-Hans.lproj/InfoPlist.strings -> "微信"）。
         let preferredLanguages = Locale.preferredLanguages
         let localizations = bundle?.localizations ?? []
         let matched = Bundle.preferredLocalizations(from: localizations, forPreferences: preferredLanguages)
@@ -112,9 +107,8 @@ struct FileSystemAppCatalog: AppCatalog, Sendable {
             }
         }
 
-        // 2. Query Spotlight metadata directly: macOS indexes system applications
-        // (e.g. Notes -> "备忘录", Finder -> "访达") and applications whose display
-        // names are registered in the system LaunchServices database.
+        // 2. 直接查询 Spotlight 元数据：macOS 为系统应用（如 Notes -> "备忘录"、Finder -> "访达"）
+        // 以及显示名登记在 LaunchServices 数据库中的应用建立了索引。
         if let item = MDItemCreateWithURL(kCFAllocatorDefault, bundleURL as CFURL),
            let rawName = MDItemCopyAttribute(item, kMDItemDisplayName) as? String {
             let trimmed = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -125,7 +119,7 @@ struct FileSystemAppCatalog: AppCatalog, Sendable {
             }
         }
 
-        // 3. Fall back to standard bundle dictionary lookups or filesystem name.
+        // 3. 退回标准的 Info.plist 字典查找，最后用文件名。
         let fallback = (bundle?.localizedInfoDictionary?["CFBundleDisplayName"] as? String)
             ?? (bundle?.localizedInfoDictionary?["CFBundleName"] as? String)
             ?? (bundle?.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
@@ -135,11 +129,9 @@ struct FileSystemAppCatalog: AppCatalog, Sendable {
         return fallback.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Keeps one entry per bundle identifier and bundle file name, i.e. the same
-    /// app found in several directories: the copy with the shallower path wins,
-    /// with the path itself as the stable tie-break. Copies with different file
-    /// names (Xcode.app and Xcode-beta.app share one identifier) are separate
-    /// installs kept on purpose, so all of them stay.
+    /// 每个 Bundle Identifier 与应用包文件名的组合只保留一条，即在多个目录中发现的同一个应用：
+    /// 路径层级较浅的那份胜出，层级相同时按路径比较，结果稳定。文件名不同的副本
+    /// （Xcode.app 与 Xcode-beta.app 共用一个 Identifier）是有意分开安装的，全部保留。
     private static func deduplicateByIdentifier(_ descriptors: [AppDescriptor]) -> [AppDescriptor] {
         var bestByKey: [String: AppDescriptor] = [:]
         var unkeyed: [AppDescriptor] = []

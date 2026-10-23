@@ -192,7 +192,7 @@ final class LauncherActionMenuTests: XCTestCase {
         await viewModel.loadApps()?.value
         viewModel.query = "Demo"
 
-        // Cmd+K toggles action sheet on
+        // Cmd+K 展开操作卡片
         let cmdKEvent = try XCTUnwrap(
             NSEvent.keyEvent(
                 with: .keyDown,
@@ -211,7 +211,7 @@ final class LauncherActionMenuTests: XCTestCase {
         XCTAssertTrue(viewModel.isActionSheetVisible)
         XCTAssertEqual(viewModel.selectedActionIndex, 0)
 
-        // Down arrow moves selection in action sheet
+        // 下方向键在操作卡片中移动选择
         let downArrowEvent = try XCTUnwrap(
             NSEvent.keyEvent(
                 with: .keyDown,
@@ -230,7 +230,7 @@ final class LauncherActionMenuTests: XCTestCase {
         XCTAssertTrue(viewModel.isActionSheetVisible)
         XCTAssertEqual(viewModel.selectedActionIndex, 1)
 
-        // Escape closes action sheet, keeping panel open
+        // Esc 收起操作卡片，面板保持打开
         let escapeEvent = try XCTUnwrap(
             NSEvent.keyEvent(
                 with: .keyDown,
