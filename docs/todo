@@ -349,6 +349,20 @@
 - **涉及文件**：
   - [Application/Ports/FileOpening.swift](Application/Ports/FileOpening.swift)、[Application/UseCases/OpenFile.swift](Application/UseCases/OpenFile.swift)、[Infrastructure/Launch/WorkspaceFileOpener.swift](Infrastructure/Launch/WorkspaceFileOpener.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[UI/Panel/LauncherView.swift](UI/Panel/LauncherView.swift)、[UI/Panel/LauncherResultsList.swift](UI/Panel/LauncherResultsList.swift)、[OITests/FileSearchTests.swift](OITests/FileSearchTests.swift)
 
+## [x] 21. 网页搜索引擎可选
+
+- **需求描述**：
+  - `Cmd+Enter` 网页搜索原先固定使用必应，需要能换成常用的其他搜索引擎。
+- **需要做到**：
+  - 默认搜索引擎可选（Bing / Google / 百度 / DuckDuckGo），`Cmd+Enter` 按所选引擎搜索。
+- **实现说明**：
+  - 模型：新增 [WebSearchEngine](Domain/Models/WebSearchEngine.swift)（必应、Google、百度、DuckDuckGo，默认必应），按引擎构造搜索地址（百度的查询参数为 `wd`，其余为 `q`），查询内容按 URL 规则编码；原 `WebURLResolver.searchURL(for:)` 移除，[WebURLResolver](Features/Launcher/WebURLResolver.swift) 只负责识别网址；
+  - 设置：[AppSettings](Application/Ports/AppSettingsStoring.swift) 新增 `webSearchEngine`，[UserDefaultsAppSettingsStore](Infrastructure/Settings/UserDefaultsAppSettingsStore.swift) 以 `settings.webSearchEngine` 持久化，未知取值（旧版本或手工改动）回退必应；设置窗口「搜索」页提供「网页搜索引擎」选项（[SettingsView](UI/Settings/SettingsView.swift)），说明文字补充 `⌘↩` 的用途；
+  - 搜索：[LauncherViewModel](Features/Launcher/LauncherViewModel.swift) 的 `searchWeb()` 每次按设置中的引擎构造地址，改动设置后立即生效；
+  - 测试：四个引擎的编码地址、按设置中的引擎搜索、设置的持久化与未知取值回退。
+- **涉及文件**：
+  - [Domain/Models/WebSearchEngine.swift](Domain/Models/WebSearchEngine.swift)、[Application/Ports/AppSettingsStoring.swift](Application/Ports/AppSettingsStoring.swift)、[Infrastructure/Settings/UserDefaultsAppSettingsStore.swift](Infrastructure/Settings/UserDefaultsAppSettingsStore.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Features/Launcher/WebURLResolver.swift](Features/Launcher/WebURLResolver.swift)、[UI/Settings/SettingsView.swift](UI/Settings/SettingsView.swift)、[OITests/WebURLResolverTests.swift](OITests/WebURLResolverTests.swift)、[OITests/LauncherViewModelTests.swift](OITests/LauncherViewModelTests.swift)、[OITests/UserDefaultsAppSettingsStoreTests.swift](OITests/UserDefaultsAppSettingsStoreTests.swift)
+
 ## [ ] 系统设置项直达
 
 - **需求描述**：
@@ -381,11 +395,10 @@
 ## [ ] 快捷链接与网页搜索增强
 
 - **需求描述**：
-  - 自定义带关键词的快捷链接；可选默认搜索引擎；无结果时提供兜底操作。
+  - 自定义带关键词的快捷链接；无结果时提供兜底操作（可选默认搜索引擎已完成，见 21）。
 - **需要做到**：
   - 快捷链接由名称、关键词与 URL 模板组成，模板可用 `{query}` 占位：输入 `gh swiftui` 置顶「在 GitHub 搜索 swiftui」，`Enter` 打开；不含占位的模板作为书签直接打开；支持任意 URL scheme（如 `obsidian://`）；
   - 预置百度、Google、GitHub、B 站等常用链接，可在设置中新增、编辑、删除；
-  - [x] 默认搜索引擎可选（Bing / Google / 百度 / DuckDuckGo），`Cmd+Enter` 按所选引擎搜索；
   - 没有匹配结果时显示「用 <默认引擎> 搜索 xxx」与「问 Quick AI」两行，`Enter` 执行（未配置 Quick AI 时不显示后者）。
 
 ## [ ] App 专属全局快捷键
