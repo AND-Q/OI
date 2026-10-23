@@ -220,6 +220,28 @@ final class FileSearchTests: XCTestCase {
         XCTAssertFalse(isVisible("/Users/demo/Library/Mobile DocumentsBackup/plan.md"))
     }
 
+    /// 文件结果的副标题：所在目录以 `~` 缩写；iCloud 云盘的目录按访达的叫法显示，App 文件夹下的 Documents 一层省略，
+    /// 取不到 App 文件夹的本地化名称（容器不存在）时显示容器文件夹名。
+    func testFileSubtitleShowsICloudDriveLikeFinder() {
+        let iCloud = NSHomeDirectory() + "/Library/Mobile Documents"
+        func subtitle(_ path: String) -> String? {
+            let url = URL(fileURLWithPath: path)
+            return LauncherResultsList.Coordinator.subtitle(
+                for: .file(FileDescriptor(name: url.lastPathComponent, url: url, isDirectory: false))
+            )
+        }
+
+        XCTAssertEqual(subtitle(NSHomeDirectory() + "/Documents/plan.md"), "~/Documents")
+        XCTAssertEqual(subtitle(NSHomeDirectory() + "/Library/Caches/cache.db"), "~/Library/Caches")
+        XCTAssertEqual(subtitle(iCloud + "/com~apple~CloudDocs/plan.md"), "iCloud 云盘")
+        XCTAssertEqual(subtitle(iCloud + "/com~apple~CloudDocs/项目/2026/plan.md"), "iCloud 云盘/项目/2026")
+        XCTAssertEqual(
+            subtitle(iCloud + "/iCloud~com~example~Missing/Documents/Notes/plan.md"),
+            "iCloud 云盘/iCloud~com~example~Missing/Notes"
+        )
+        XCTAssertNil(subtitle("/"))
+    }
+
     // MARK: - ViewModel integration
 
     func testViewModelAppendsFileResultsAfterApplicationsWithSectionHeader() async {

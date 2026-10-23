@@ -199,7 +199,7 @@ struct LauncherResultsList: NSViewRepresentable {
             case .file(let file):
                 // 根目录（路径直达输入 `/` 时）没有上级目录，否则会显示为 `/..`。
                 guard file.url.path != "/" else { return nil }
-                return (file.url.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath
+                return displayPath(ofDirectory: file.url.deletingLastPathComponent().path)
             case .quickQuery(let quickQuery):
                 return quickQuery.subtitle
             case .webURL:
@@ -207,6 +207,30 @@ struct LauncherResultsList: NSViewRepresentable {
             case .application:
                 return nil
             }
+        }
+
+        /// 目录的展示路径：iCloud 云盘的本地目录（`~/Library/Mobile Documents` 下）按访达的叫法显示，
+        /// 云盘根目录为「iCloud 云盘」，Pages 等 App 的文件夹为「iCloud 云盘/Pages」（访达中不显示其下的 Documents 一层）；
+        /// 其余目录以 `~` 缩写家目录。
+        static func displayPath(ofDirectory path: String) -> String {
+            let mobileDocuments = NSHomeDirectory() + "/Library/Mobile Documents/"
+            var components = path.hasPrefix(mobileDocuments)
+                ? path.dropFirst(mobileDocuments.count).split(separator: "/").map(String.init)
+                : []
+            guard !components.isEmpty else {
+                return (path as NSString).abbreviatingWithTildeInPath
+            }
+            let container = components.removeFirst()
+            var displayed = ["iCloud 云盘"]
+            if container != "com~apple~CloudDocs" {
+                // App 文件夹取系统的本地化名称，取不到时显示容器文件夹名。
+                let containerURL = URL(fileURLWithPath: mobileDocuments + container, isDirectory: true)
+                displayed.append((try? containerURL.resourceValues(forKeys: [.localizedNameKey]))?.localizedName ?? container)
+                if components.first == "Documents" {
+                    components.removeFirst()
+                }
+            }
+            return (displayed + components).joined(separator: "/")
         }
 
         static func icon(
