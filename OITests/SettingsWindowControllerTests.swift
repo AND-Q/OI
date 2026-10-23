@@ -70,15 +70,3 @@ final class SettingsWindowControllerTests: XCTestCase {
         NSApplication.shared.windows.first { $0.contentViewController is NSHostingController<SettingsView> }
     }
 }
-
-@MainActor
-private final class StubLoginItemController: LoginItemControlling {
-    var status: LoginItemStatus
-
-    init(initialStatus: LoginItemStatus = .notRegistered) {
-        status = initialStatus
-    }
-
-    func register() throws {}
-    func unregister() throws {}
-}

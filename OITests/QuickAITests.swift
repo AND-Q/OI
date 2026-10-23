@@ -721,15 +721,6 @@ final class QuickAITests: XCTestCase {
             settingsStore: settingsStore
         )
     }
-
-    private func waitUntil(_ condition: () -> Bool) async throws {
-        var attempts = 0
-        while !condition(), attempts < 1000 {
-            attempts += 1
-            try await Task.sleep(for: .milliseconds(1))
-        }
-        XCTAssertTrue(condition())
-    }
 }
 
 /// Records the configurations the answerer was asked with.
@@ -788,12 +779,4 @@ private final class HangingAIAnswerer: AIAnswering, @unchecked Sendable {
             continuation.yield("床前")
         }
     }
-}
-
-@MainActor
-private final class StubLoginItemController: LoginItemControlling {
-    var status: LoginItemStatus = .notRegistered
-
-    func register() throws {}
-    func unregister() throws {}
 }

@@ -562,7 +562,7 @@ final class FileSearchTests: XCTestCase {
     // MARK: - Path
 
     /// 输入存在的路径时置顶显示该条目，不做文件搜索；首尾空白去掉后连同 `~` 原样按路径查找。
-    func testViewModelPinsExistingPathAndSkipsFileSearch() async {
+    func testViewModelPinsExistingPathAndSkipsFileSearch() async throws {
         let folder = FileDescriptor(
             name: "Caches",
             url: URL(fileURLWithPath: "/Users/demo/Library/Caches"),
@@ -576,7 +576,7 @@ final class FileSearchTests: XCTestCase {
 
         viewModel.query = " ~/Library/Caches "
         await viewModel.waitForFileSearch()
-        await waitUntil { viewModel.pathResult != nil }
+        try await waitUntil { viewModel.pathResult != nil }
 
         XCTAssertEqual(opener.lookedUpPaths.last, "~/Library/Caches")
         XCTAssertEqual(viewModel.results, [.file(folder)])
@@ -586,7 +586,7 @@ final class FileSearchTests: XCTestCase {
     }
 
     /// 路径不存在时不显示路径行，也不列出名称无关的文件；不是路径的输入不按路径查找，照常搜索文件。
-    func testViewModelHidesMissingPathAndSearchesFilesForOtherQueries() async {
+    func testViewModelHidesMissingPathAndSearchesFilesForOtherQueries() async throws {
         let opener = StubFileOpener()
         let searcher = StubFileSearcher(results: [file("notes.txt")])
         let viewModel = makeViewModel(apps: [], searcher: searcher, opener: opener)
@@ -594,7 +594,7 @@ final class FileSearchTests: XCTestCase {
 
         viewModel.query = "/Users/demo/missing"
         await viewModel.waitForFileSearch()
-        await waitUntil { opener.lookedUpPaths.count == 1 }
+        try await waitUntil { opener.lookedUpPaths.count == 1 }
 
         XCTAssertNil(viewModel.pathResult)
         XCTAssertTrue(viewModel.results.isEmpty)
@@ -610,7 +610,7 @@ final class FileSearchTests: XCTestCase {
     }
 
     /// 后台查看比新的输入晚到时丢弃：先输入的慢路径结果到达后，直达行仍是最新输入的路径。
-    func testViewModelDropsSupersededPathLookup() async {
+    func testViewModelDropsSupersededPathLookup() async throws {
         let slow = FileDescriptor(name: "NAS", url: URL(fileURLWithPath: "/Volumes/NAS"), isDirectory: true)
         let fast = FileDescriptor(name: "tmp", url: URL(fileURLWithPath: "/tmp"), isDirectory: true)
         let opener = StubFileOpener()
@@ -621,7 +621,7 @@ final class FileSearchTests: XCTestCase {
 
         viewModel.query = "/Volumes/NAS"
         viewModel.query = "/tmp"
-        await waitUntil { viewModel.pathResult == fast }
+        try await waitUntil { viewModel.pathResult == fast }
         try? await Task.sleep(for: .milliseconds(200))
 
         XCTAssertEqual(Set(opener.lookedUpPaths), ["/Volumes/NAS", "/tmp"])
@@ -680,14 +680,6 @@ final class FileSearchTests: XCTestCase {
             settingsStore: settingsStore,
             fileSearchDebounce: .zero
         )
-    }
-
-    private func waitUntil(timeout: Duration = .seconds(2), _ condition: () -> Bool) async {
-        let clock = ContinuousClock()
-        let deadline = clock.now + timeout
-        while !condition(), clock.now < deadline {
-            try? await Task.sleep(for: .milliseconds(5))
-        }
     }
 }
 

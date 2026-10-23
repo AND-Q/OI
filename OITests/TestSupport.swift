@@ -60,6 +60,16 @@ extension XCTestCase {
         try data.write(to: contentsURL.appendingPathComponent("Info.plist"))
         return bundleURL
     }
+
+    /// 轮询等待异步结果到达，最多等 `timeout`；超时仍不满足时记为失败。
+    func waitUntil(timeout: Duration = .seconds(2), _ condition: () -> Bool) async throws {
+        let clock = ContinuousClock()
+        let deadline = clock.now + timeout
+        while !condition(), clock.now < deadline {
+            try await Task.sleep(for: .milliseconds(1))
+        }
+        XCTAssertTrue(condition())
+    }
 }
 
 struct StubAppCatalog: AppCatalog {
@@ -178,3 +188,47 @@ final class ThrowingApplicationLauncher: ApplicationLaunching {
         throw LaunchError.failed
     }
 }
+
+/// 登录项控制的桩：记录注册与移除次数，可指定初始状态、注册后的状态与失败。
+@MainActor
+final class StubLoginItemController: LoginItemControlling {
+    enum StubError: LocalizedError {
+        case registrationFailed
+        case removalFailed
+
+        var errorDescription: String? {
+            switch self {
+            case .registrationFailed: "无法注册登录项"
+            case .removalFailed: "无法移除登录项"
+            }
+        }
+    }
+
+    var status: LoginItemStatus
+    var registerError: Error?
+    var unregisterError: Error?
+    private let postRegisterStatus: LoginItemStatus
+    private(set) var registerCalls = 0
+    private(set) var unregisterCalls = 0
+
+    init(
+        initialStatus: LoginItemStatus = .notRegistered,
+        postRegisterStatus: LoginItemStatus = .enabled
+    ) {
+        self.status = initialStatus
+        self.postRegisterStatus = postRegisterStatus
+    }
+
+    func register() throws {
+        registerCalls += 1
+        if let registerError { throw registerError }
+        status = postRegisterStatus
+    }
+
+    func unregister() throws {
+        unregisterCalls += 1
+        if let unregisterError { throw unregisterError }
+        status = .notRegistered
+    }
+}
+

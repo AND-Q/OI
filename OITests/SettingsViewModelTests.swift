@@ -308,7 +308,8 @@ final class SettingsViewModelTests: XCTestCase {
         let viewModel = makeViewModel()
 
         viewModel.reportShortcutRegistrationFailure(
-            StubShortcutError(message: "该快捷键已被其他应用占用，请换一个组合")
+            StubShortcutError(message: "该快捷键已被其他应用占用，请换一个组合"),
+            for: .launcher
         )
 
         XCTAssertEqual(
@@ -429,46 +430,4 @@ private struct StubShortcutError: LocalizedError {
     let message: String
 
     var errorDescription: String? { message }
-}
-
-@MainActor
-private final class StubLoginItemController: LoginItemControlling {
-    enum StubError: LocalizedError {
-        case registrationFailed
-        case removalFailed
-
-        var errorDescription: String? {
-            switch self {
-            case .registrationFailed: "无法注册登录项"
-            case .removalFailed: "无法移除登录项"
-            }
-        }
-    }
-
-    var status: LoginItemStatus
-    var registerError: Error?
-    var unregisterError: Error?
-    private let postRegisterStatus: LoginItemStatus
-    private(set) var registerCalls = 0
-    private(set) var unregisterCalls = 0
-
-    init(
-        initialStatus: LoginItemStatus = .notRegistered,
-        postRegisterStatus: LoginItemStatus = .enabled
-    ) {
-        self.status = initialStatus
-        self.postRegisterStatus = postRegisterStatus
-    }
-
-    func register() throws {
-        registerCalls += 1
-        if let registerError { throw registerError }
-        status = postRegisterStatus
-    }
-
-    func unregister() throws {
-        unregisterCalls += 1
-        if let unregisterError { throw unregisterError }
-        status = .notRegistered
-    }
 }

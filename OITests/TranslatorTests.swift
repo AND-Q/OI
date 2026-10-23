@@ -1065,7 +1065,7 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(settingsStore.load().screenTranslatorShortcut, shortcut)
         XCTAssertNil(viewModel.screenTranslatorShortcutNotice)
 
-        viewModel.reportScreenTranslatorShortcutRegistrationFailure(StubError(message: "该快捷键已被其他应用占用"))
+        viewModel.reportShortcutRegistrationFailure(StubError(message: "该快捷键已被其他应用占用"), for: .screenTranslator)
 
         XCTAssertEqual(viewModel.screenTranslatorShortcutNotice, .failure("该快捷键已被其他应用占用"))
         XCTAssertNil(viewModel.translatorShortcutNotice)
@@ -1114,7 +1114,7 @@ final class TranslatorTests: XCTestCase {
     func testReportTranslatorShortcutRegistrationFailureSetsNotice() {
         let viewModel = makeSettingsViewModel()
 
-        viewModel.reportTranslatorShortcutRegistrationFailure(StubError(message: "该快捷键已被其他应用占用"))
+        viewModel.reportShortcutRegistrationFailure(StubError(message: "该快捷键已被其他应用占用"), for: .translator)
 
         XCTAssertEqual(viewModel.translatorShortcutNotice, .failure("该快捷键已被其他应用占用"))
         XCTAssertNil(viewModel.launcherShortcutNotice)
@@ -1257,15 +1257,6 @@ final class TranslatorTests: XCTestCase {
         height: CGFloat = 20
     ) -> VisionScreenTextRecognizer.Line {
         VisionScreenTextRecognizer.Line(text: text, frame: CGRect(x: x, y: y, width: width, height: height))
-    }
-
-    private func waitUntil(_ condition: () -> Bool) async throws {
-        var attempts = 0
-        while !condition(), attempts < 1000 {
-            attempts += 1
-            try await Task.sleep(for: .milliseconds(1))
-        }
-        XCTAssertTrue(condition())
     }
 }
 
@@ -1516,12 +1507,4 @@ private struct StubError: LocalizedError {
 @MainActor
 private final class StubIconProvider: IconProviding {
     func icon(for url: URL) -> NSImage { NSImage() }
-}
-
-@MainActor
-private final class StubLoginItemController: LoginItemControlling {
-    var status: LoginItemStatus = .notRegistered
-
-    func register() throws {}
-    func unregister() throws {}
 }

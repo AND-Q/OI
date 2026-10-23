@@ -104,8 +104,7 @@ final class SettingsViewModel: ObservableObject {
                 try loginItemController.unregister()
             }
         } catch {
-            let reason = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            launchAtLoginNotice = .failure(reason)
+            launchAtLoginNotice = .failure(Self.reason(of: error))
             isLaunchAtLoginEnabled = loginItemController.status != .notRegistered
             return
         }
@@ -152,21 +151,8 @@ final class SettingsViewModel: ObservableObject {
 
     /// 由 App 层在启动期注册失败时同步状态（如组合被其他应用占用），
     /// 让设置面板能看到失败原因，而不是平静地展示一个实际无效的快捷键。
-    func reportShortcutRegistrationFailure(_ error: Error) {
-        let reason = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-        launcherShortcutNotice = .failure(reason)
-    }
-
-    /// 翻译快捷键启动期注册失败时同步状态，约定同上。
-    func reportTranslatorShortcutRegistrationFailure(_ error: Error) {
-        let reason = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-        translatorShortcutNotice = .failure(reason)
-    }
-
-    /// 截图翻译快捷键启动期注册失败时同步状态，约定同上。
-    func reportScreenTranslatorShortcutRegistrationFailure(_ error: Error) {
-        let reason = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-        screenTranslatorShortcutNotice = .failure(reason)
+    func reportShortcutRegistrationFailure(_ error: Error, for target: ShortcutTarget) {
+        setNotice(.failure(Self.reason(of: error)), for: target)
     }
 
     func refreshPermissionStatus() {
@@ -193,10 +179,7 @@ final class SettingsViewModel: ObservableObject {
 
     /// 回车、离开输入框或关闭设置窗口时保存；与已保存的值相同则不写入。
     func commitQuickAIAPIKey() {
-        let trimmed = quickAIAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed != savedQuickAIAPIKey else { return }
-        quickAIKeyStore.save(trimmed)
-        savedQuickAIAPIKey = trimmed
+        commit(quickAIAPIKey, savedAs: &savedQuickAIAPIKey, to: quickAIKeyStore)
     }
 
     /// 设置窗口展示时读取已保存的 API Key。
@@ -211,10 +194,7 @@ final class SettingsViewModel: ObservableObject {
     }
 
     func commitTranslationAPIKey() {
-        let trimmed = translationAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed != savedTranslationAPIKey else { return }
-        translatorKeyStore.save(trimmed)
-        savedTranslationAPIKey = trimmed
+        commit(translationAPIKey, savedAs: &savedTranslationAPIKey, to: translatorKeyStore)
     }
 
     func reloadTranslationAPIKey() {
@@ -233,8 +213,8 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
-    /// 三个全局快捷键：各自有设置值、提示与激活闭包，组合互不相同。
-    private enum ShortcutTarget: CaseIterable {
+    /// 三个全局快捷键：各自有设置值、提示与激活闭包，组合互不相同。App 层启动时按此逐个注册。
+    enum ShortcutTarget: CaseIterable {
         case launcher
         case translator
         case screenTranslator
@@ -280,7 +260,7 @@ final class SettingsViewModel: ObservableObject {
         } catch {
             // 注册服务在尝试注册前会先注销旧热键，任何失败路径此刻都处于零热键状态，
             // 全靠回滚恢复；回滚也失败（如原组合在间隙被抢占）时必须告知严重后果。
-            let reason = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            let reason = Self.reason(of: error)
             do {
                 try activator(settings[keyPath: target.setting])
                 setNotice(.failure(reason), for: target)
@@ -295,7 +275,8 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
-    private func activator(for target: ShortcutTarget) -> ((GlobalShortcut) throws -> Void)? {
+    /// 快捷键的激活闭包；未注入（测试自建的设置模型、未提供划词翻译依赖）时为 nil。
+    func activator(for target: ShortcutTarget) -> ((GlobalShortcut) throws -> Void)? {
         switch target {
         case .launcher: launcherShortcutActivator
         case .translator: translatorShortcutActivator
@@ -317,5 +298,18 @@ final class SettingsViewModel: ObservableObject {
         case .translator: translatorShortcutNotice = notice
         case .screenTranslator: screenTranslatorShortcutNotice = notice
         }
+    }
+
+    /// 与已保存的值相同则不写入，避免逐次访问钥匙串。
+    private func commit(_ apiKey: String, savedAs savedKey: inout String, to store: any APIKeyStoring) {
+        let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed != savedKey else { return }
+        store.save(trimmed)
+        savedKey = trimmed
+    }
+
+    /// 展示给用户的失败原因：优先取本地化描述。
+    private static func reason(of error: Error) -> String {
+        (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
     }
 }

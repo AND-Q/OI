@@ -135,11 +135,3 @@ private struct StubGlobalShortcutError: LocalizedError {
 private final class StubIconProvider: IconProviding {
     func icon(for url: URL) -> NSImage { NSImage() }
 }
-
-@MainActor
-private final class StubLoginItemController: LoginItemControlling {
-    var status: LoginItemStatus = .notRegistered
-
-    func register() throws {}
-    func unregister() throws {}
-}

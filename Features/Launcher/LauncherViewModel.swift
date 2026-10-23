@@ -126,24 +126,25 @@ final class LauncherViewModel: ObservableObject {
 
     /// Web URLs and typed paths first (直达), then quick queries, applications and files.
     var results: [SearchResult] {
-        (webURLResult.map { [.webURL($0)] } ?? [])
-            + (pathResult.map { [.file($0)] } ?? [])
-            + (quickQueryResult.map { [.quickQuery($0)] } ?? [])
-            + filteredApps.map(SearchResult.application)
-            + fileResults.map(SearchResult.file)
+        resultsAboveFiles + fileResults.map(SearchResult.file)
     }
 
     /// Display rows: the file section gets a header, the application section does not.
     var rows: [LauncherRow] {
-        var rows = webURLResult.map { [LauncherRow.result(.webURL($0))] } ?? []
-        rows += pathResult.map { [LauncherRow.result(.file($0))] } ?? []
-        rows += quickQueryResult.map { [LauncherRow.result(.quickQuery($0))] } ?? []
-        rows += filteredApps.map { LauncherRow.result(.application($0)) }
+        var rows = resultsAboveFiles.map(LauncherRow.result)
         if !fileResults.isEmpty {
             rows.append(.sectionHeader(Self.fileSectionTitle))
             rows += fileResults.map { .result(.file($0)) }
         }
         return rows
+    }
+
+    /// 文件分组之前的结果：直达、快速查询与应用。`results` 与 `rows` 共用这一排列顺序。
+    private var resultsAboveFiles: [SearchResult] {
+        (webURLResult.map { [.webURL($0)] } ?? [])
+            + (pathResult.map { [.file($0)] } ?? [])
+            + (quickQueryResult.map { [.quickQuery($0)] } ?? [])
+            + filteredApps.map(SearchResult.application)
     }
 
     var selectedResult: SearchResult? {
@@ -159,11 +160,7 @@ final class LauncherViewModel: ObservableObject {
 
     /// Index of the selected result within `rows` (accounts for the file section header).
     var selectedRowIndex: Int {
-        let frontCount = (webURLResult == nil ? 0 : 1) + (pathResult == nil ? 0 : 1)
-            + (quickQueryResult == nil ? 0 : 1)
-        return selectedIndex < frontCount + filteredApps.count
-            ? selectedIndex
-            : selectedIndex + 1
+        selectedIndex < results.count - fileResults.count ? selectedIndex : selectedIndex + 1
     }
 
     var isLoading: Bool {
