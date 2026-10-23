@@ -7,11 +7,11 @@ enum GlobalShortcutError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .eventHandlerInstallationFailed(let status):
-            return "无法安装全局快捷键事件处理器（\(status)）"
+            "无法安装全局快捷键事件处理器（\(status)）"
         case .registrationFailed(let status) where status == eventHotKeyExistsErr:
-            return "该快捷键已被其他应用占用，请换一个组合"
+            "该快捷键已被其他应用占用，请换一个组合"
         case .registrationFailed(let status):
-            return "无法注册全局快捷键（\(status)）"
+            "无法注册全局快捷键（\(status)）"
         }
     }
 }
@@ -77,6 +77,7 @@ final class CarbonGlobalShortcutService: GlobalShortcutHandling {
             throw GlobalShortcutError.eventHandlerInstallationFailed(installStatus)
         }
 
+        // 签名为四字符码 'APLS'，与热键 ID 一起标识本应用注册的热键。
         let hotKeyID = EventHotKeyID(signature: 0x41504C53, id: hotKeyIdentifier)
         let registerStatus = RegisterEventHotKey(
             keyCode,

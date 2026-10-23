@@ -4,16 +4,16 @@ import Foundation
 extension QuickQueryResult {
     var subtitle: String {
         switch self {
-        case .calculation(let expression, _): return expression + " · 按回车复制"
+        case .calculation(let expression, _): expression + " · 按回车复制"
         case .localIPAddress(let address):
-            return address == nil ? "本机 IP · 当前不可用" : "本机 IP · 按回车复制"
+            address == nil ? "本机 IP · 当前不可用" : "本机 IP · 按回车复制"
         }
     }
 
     var symbolName: String {
         switch self {
-        case .calculation: return "function"
-        case .localIPAddress(let address): return address == nil ? "network.slash" : "network"
+        case .calculation: "function"
+        case .localIPAddress(let address): address == nil ? "network.slash" : "network"
         }
     }
 }
@@ -22,9 +22,9 @@ extension SearchResult {
     /// 没有文件地址的结果（快速查询与网址）使用的 SF Symbols 图标。
     var symbolName: String? {
         switch self {
-        case .quickQuery(let result): return result.symbolName
-        case .webURL: return "globe"
-        case .application, .file: return nil
+        case .quickQuery(let result): result.symbolName
+        case .webURL: "globe"
+        case .application, .file: nil
         }
     }
 }

@@ -15,7 +15,7 @@ enum WebURLResolver {
         if let url = URL(string: trimmedQuery),
            let scheme = url.scheme?.lowercased(),
            ["http", "https", "ftp"].contains(scheme),
-           let host = url.host, !host.isEmpty {
+           let host = url.host(), !host.isEmpty {
             return url
         }
         return recognizeSchemeless(trimmedQuery)
@@ -28,7 +28,7 @@ enum WebURLResolver {
         // 含 @ 的输入（如邮箱）不属于裸域名。
         guard !trimmedQuery.contains("@"),
               let url = URL(string: "https://" + trimmedQuery),
-              let host = url.host?.lowercased() else { return nil }
+              let host = url.host()?.lowercased() else { return nil }
 
         if host == "localhost" || host == "127.0.0.1" {
             return URL(string: "http://" + trimmedQuery)

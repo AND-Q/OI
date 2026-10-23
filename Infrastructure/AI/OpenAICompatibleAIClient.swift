@@ -140,11 +140,11 @@ enum AIClientError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .httpStatus(let status, let message?):
-            return "服务返回 \(status)：\(message)"
+            "服务返回 \(status)：\(message)"
         case .httpStatus(let status, nil):
-            return "服务返回 \(status)"
+            "服务返回 \(status)"
         case .server(let message):
-            return message
+            message
         }
     }
 }

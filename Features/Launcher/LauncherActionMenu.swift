@@ -10,31 +10,31 @@ enum ResultMenuAction: CaseIterable, Hashable, Sendable {
 
     var title: String {
         switch self {
-        case .revealInFinder: return "在 Finder 中显示"
-        case .copyPath: return "复制路径"
-        case .copyBundleID: return "复制 Bundle ID"
-        case .openInTerminal: return "在终端中打开"
-        case .openWith: return "用其他 App 打开…"
+        case .revealInFinder: "在 Finder 中显示"
+        case .copyPath: "复制路径"
+        case .copyBundleID: "复制 Bundle ID"
+        case .openInTerminal: "在终端中打开"
+        case .openWith: "用其他 App 打开…"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .revealInFinder: return "folder"
-        case .copyPath: return "doc.on.doc"
-        case .copyBundleID: return "number"
-        case .openInTerminal: return "terminal"
-        case .openWith: return "arrow.up.forward.app"
+        case .revealInFinder: "folder"
+        case .copyPath: "doc.on.doc"
+        case .copyBundleID: "number"
+        case .openInTerminal: "terminal"
+        case .openWith: "arrow.up.forward.app"
         }
     }
 
     var shortcutKeys: [String] {
         switch self {
-        case .revealInFinder: return ["⌘", "F"]
-        case .copyPath: return ["⌥", "⌘", "C"]
-        case .copyBundleID: return ["⌘", "B"]
-        case .openInTerminal: return ["⌘", "T"]
-        case .openWith: return []
+        case .revealInFinder: ["⌘", "F"]
+        case .copyPath: ["⌥", "⌘", "C"]
+        case .copyBundleID: ["⌘", "B"]
+        case .openInTerminal: ["⌘", "T"]
+        case .openWith: []
         }
     }
 }

@@ -7,22 +7,22 @@ enum QuickQueryResult: Hashable, Sendable {
 
     var id: String {
         switch self {
-        case .calculation(let expression, _): return "calculation:" + expression
-        case .localIPAddress: return "local-ip-address"
+        case .calculation(let expression, _): "calculation:" + expression
+        case .localIPAddress: "local-ip-address"
         }
     }
 
     var value: String {
         switch self {
-        case .calculation(_, let value): return value
-        case .localIPAddress(let address): return address ?? "未获取到局域网 IPv4 地址"
+        case .calculation(_, let value): value
+        case .localIPAddress(let address): address ?? "未获取到局域网 IPv4 地址"
         }
     }
 
     var copyValue: String? {
         switch self {
-        case .calculation(_, let value): return value
-        case .localIPAddress(let address): return address
+        case .calculation(_, let value): value
+        case .localIPAddress(let address): address
         }
     }
 }

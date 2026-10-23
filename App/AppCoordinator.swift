@@ -146,7 +146,10 @@ final class AppCoordinator {
                 try activator(settings[keyPath: target.setting])
             } catch {
                 logger.error(
-                    "Shortcut registration failed (\(String(describing: target), privacy: .public)): \(error.localizedDescription, privacy: .public)"
+                    """
+                    Shortcut registration failed (\(String(describing: target), privacy: .public)): \
+                    \(error.localizedDescription, privacy: .public)
+                    """
                 )
                 settingsViewModel.reportShortcutRegistrationFailure(error, for: target)
             }

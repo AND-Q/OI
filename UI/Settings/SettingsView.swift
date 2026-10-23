@@ -170,7 +170,14 @@ struct SettingsView: View {
                     if !isFocused { viewModel.commitQuickAIAPIKey() }
                 }
         } footer: {
-            Text("在启动器中按 Tab 进入 Quick AI，输入问题后按回车提问。兼容 OpenAI Chat Completions 接口，也可填写 Ollama 等本地服务（如 http://localhost:11434/v1）。提问内容会发送到所填地址，API Key 保存在钥匙串中。思考强度对应接口的 reasoning_effort 参数，常见取值为 low、medium、high，各服务支持的取值不同；留空则不发送，不支持该参数的服务可能报错。")
+            Text(
+                """
+                在启动器中按 Tab 进入 Quick AI，输入问题后按回车提问。兼容 OpenAI Chat Completions 接口，\
+                也可填写 Ollama 等本地服务（如 http://localhost:11434/v1）。提问内容会发送到所填地址，API Key 保存在钥匙串中。\
+                思考强度对应接口的 reasoning_effort 参数，常见取值为 low、medium、high，各服务支持的取值不同；\
+                留空则不发送，不支持该参数的服务可能报错。
+                """
+            )
         }
     }
 

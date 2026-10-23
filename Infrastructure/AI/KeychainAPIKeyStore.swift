@@ -103,7 +103,7 @@ final class KeychainAPIKeyStore: APIKeyStoring {
 
     /// 先原地更新、不存在再新增：不经过"先删后写"，写入失败也不会丢掉原有密钥。nil 写入占位符（避免 0 字节 Data 被 SecItemUpdate 忽略）。
     private func write(_ key: String?) -> Bool {
-        let text = key?.isEmpty == false ? key! : Self.emptyPlaceholder
+        let text = if let key, !key.isEmpty { key } else { Self.emptyPlaceholder }
         let data = Data(text.utf8)
         let update = [kSecValueData as String: data]
         var status = SecItemUpdate(baseQuery(for: account) as CFDictionary, update as CFDictionary)

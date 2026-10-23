@@ -280,13 +280,13 @@ final class LauncherViewModel: ObservableObject {
     func open(_ result: SearchResult) -> Task<Void, Never>? {
         switch result {
         case .application(let application):
-            return launch(application)
+            launch(application)
         case .file(let file):
-            return open(file)
+            open(file)
         case .webURL(let url):
-            return openExternalURL(url)
+            openExternalURL(url)
         case .quickQuery:
-            return nil
+            nil
         }
     }
 

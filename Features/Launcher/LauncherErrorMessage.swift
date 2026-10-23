@@ -5,30 +5,30 @@ enum LauncherErrorMessage {
     static func message(for error: Error) -> String {
         switch error {
         case let applicationError as ApplicationError:
-            return message(for: applicationError)
+            message(for: applicationError)
         default:
-            return "操作未能完成，请重试。"
+            "操作未能完成，请重试。"
         }
     }
 
     private static func message(for applicationError: ApplicationError) -> String {
         switch applicationError {
         case .discoveryFailed(let reason):
-            return "无法加载应用列表：\(reason)"
+            "无法加载应用列表：\(reason)"
         case .launchFailed(let applicationName, let reason):
-            return "无法启动 \(applicationName)：\(reason)"
+            "无法启动 \(applicationName)：\(reason)"
         case .fileSearchFailed(let reason):
-            return "无法搜索文件：\(reason)"
+            "无法搜索文件：\(reason)"
         case .fileOpenFailed(let fileName, let reason):
-            return "无法打开 \(fileName)：\(reason)"
+            "无法打开 \(fileName)：\(reason)"
         case .urlOpenFailed(let reason):
-            return "无法打开链接：\(reason)"
+            "无法打开链接：\(reason)"
         case .aiNotConfigured:
-            return "请先在「设置… → Quick AI」中填写接口地址与模型。"
+            "请先在「设置… → Quick AI」中填写接口地址与模型。"
         case .aiRequestFailed(let reason):
-            return "回答失败：\(reason)"
+            "回答失败：\(reason)"
         case .updateCheckFailed(let reason):
-            return "检查更新失败：\(reason)"
+            "检查更新失败：\(reason)"
         }
     }
 

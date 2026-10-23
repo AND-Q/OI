@@ -63,7 +63,10 @@ struct DoubleClickWordSelector: WordSelecting {
         }
         guard Self.canDoubleClick(bundleIdentifier: bundleIdentifier, roles: target.roles) else {
             Self.logger.debug(
-                "Double click skipped in \(bundleIdentifier ?? "unknown", privacy: .public): \(target.roles.joined(separator: " < "), privacy: .public)"
+                """
+                Double click skipped in \(bundleIdentifier ?? "unknown", privacy: .public): \
+                \(target.roles.joined(separator: " < "), privacy: .public)
+                """
             )
             return nil
         }
@@ -84,7 +87,10 @@ struct DoubleClickWordSelector: WordSelecting {
         }
         if word != nil {
             Self.logger.debug(
-                "Captured word via double click in \(bundleIdentifier ?? "unknown", privacy: .public)\(keepsSelection ? ", selection kept as marker" : "", privacy: .public)"
+                """
+                Captured word via double click in \(bundleIdentifier ?? "unknown", privacy: .public)\
+                \(keepsSelection ? ", selection kept as marker" : "", privacy: .public)
+                """
             )
         } else {
             Self.logger.debug("No word selected after double click in \(bundleIdentifier ?? "unknown", privacy: .public)")

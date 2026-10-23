@@ -154,7 +154,10 @@ struct AccessibilityTextCapturer: TextCapturing {
         AXUIElementCopyParameterizedAttributeNames(hit, &parameterizedNames)
         let supported = (parameterizedNames as? [String])?.joined(separator: ", ") ?? "none"
         logger.debug(
-            "No word under force click (\(reason, privacy: .public)) in \(role, privacy: .public) of \(applicationName, privacy: .public); parameterized attributes: \(supported, privacy: .public)"
+            """
+            No word under force click (\(reason, privacy: .public)) in \(role, privacy: .public) \
+            of \(applicationName, privacy: .public); parameterized attributes: \(supported, privacy: .public)
+            """
         )
         return lookup
     }
@@ -288,14 +291,20 @@ struct AccessibilityTextCapturer: TextCapturing {
         }
         guard bounds.insetBy(dx: -hitTolerance, dy: -hitTolerance).contains(point) else {
             logger.debug(
-                "Rejected word via \(method, privacy: .public): bounds \(Self.describe(bounds), privacy: .public) miss point \(Self.describe(point), privacy: .public)"
+                """
+                Rejected word via \(method, privacy: .public): bounds \(Self.describe(bounds), privacy: .public) \
+                miss point \(Self.describe(point), privacy: .public)
+                """
             )
             return .notOnText
         }
         guard let cleaned = CapturedText.cleaned(word),
               cleaned.unicodeScalars.contains(where: CharacterSet.alphanumerics.contains) else { return .notOnText }
         logger.debug(
-            "Captured word via \(method, privacy: .public): bounds \(Self.describe(bounds), privacy: .public), point \(Self.describe(point), privacy: .public)"
+            """
+            Captured word via \(method, privacy: .public): bounds \(Self.describe(bounds), privacy: .public), \
+            point \(Self.describe(point), privacy: .public)
+            """
         )
         return .found(CapturedText(text: cleaned, source: .word, screenRect: bounds))
     }

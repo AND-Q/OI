@@ -131,7 +131,10 @@ final class GlobalForceTouchMonitor: ForceTouchMonitoring {
             // 取当前光标位置（全局显示坐标）：手势事件自带的位置字段含义没有文档保证，用力点按时光标不会移动。
             let location = CGEvent(source: nil)?.location ?? event.location
             logger.debug(
-                "Force click at (\(Double(location.x), privacy: .public), \(Double(location.y), privacy: .public)), stage \(stage, privacy: .public), pressure \(pressure, privacy: .public)"
+                """
+                Force click at (\(Double(location.x), privacy: .public), \(Double(location.y), privacy: .public)), \
+                stage \(stage, privacy: .public), pressure \(pressure, privacy: .public)
+                """
             )
             handler?(location)
         }
@@ -142,7 +145,11 @@ final class GlobalForceTouchMonitor: ForceTouchMonitoring {
         pressStatistics = PressStatistics()
         guard statistics.eventCount > 0 else { return }
         logger.debug(
-            "Press ended: \(statistics.eventCount, privacy: .public) pressure events, max stage \(statistics.maximumStage, privacy: .public), max pressure \(statistics.maximumPressure, privacy: .public), max stage transition \(statistics.maximumStageTransition, privacy: .public)"
+            """
+            Press ended: \(statistics.eventCount, privacy: .public) pressure events, \
+            max stage \(statistics.maximumStage, privacy: .public), max pressure \(statistics.maximumPressure, privacy: .public), \
+            max stage transition \(statistics.maximumStageTransition, privacy: .public)
+            """
         )
     }
 }
