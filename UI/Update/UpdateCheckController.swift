@@ -68,7 +68,7 @@ final class UpdateCheckController {
         switch outcome {
         case .checked(.updateAvailable(let current, let latest, let release)):
             panel.messageText = "OI \(latest) 已发布"
-            panel.informativeText = "当前版本为 \(current)。下载后解压，用新的 OI.app 替换「应用程序」文件夹中的旧版本。"
+            panel.informativeText = "当前版本为 \(current)。下载 dmg 后打开，把 OI 拖到「应用程序」文件夹替换旧版本。"
             let blocks = releaseNoteBlocks(from: release.notes)
             if !blocks.isEmpty {
                 let notesView = NSHostingView(rootView: ReleaseNotesView(blocks: blocks))
