@@ -4,18 +4,18 @@ import Foundation
 /// 并把底层错误换成应用层错误。两者的接口各自填写，`baseURL`、`model`、`reasoningEffort` 与 `keyStore`
 /// 指明读取哪一组。
 @MainActor
-struct QuickAIStreaming {
-    private let answerer: any QuickAIAnswering
+struct AIStreaming {
+    private let answerer: any AIAnswering
     private let settingsStore: any AppSettingsStoring
-    private let keyStore: any QuickAIKeyStoring
+    private let keyStore: any APIKeyStoring
     private let baseURL: KeyPath<AppSettings, String>
     private let model: KeyPath<AppSettings, String>
     private let reasoningEffort: KeyPath<AppSettings, String>
 
     init(
-        answerer: any QuickAIAnswering,
+        answerer: any AIAnswering,
         settingsStore: any AppSettingsStoring,
-        keyStore: any QuickAIKeyStoring,
+        keyStore: any APIKeyStoring,
         baseURL: KeyPath<AppSettings, String>,
         model: KeyPath<AppSettings, String>,
         reasoningEffort: KeyPath<AppSettings, String>
@@ -32,13 +32,13 @@ struct QuickAIStreaming {
     /// 接口地址或模型缺失时不发起请求，直接抛出未配置错误。
     func stream(_ text: String, systemPrompt: String, onDelta: (String) -> Void) async throws {
         let settings = settingsStore.load()
-        guard let configuration = QuickAIConfiguration(
+        guard let configuration = AIEndpointConfiguration(
             baseURLString: settings[keyPath: baseURL],
             model: settings[keyPath: model],
             apiKey: keyStore.load(),
             reasoningEffort: settings[keyPath: reasoningEffort]
         ) else {
-            throw ApplicationError.quickAINotConfigured
+            throw ApplicationError.aiNotConfigured
         }
 
         do {
@@ -52,7 +52,7 @@ struct QuickAIStreaming {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            throw ApplicationError.quickAIFailed(
+            throw ApplicationError.aiRequestFailed(
                 reason: (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             )
         }

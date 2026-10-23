@@ -1,7 +1,7 @@
 import AppKit
 
 @MainActor
-final class WorkspaceApplicationIconProvider: ApplicationIconProviding {
+final class WorkspaceIconProvider: IconProviding {
     /// File results can produce unbounded distinct URLs; drop the cache once it grows past this.
     static let cacheLimit = 500
 

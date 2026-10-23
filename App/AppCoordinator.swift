@@ -41,7 +41,7 @@ final class AppCoordinator {
         self.shortcutService = dependencies.globalShortcutService
         self.panelController = LauncherPanelController(
             viewModel: dependencies.launcherViewModel,
-            iconProvider: dependencies.applicationIconProvider
+            iconProvider: dependencies.iconProvider
         )
         self.translatorPanelController = dependencies.translator.map {
             TranslatorPanelController(makeViewModel: $0.makeViewModel)

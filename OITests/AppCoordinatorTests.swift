@@ -8,7 +8,7 @@ import XCTest
 final class AppCoordinatorTests: XCTestCase {
     /// 启动期按用户持久化的组合注册，并把面板 toggle 交给注册出的按键处理器。
     func testStartRegistersPersistedShortcutWithPanelHandler() throws {
-        let shortcut = LauncherShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 12)
+        let shortcut = GlobalShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 12)
         let context = makeCoordinator(shortcut: shortcut, failing: false)
         defer { context.coordinator.stop() }
 
@@ -21,7 +21,7 @@ final class AppCoordinatorTests: XCTestCase {
 
     /// 组合被其他应用占用时保持未注册，并把失败原因同步到设置面板。
     func testStartReportsRegistrationFailureToSettings() {
-        let shortcut = LauncherShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11)
+        let shortcut = GlobalShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11)
         let context = makeCoordinator(shortcut: shortcut, failing: true)
         defer { context.coordinator.stop() }
 
@@ -38,12 +38,12 @@ final class AppCoordinatorTests: XCTestCase {
 
     /// 文件搜索开启时启动期请求目录授权；关闭时不请求，之后在设置中开启时再请求。
     func testStartRequestsFolderAccessOnlyWhenFileSearchEnabled() {
-        let enabled = makeCoordinator(shortcut: .standard, failing: false)
+        let enabled = makeCoordinator(shortcut: .defaultLauncher, failing: false)
         defer { enabled.coordinator.stop() }
         enabled.coordinator.start()
         XCTAssertEqual(enabled.folderAccessRequests.count, 1)
 
-        let disabled = makeCoordinator(shortcut: .standard, failing: false, isFileSearchEnabled: false)
+        let disabled = makeCoordinator(shortcut: .defaultLauncher, failing: false, isFileSearchEnabled: false)
         defer { disabled.coordinator.stop() }
         disabled.coordinator.start()
         XCTAssertEqual(disabled.folderAccessRequests.count, 0)
@@ -66,7 +66,7 @@ final class AppCoordinatorTests: XCTestCase {
     }
 
     private func makeCoordinator(
-        shortcut: LauncherShortcut,
+        shortcut: GlobalShortcut,
         failing: Bool,
         isFileSearchEnabled: Bool = true
     ) -> Context {
@@ -90,7 +90,7 @@ final class AppCoordinatorTests: XCTestCase {
                 launcherViewModel: makeViewModel(with: [], settingsStore: settingsStore),
                 settingsViewModel: settingsViewModel,
                 settingsStore: settingsStore,
-                applicationIconProvider: StubApplicationIconProvider(),
+                iconProvider: StubIconProvider(),
                 globalShortcutService: shortcutService,
                 fileSearchAccessRequester: { folderAccessRequests.count += 1 }
             )
@@ -106,13 +106,13 @@ final class AppCoordinatorTests: XCTestCase {
 
 @MainActor
 private final class StubGlobalShortcutService: GlobalShortcutHandling {
-    private(set) var registeredShortcuts: [LauncherShortcut] = []
+    private(set) var registeredShortcuts: [GlobalShortcut] = []
     private(set) var handler: (() -> Void)?
     /// 按组合注入的注册失败；未注入的组合视为注册成功。
-    var registeredErrors: [LauncherShortcut: Error] = [:]
+    var registeredErrors: [GlobalShortcut: Error] = [:]
 
     func register(keyCode: UInt32, modifiers: UInt32, handler: @escaping () -> Void) throws {
-        let shortcut = LauncherShortcut(keyCode: keyCode, modifiers: modifiers)
+        let shortcut = GlobalShortcut(keyCode: keyCode, modifiers: modifiers)
         registeredShortcuts.append(shortcut)
         if let error = registeredErrors[shortcut] {
             throw error
@@ -132,7 +132,7 @@ private struct StubGlobalShortcutError: LocalizedError {
 }
 
 @MainActor
-private final class StubApplicationIconProvider: ApplicationIconProviding {
+private final class StubIconProvider: IconProviding {
     func icon(for url: URL) -> NSImage { NSImage() }
 }
 

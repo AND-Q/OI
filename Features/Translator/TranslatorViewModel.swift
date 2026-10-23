@@ -338,9 +338,9 @@ final class TranslatorViewModel: ObservableObject {
 private enum TranslatorErrorMessage {
     static func message(for error: Error) -> String {
         switch error as? ApplicationError {
-        case .quickAINotConfigured?:
+        case .aiNotConfigured?:
             "请先在「设置… → 划词翻译」中填写翻译使用的接口地址与模型。"
-        case .quickAIFailed(let reason)?:
+        case .aiRequestFailed(let reason)?:
             "翻译失败：\(reason)"
         default:
             "翻译失败，请重试。"

@@ -2,15 +2,15 @@ import AppKit
 import Carbon.HIToolbox
 import SwiftUI
 
-/// 设置面板中的呼出快捷键录制控件：
+/// 设置面板中的全局快捷键录制控件：
 /// 点按进入录制，按下含 ⌘/⌥/⌃ 的组合即提交；Esc 或点击其他位置取消。
 /// 录制期间用 NSEvent 本地监听捕获按键（无需辅助功能权限），不影响系统全局事件。
 /// 因 NSEvent 属 UI 专属类型，本控件与设置窗口壳同置于 UI 层。
 struct ShortcutRecorderField: View {
     /// 当前生效的组合，用于未录制时的键帽展示。
-    let shortcut: LauncherShortcut
+    let shortcut: GlobalShortcut
     /// 提交录到的组合；激活失败时由 ViewModel 回滚设置并提示。
-    let onCommit: (LauncherShortcut) -> Void
+    let onCommit: (GlobalShortcut) -> Void
 
     @State private var isRecording = false
     @State private var hint: String?
@@ -105,7 +105,7 @@ struct ShortcutRecorderField: View {
             stopRecording()
             return nil
         }
-        let recorded = LauncherShortcut(keyCode: UInt32(event.keyCode), modifiers: modifiers)
+        let recorded = GlobalShortcut(keyCode: UInt32(event.keyCode), modifiers: modifiers)
         if let problem = recorded.problem {
             hint = ShortcutFormatter.description(of: problem)
             return nil
@@ -127,7 +127,7 @@ struct ShortcutRecorderField: View {
 
 /// 快捷键的键帽展示：修饰键符号与按键名逐个渲染为胶囊。
 struct ShortcutKeyCaps: View {
-    let shortcut: LauncherShortcut
+    let shortcut: GlobalShortcut
 
     var body: some View {
         HStack(spacing: 4) {

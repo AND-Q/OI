@@ -7,7 +7,7 @@ enum ApplicationError: Error, Equatable, Sendable {
     case fileSearchFailed(reason: String)
     case fileOpenFailed(fileName: String, reason: String)
     case urlOpenFailed(reason: String)
-    case quickAINotConfigured
-    case quickAIFailed(reason: String)
+    case aiNotConfigured
+    case aiRequestFailed(reason: String)
     case updateCheckFailed(reason: String)
 }

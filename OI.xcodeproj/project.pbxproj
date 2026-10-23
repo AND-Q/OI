@@ -11,9 +11,9 @@
 		A100000100000002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000002 /* AppDelegate.swift */; };
 		A100000100000003 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000003 /* AppCoordinator.swift */; };
 		A100000100000004 /* AppDescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000004 /* AppDescriptor.swift */; };
-		A100000100000005 /* ApplicationIconProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000005 /* ApplicationIconProviding.swift */; };
+		A100000100000005 /* IconProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000005 /* IconProviding.swift */; };
 		A100000100000006 /* AppCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000006 /* AppCatalog.swift */; };
-		A100000100000007 /* WorkspaceApplicationIconProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000007 /* WorkspaceApplicationIconProvider.swift */; };
+		A100000100000007 /* WorkspaceIconProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000007 /* WorkspaceIconProvider.swift */; };
 		A100000100000008 /* ApplicationLaunching.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000008 /* ApplicationLaunching.swift */; };
 		A100000100000009 /* GlobalShortcutHandling.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000009 /* GlobalShortcutHandling.swift */; };
 		A10000010000000A /* FileSystemAppCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000A /* FileSystemAppCatalog.swift */; };
@@ -82,15 +82,15 @@
 		B100000100000016 /* SettingsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000017 /* SettingsViewModelTests.swift */; };
 		B100000100000017 /* UserDefaultsAppSettingsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000018 /* UserDefaultsAppSettingsStoreTests.swift */; };
 		B100000100000018 /* SettingsWindowControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000019 /* SettingsWindowControllerTests.swift */; };
-		B100000100000019 /* LauncherShortcutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001A /* LauncherShortcutTests.swift */; };
+		B100000100000019 /* GlobalShortcutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001A /* GlobalShortcutTests.swift */; };
 		B10000010000001A /* ShortcutFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001B /* ShortcutFormatterTests.swift */; };
 		B10000010000001B /* AppCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001C /* AppCoordinatorTests.swift */; };
-		A100000100000049 /* QuickAIAnswering.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000049 /* QuickAIAnswering.swift */; };
-		A10000010000004A /* QuickAIKeyStoring.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000004A /* QuickAIKeyStoring.swift */; };
+		A100000100000049 /* AIAnswering.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000049 /* AIAnswering.swift */; };
+		A10000010000004A /* APIKeyStoring.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000004A /* APIKeyStoring.swift */; };
 		A10000010000004B /* AskQuickAI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000004B /* AskQuickAI.swift */; };
-		A10000010000004C /* OpenAICompatibleQuickAIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000004C /* OpenAICompatibleQuickAIClient.swift */; };
-		A10000010000004D /* KeychainQuickAIKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000004D /* KeychainQuickAIKeyStore.swift */; };
-		A10000010000004E /* QuickAIMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000004E /* QuickAIMarkdown.swift */; };
+		A10000010000004C /* OpenAICompatibleAIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000004C /* OpenAICompatibleAIClient.swift */; };
+		A10000010000004D /* KeychainAPIKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000004D /* KeychainAPIKeyStore.swift */; };
+		A10000010000004E /* MarkdownParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000004E /* MarkdownParser.swift */; };
 		A10000010000004F /* QuickAIAnswerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000004F /* QuickAIAnswerView.swift */; };
 		B10000010000001C /* QuickAITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001D /* QuickAITests.swift */; };
 		A100000100000050 /* TranslationLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000050 /* TranslationLanguage.swift */; };
@@ -111,7 +111,7 @@
 		A10000010000005F /* DoubleClickWordSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000005F /* DoubleClickWordSelector.swift */; };
 		A100000100000060 /* LauncherLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000060 /* LauncherLayout.swift */; };
 		A100000100000061 /* LauncherActionSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000061 /* LauncherActionSheetView.swift */; };
-		A100000100000062 /* QuickAIStreaming.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000062 /* QuickAIStreaming.swift */; };
+		A100000100000062 /* AIStreaming.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000062 /* AIStreaming.swift */; };
 		A100000100000063 /* StreamingTextBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000063 /* StreamingTextBuffer.swift */; };
 		A100000100000064 /* WebSearchEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000064 /* WebSearchEngine.swift */; };
 		A100000100000065 /* UserNotifying.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000065 /* UserNotifying.swift */; };
@@ -124,7 +124,7 @@
 		A10000010000006D /* LatestReleaseFetching.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000006D /* LatestReleaseFetching.swift */; };
 		A10000010000006E /* CheckForUpdates.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000006E /* CheckForUpdates.swift */; };
 		A10000010000006F /* GitHubReleaseFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000006F /* GitHubReleaseFetcher.swift */; };
-		A100000100000070 /* QuickAIMarkdownBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000070 /* QuickAIMarkdownBlockView.swift */; };
+		A100000100000070 /* MarkdownBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000070 /* MarkdownBlockView.swift */; };
 		A100000100000071 /* UpdateCheckController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000071 /* UpdateCheckController.swift */; };
 		A100000100000072 /* TextSpeaking.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000072 /* TextSpeaking.swift */; };
 		A100000100000073 /* SystemTextSpeaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000073 /* SystemTextSpeaker.swift */; };
@@ -147,9 +147,9 @@
 		A200000100000002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		A200000100000003 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
 		A200000100000004 /* AppDescriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDescriptor.swift; sourceTree = "<group>"; };
-		A200000100000005 /* ApplicationIconProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationIconProviding.swift; sourceTree = "<group>"; };
+		A200000100000005 /* IconProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconProviding.swift; sourceTree = "<group>"; };
 		A200000100000006 /* AppCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCatalog.swift; sourceTree = "<group>"; };
-		A200000100000007 /* WorkspaceApplicationIconProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceApplicationIconProvider.swift; sourceTree = "<group>"; };
+		A200000100000007 /* WorkspaceIconProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceIconProvider.swift; sourceTree = "<group>"; };
 		A200000100000008 /* ApplicationLaunching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationLaunching.swift; sourceTree = "<group>"; };
 		A200000100000009 /* GlobalShortcutHandling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalShortcutHandling.swift; sourceTree = "<group>"; };
 		A20000010000000A /* FileSystemAppCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileSystemAppCatalog.swift; sourceTree = "<group>"; };
@@ -221,15 +221,15 @@
 		B200000100000017 /* SettingsViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModelTests.swift; sourceTree = "<group>"; };
 		B200000100000018 /* UserDefaultsAppSettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsAppSettingsStoreTests.swift; sourceTree = "<group>"; };
 		B200000100000019 /* SettingsWindowControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowControllerTests.swift; sourceTree = "<group>"; };
-		B20000010000001A /* LauncherShortcutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherShortcutTests.swift; sourceTree = "<group>"; };
+		B20000010000001A /* GlobalShortcutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalShortcutTests.swift; sourceTree = "<group>"; };
 		B20000010000001B /* ShortcutFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutFormatterTests.swift; sourceTree = "<group>"; };
 		B20000010000001C /* AppCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinatorTests.swift; sourceTree = "<group>"; };
-		A200000100000049 /* QuickAIAnswering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAIAnswering.swift; sourceTree = "<group>"; };
-		A20000010000004A /* QuickAIKeyStoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAIKeyStoring.swift; sourceTree = "<group>"; };
+		A200000100000049 /* AIAnswering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAnswering.swift; sourceTree = "<group>"; };
+		A20000010000004A /* APIKeyStoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIKeyStoring.swift; sourceTree = "<group>"; };
 		A20000010000004B /* AskQuickAI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskQuickAI.swift; sourceTree = "<group>"; };
-		A20000010000004C /* OpenAICompatibleQuickAIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAICompatibleQuickAIClient.swift; sourceTree = "<group>"; };
-		A20000010000004D /* KeychainQuickAIKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainQuickAIKeyStore.swift; sourceTree = "<group>"; };
-		A20000010000004E /* QuickAIMarkdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAIMarkdown.swift; sourceTree = "<group>"; };
+		A20000010000004C /* OpenAICompatibleAIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAICompatibleAIClient.swift; sourceTree = "<group>"; };
+		A20000010000004D /* KeychainAPIKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainAPIKeyStore.swift; sourceTree = "<group>"; };
+		A20000010000004E /* MarkdownParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownParser.swift; sourceTree = "<group>"; };
 		A20000010000004F /* QuickAIAnswerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAIAnswerView.swift; sourceTree = "<group>"; };
 		B20000010000001D /* QuickAITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAITests.swift; sourceTree = "<group>"; };
 		A200000100000050 /* TranslationLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationLanguage.swift; sourceTree = "<group>"; };
@@ -250,7 +250,7 @@
 		A20000010000005F /* DoubleClickWordSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoubleClickWordSelector.swift; sourceTree = "<group>"; };
 		A200000100000060 /* LauncherLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherLayout.swift; sourceTree = "<group>"; };
 		A200000100000061 /* LauncherActionSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherActionSheetView.swift; sourceTree = "<group>"; };
-		A200000100000062 /* QuickAIStreaming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAIStreaming.swift; sourceTree = "<group>"; };
+		A200000100000062 /* AIStreaming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIStreaming.swift; sourceTree = "<group>"; };
 		A200000100000063 /* StreamingTextBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingTextBuffer.swift; sourceTree = "<group>"; };
 		A200000100000064 /* WebSearchEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSearchEngine.swift; sourceTree = "<group>"; };
 		A200000100000065 /* UserNotifying.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserNotifying.swift; sourceTree = "<group>"; };
@@ -263,7 +263,7 @@
 		A20000010000006D /* LatestReleaseFetching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatestReleaseFetching.swift; sourceTree = "<group>"; };
 		A20000010000006E /* CheckForUpdates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckForUpdates.swift; sourceTree = "<group>"; };
 		A20000010000006F /* GitHubReleaseFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubReleaseFetcher.swift; sourceTree = "<group>"; };
-		A200000100000070 /* QuickAIMarkdownBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAIMarkdownBlockView.swift; sourceTree = "<group>"; };
+		A200000100000070 /* MarkdownBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlockView.swift; sourceTree = "<group>"; };
 		A200000100000071 /* UpdateCheckController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateCheckController.swift; sourceTree = "<group>"; };
 		A200000100000072 /* TextSpeaking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextSpeaking.swift; sourceTree = "<group>"; };
 		A200000100000073 /* SystemTextSpeaker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemTextSpeaker.swift; sourceTree = "<group>"; };
@@ -348,7 +348,7 @@
 				A400000100000019 /* Usage */,
 				A40000010000001B /* LoginItem */,
 				A40000010000001C /* Settings */,
-				A40000010000001F /* QuickAI */,
+				A40000010000001F /* AI */,
 				A400000100000020 /* Translator */,
 				A400000100000024 /* Notifications */,
 				A400000100000025 /* Update */,
@@ -388,7 +388,7 @@
 				B200000100000017 /* SettingsViewModelTests.swift */,
 				B200000100000018 /* UserDefaultsAppSettingsStoreTests.swift */,
 				B200000100000019 /* SettingsWindowControllerTests.swift */,
-				B20000010000001A /* LauncherShortcutTests.swift */,
+				B20000010000001A /* GlobalShortcutTests.swift */,
 				B20000010000001B /* ShortcutFormatterTests.swift */,
 				B20000010000001C /* AppCoordinatorTests.swift */,
 				B20000010000001D /* QuickAITests.swift */,
@@ -433,8 +433,8 @@
 				A200000100000032 /* FileSearching.swift */,
 				A200000100000033 /* FileOpening.swift */,
 				A20000010000003A /* URLOpening.swift */,
-				A200000100000049 /* QuickAIAnswering.swift */,
-				A20000010000004A /* QuickAIKeyStoring.swift */,
+				A200000100000049 /* AIAnswering.swift */,
+				A20000010000004A /* APIKeyStoring.swift */,
 				A200000100000051 /* TextCapturing.swift */,
 				A200000100000052 /* TranslatorEnvironmentHandling.swift */,
 				A200000100000053 /* ForceTouchMonitoring.swift */,
@@ -523,8 +523,8 @@
 		A400000100000012 /* Icons */ = {
 			isa = PBXGroup;
 			children = (
-				A200000100000005 /* ApplicationIconProviding.swift */,
-				A200000100000007 /* WorkspaceApplicationIconProvider.swift */,
+				A200000100000005 /* IconProviding.swift */,
+				A200000100000007 /* WorkspaceIconProvider.swift */,
 			);
 			path = Icons;
 			sourceTree = "<group>";
@@ -550,7 +550,7 @@
 				A20000010000003B /* OpenURL.swift */,
 				A20000010000004B /* AskQuickAI.swift */,
 				A200000100000055 /* TranslateText.swift */,
-				A200000100000062 /* QuickAIStreaming.swift */,
+				A200000100000062 /* AIStreaming.swift */,
 				A20000010000006E /* CheckForUpdates.swift */,
 			);
 			path = UseCases;
@@ -625,13 +625,13 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		A40000010000001F /* QuickAI */ = {
+		A40000010000001F /* AI */ = {
 			isa = PBXGroup;
 			children = (
-				A20000010000004C /* OpenAICompatibleQuickAIClient.swift */,
-				A20000010000004D /* KeychainQuickAIKeyStore.swift */,
+				A20000010000004C /* OpenAICompatibleAIClient.swift */,
+				A20000010000004D /* KeychainAPIKeyStore.swift */,
 			);
-			path = QuickAI;
+			path = AI;
 			sourceTree = "<group>";
 		};
 		A400000100000020 /* Translator */ = {
@@ -671,8 +671,8 @@
 		A400000100000023 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
-				A20000010000004E /* QuickAIMarkdown.swift */,
-				A200000100000070 /* QuickAIMarkdownBlockView.swift */,
+				A20000010000004E /* MarkdownParser.swift */,
+				A200000100000070 /* MarkdownBlockView.swift */,
 				A200000100000063 /* StreamingTextBuffer.swift */,
 			);
 			path = Shared;
@@ -796,9 +796,9 @@
 				A100000100000002 /* AppDelegate.swift in Sources */,
 				A100000100000003 /* AppCoordinator.swift in Sources */,
 				A100000100000004 /* AppDescriptor.swift in Sources */,
-				A100000100000005 /* ApplicationIconProviding.swift in Sources */,
+				A100000100000005 /* IconProviding.swift in Sources */,
 				A100000100000006 /* AppCatalog.swift in Sources */,
-				A100000100000007 /* WorkspaceApplicationIconProvider.swift in Sources */,
+				A100000100000007 /* WorkspaceIconProvider.swift in Sources */,
 				A100000100000008 /* ApplicationLaunching.swift in Sources */,
 				A100000100000009 /* GlobalShortcutHandling.swift in Sources */,
 				A10000010000000A /* FileSystemAppCatalog.swift in Sources */,
@@ -849,12 +849,12 @@
 				A100000100000047 /* ShortcutFormatter.swift in Sources */,
 				A10000010000006B /* SettingsCategory.swift in Sources */,
 				A100000100000048 /* ShortcutRecorderField.swift in Sources */,
-				A100000100000049 /* QuickAIAnswering.swift in Sources */,
-				A10000010000004A /* QuickAIKeyStoring.swift in Sources */,
+				A100000100000049 /* AIAnswering.swift in Sources */,
+				A10000010000004A /* APIKeyStoring.swift in Sources */,
 				A10000010000004B /* AskQuickAI.swift in Sources */,
-				A10000010000004C /* OpenAICompatibleQuickAIClient.swift in Sources */,
-				A10000010000004D /* KeychainQuickAIKeyStore.swift in Sources */,
-				A10000010000004E /* QuickAIMarkdown.swift in Sources */,
+				A10000010000004C /* OpenAICompatibleAIClient.swift in Sources */,
+				A10000010000004D /* KeychainAPIKeyStore.swift in Sources */,
+				A10000010000004E /* MarkdownParser.swift in Sources */,
 				A10000010000004F /* QuickAIAnswerView.swift in Sources */,
 				A100000100000050 /* TranslationLanguage.swift in Sources */,
 				A100000100000051 /* TextCapturing.swift in Sources */,
@@ -874,7 +874,7 @@
 				A10000010000005F /* DoubleClickWordSelector.swift in Sources */,
 				A100000100000060 /* LauncherLayout.swift in Sources */,
 				A100000100000061 /* LauncherActionSheetView.swift in Sources */,
-				A100000100000062 /* QuickAIStreaming.swift in Sources */,
+				A100000100000062 /* AIStreaming.swift in Sources */,
 				A100000100000063 /* StreamingTextBuffer.swift in Sources */,
 				A100000100000064 /* WebSearchEngine.swift in Sources */,
 				A100000100000065 /* UserNotifying.swift in Sources */,
@@ -887,7 +887,7 @@
 				A10000010000006D /* LatestReleaseFetching.swift in Sources */,
 				A10000010000006E /* CheckForUpdates.swift in Sources */,
 				A10000010000006F /* GitHubReleaseFetcher.swift in Sources */,
-				A100000100000070 /* QuickAIMarkdownBlockView.swift in Sources */,
+				A100000100000070 /* MarkdownBlockView.swift in Sources */,
 				A100000100000071 /* UpdateCheckController.swift in Sources */,
 				A100000100000072 /* TextSpeaking.swift in Sources */,
 				A100000100000073 /* SystemTextSpeaker.swift in Sources */,
@@ -914,7 +914,7 @@
 				B100000100000016 /* SettingsViewModelTests.swift in Sources */,
 				B100000100000017 /* UserDefaultsAppSettingsStoreTests.swift in Sources */,
 				B100000100000018 /* SettingsWindowControllerTests.swift in Sources */,
-				B100000100000019 /* LauncherShortcutTests.swift in Sources */,
+				B100000100000019 /* GlobalShortcutTests.swift in Sources */,
 				B10000010000001A /* ShortcutFormatterTests.swift in Sources */,
 				B10000010000001B /* AppCoordinatorTests.swift in Sources */,
 				B10000010000001C /* QuickAITests.swift in Sources */,

@@ -2,7 +2,7 @@ import Foundation
 
 /// 基于 OpenAI Chat Completions 流式接口（SSE）的问答实现，
 /// 兼容 OpenAI、Ollama（`/v1`）及各类兼容网关。
-struct OpenAICompatibleQuickAIClient: QuickAIAnswering {
+struct OpenAICompatibleAIClient: AIAnswering {
     /// 两次收到数据之间最长的等待（不是整次回答的总时长）：本机大模型首次加载可能一分钟以上
     /// 才开始输出，放宽到 3 分钟；等不及时按 Esc 中断。
     static let idleTimeout: TimeInterval = 180
@@ -16,7 +16,7 @@ struct OpenAICompatibleQuickAIClient: QuickAIAnswering {
     func streamAnswer(
         to question: String,
         systemPrompt: String,
-        configuration: QuickAIConfiguration
+        configuration: AIEndpointConfiguration
     ) -> AsyncThrowingStream<String, Error> {
         let request = Self.makeRequest(
             question: question,
@@ -36,7 +36,7 @@ struct OpenAICompatibleQuickAIClient: QuickAIAnswering {
                             body.append(byte)
                             if body.count >= 4096 { break }
                         }
-                        throw QuickAIClientError.httpStatus(status, Self.errorMessage(from: body))
+                        throw AIClientError.httpStatus(status, Self.errorMessage(from: body))
                     }
                     for try await line in bytes.lines {
                         switch Self.parseStreamLine(line) {
@@ -46,7 +46,7 @@ struct OpenAICompatibleQuickAIClient: QuickAIAnswering {
                             continuation.finish()
                             return
                         case .failure(let message):
-                            throw QuickAIClientError.server(message)
+                            throw AIClientError.server(message)
                         case .ignored:
                             continue
                         }
@@ -75,7 +75,7 @@ struct OpenAICompatibleQuickAIClient: QuickAIAnswering {
     static func makeRequest(
         question: String,
         systemPrompt: String,
-        configuration: QuickAIConfiguration
+        configuration: AIEndpointConfiguration
     ) -> URLRequest {
         // 用户可能直接粘贴完整的 chat/completions 地址，此时不再重复拼接。
         let endpoint = endpointURL(for: configuration.baseURL)
@@ -133,7 +133,7 @@ struct OpenAICompatibleQuickAIClient: QuickAIAnswering {
     }
 }
 
-enum QuickAIClientError: LocalizedError, Equatable {
+enum AIClientError: LocalizedError, Equatable {
     case httpStatus(Int, String?)
     case server(String)
 

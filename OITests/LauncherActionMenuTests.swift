@@ -103,7 +103,7 @@ final class LauncherActionMenuTests: XCTestCase {
         let viewModel = makeViewModel(with: [])
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
         controller.show()
@@ -131,7 +131,7 @@ final class LauncherActionMenuTests: XCTestCase {
         let viewModel = makeViewModel(with: [])
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
         controller.show()
@@ -161,7 +161,7 @@ final class LauncherActionMenuTests: XCTestCase {
         let viewModel = makeViewModel(with: [])
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
         controller.show()
@@ -185,7 +185,7 @@ final class LauncherActionMenuTests: XCTestCase {
         let viewModel = makeViewModel(with: [app])
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
         controller.show()
@@ -258,7 +258,7 @@ final class LauncherActionMenuTests: XCTestCase {
         let viewModel = makeViewModel(with: [app])
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
         controller.show()
@@ -288,7 +288,7 @@ final class LauncherActionMenuTests: XCTestCase {
         let viewModel = makeViewModel(with: [])
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
         controller.show()

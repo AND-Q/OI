@@ -134,8 +134,8 @@
 - `Features/Launcher/QuickQueryResolver.swift`：算式求值与本机 IP 查询；
 - `Application/Ports/TextCapturing.swift`：读取选中文字和剪贴板，已过滤敏感内容；
 - `Application/Ports/ScreenTextRecognizing.swift`：用 Vision 识别截图中的文字；
-- `Infrastructure/QuickAI/OpenAICompatibleQuickAIClient.swift`：OpenAI 兼容的 SSE 客户端；`KeychainQuickAIKeyStore` 把 Key 存进钥匙串；
-- `Features/Shared/QuickAIMarkdown.swift`、`StreamingTextBuffer.swift`：流式 Markdown 渲染，每 50ms 合并上屏一次；
+- `Infrastructure/AI/OpenAICompatibleAIClient.swift`：OpenAI 兼容的 SSE 客户端；`KeychainAPIKeyStore` 把 Key 存进钥匙串；
+- `Features/Shared/MarkdownParser.swift`、`StreamingTextBuffer.swift`：流式 Markdown 渲染，每 50ms 合并上屏一次；
 - `Application/Ports/UserNotifying.swift`：系统通知。
 
 与 agent 的差距：
@@ -278,12 +278,12 @@ enum AgentEvent: Sendable, Codable, Equatable {
     case turnEnded(reason: TurnEndReason, at: Date)
 }
 
-// Application/Ports：多轮对话加工具调用的流式端口。现有 QuickAIAnswering 改为基于它实现，划词翻译不受影响。
+// Application/Ports：多轮对话加工具调用的流式端口。现有 AIAnswering 改为基于它实现，划词翻译不受影响。
 protocol ChatModelStreaming: Sendable {
     func streamChat(
         messages: [ChatMessage],
         tools: [ToolSpec],
-        configuration: QuickAIConfiguration
+        configuration: AIEndpointConfiguration
     ) -> AsyncThrowingStream<ChatStreamEvent, Error>
 }
 
@@ -348,9 +348,9 @@ protocol ToolApproving: AnyObject {
 4. **客户端支持多轮和工具**：
    - `RequestBody.Message` 支持 `tool_calls` 和 `tool_call_id`；
    - `StreamChunk` 解析 `delta.tool_calls` 和 `finish_reason`；
-   - `QuickAIAnswering.streamAnswer` 改为调用新端口。
+   - `AIAnswering.streamAnswer` 改为调用新端口。
 5. **算式求值下移**：把 `QuickQueryResolver` 中纯逻辑的算式求值移到 Application 层，供 `calc_evaluate` 工具使用。依赖方向不允许 Application 层引用 Features。
-6. **Quick AI 并入 agent**：`QuickAISession` 由 `AgentSession` 取代，回答视图继续用 `QuickAIMarkdown` 渲染。设置中关闭全部工具时，行为与现在的 Quick AI 一致。
+6. **Quick AI 并入 agent**：`QuickAISession` 由 `AgentSession` 取代，回答视图继续用 `MarkdownParser` 渲染。设置中关闭全部工具时，行为与现在的 Quick AI 一致。
 
 ## 8. Agent 循环
 

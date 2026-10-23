@@ -56,7 +56,7 @@ struct QuickAISession: Equatable, Sendable {
     var returnAction: ReturnAction {
         if isStreaming { return .none }
         if case .failed = state { return .retry }
-        return QuickAIMarkdown.removingThinking(from: answer).isEmpty ? .retry : .copyAndClose
+        return MarkdownParser.removingThinking(from: answer).isEmpty ? .retry : .copyAndClose
     }
 }
 

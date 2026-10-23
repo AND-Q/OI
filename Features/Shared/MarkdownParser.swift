@@ -2,7 +2,7 @@ import Foundation
 
 /// Block-level Markdown element of a Quick AI answer. SwiftUI `Text` only renders
 /// inline Markdown, so headings, lists, quotes and code blocks are split out here.
-enum QuickAIMarkdownBlock: Equatable {
+enum MarkdownBlock: Equatable {
     case heading(level: Int, text: String)
     case paragraph(String)
     case listItem(marker: String, text: String, indent: Int)
@@ -12,11 +12,11 @@ enum QuickAIMarkdownBlock: Equatable {
     case rule
 }
 
-enum QuickAIMarkdown {
+enum MarkdownParser {
     /// Splits Markdown into blocks line by line. Streaming output is often cut
     /// mid-block: an unclosed code fence is rendered as code up to the end.
-    static func blocks(from markdown: String) -> [QuickAIMarkdownBlock] {
-        var blocks: [QuickAIMarkdownBlock] = []
+    static func blocks(from markdown: String) -> [MarkdownBlock] {
+        var blocks: [MarkdownBlock] = []
         var paragraph: [String] = []
         var tableLines: [String] = []
         var code: (fence: String, language: String, lines: [String])?
@@ -142,7 +142,7 @@ enum QuickAIMarkdown {
             .map { $0.trimmingCharacters(in: .whitespaces) }
     }
 
-    private static func heading(in trimmed: String) -> QuickAIMarkdownBlock? {
+    private static func heading(in trimmed: String) -> MarkdownBlock? {
         let level = trimmed.prefix(while: { $0 == "#" }).count
         guard (1...6).contains(level) else { return nil }
         let rest = trimmed.dropFirst(level)
@@ -150,7 +150,7 @@ enum QuickAIMarkdown {
         return .heading(level: level, text: rest.trimmingCharacters(in: .whitespaces))
     }
 
-    private static func listItem(in line: String) -> QuickAIMarkdownBlock? {
+    private static func listItem(in line: String) -> MarkdownBlock? {
         let leadingSpaces = line.prefix(while: { $0 == " " || $0 == "\t" })
             .reduce(0) { $0 + ($1 == "\t" ? 4 : 1) }
         let trimmed = line.trimmingCharacters(in: .whitespaces)

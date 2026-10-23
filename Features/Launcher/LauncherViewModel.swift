@@ -400,7 +400,7 @@ final class LauncherViewModel: ObservableObject {
     /// Answer text to copy (`Enter` / `Cmd+C`) without `<think>` reasoning;
     /// nil until some visible content has arrived.
     var quickAIAnswerToCopy: String? {
-        guard let answer = quickAISession.map({ QuickAIMarkdown.removingThinking(from: $0.answer) }),
+        guard let answer = quickAISession.map({ MarkdownParser.removingThinking(from: $0.answer) }),
               !answer.isEmpty else { return nil }
         return answer
     }
@@ -756,9 +756,9 @@ private enum LauncherErrorMessage {
             return "无法打开 \(fileName)：\(reason)"
         case .urlOpenFailed(let reason):
             return "无法打开链接：\(reason)"
-        case .quickAINotConfigured:
+        case .aiNotConfigured:
             return "请先在「设置… → Quick AI」中填写接口地址与模型。"
-        case .quickAIFailed(let reason):
+        case .aiRequestFailed(let reason):
             return "回答失败：\(reason)"
         case .updateCheckFailed(let reason):
             return "检查更新失败：\(reason)"

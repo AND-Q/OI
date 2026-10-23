@@ -53,8 +53,8 @@ final class UpdateCheckController {
     }
 
     /// 更新日志开头的一级标题（发布说明以「# OI 1.2.0」开头）与提醒框标题重复，不再显示。
-    static func releaseNoteBlocks(from notes: String) -> [QuickAIMarkdownBlock] {
-        var blocks = QuickAIMarkdown.blocks(from: notes)
+    static func releaseNoteBlocks(from notes: String) -> [MarkdownBlock] {
+        var blocks = MarkdownParser.blocks(from: notes)
         if case .heading(1, _)? = blocks.first {
             blocks.removeFirst()
         }
@@ -98,13 +98,13 @@ final class UpdateCheckController {
 
 /// 提醒框中的更新日志：按 Markdown 显示，在框内滚动，文字可选中复制。
 private struct ReleaseNotesView: View {
-    let blocks: [QuickAIMarkdownBlock]
+    let blocks: [MarkdownBlock]
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
-                    QuickAIMarkdownBlockView(block: block)
+                    MarkdownBlockView(block: block)
                 }
             }
             .textSelection(.enabled)

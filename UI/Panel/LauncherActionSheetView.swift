@@ -7,7 +7,7 @@ struct LauncherActionSheetView: View {
     let result: SearchResult
     let actions: [ResultMenuAction]
     let selectedIndex: Int
-    let iconProvider: any ApplicationIconProviding
+    let iconProvider: any IconProviding
     let onSelect: (ResultMenuAction) -> Void
 
     var body: some View {

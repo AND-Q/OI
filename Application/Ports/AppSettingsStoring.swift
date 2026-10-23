@@ -3,7 +3,7 @@ import Foundation
 /// 全局快捷键（呼出启动器、划词翻译、截图翻译）。`modifiers` 采用 Carbon 热键掩码约定
 /// （cmdKey = 1 << 8、shiftKey = 1 << 9、optionKey = 1 << 11、controlKey = 1 << 12），
 /// 与 `GlobalShortcutHandling` 注册端口一致，本层无需引入 Carbon。
-struct LauncherShortcut: Sendable, Equatable, Hashable {
+struct GlobalShortcut: Sendable, Equatable, Hashable {
     /// 组合不能用作全局快捷键的原因。
     enum Problem: Sendable, Equatable {
         /// 不含 ⌘、⌥ 或 ⌃：无实质修饰键的全局热键会拦截正常打字。
@@ -39,13 +39,13 @@ struct LauncherShortcut: Sendable, Equatable, Hashable {
     ]
 
     /// 默认呼出快捷键：Option + Space（keyCode 49 = kVK_Space）。
-    static let standard = LauncherShortcut(keyCode: 49, modifiers: 1 << 11)
+    static let defaultLauncher = GlobalShortcut(keyCode: 49, modifiers: 1 << 11)
 
     /// 默认划词翻译快捷键：Option + D（keyCode 2 = kVK_ANSI_D）。
-    static let standardTranslator = LauncherShortcut(keyCode: 2, modifiers: 1 << 11)
+    static let defaultTranslator = GlobalShortcut(keyCode: 2, modifiers: 1 << 11)
 
     /// 默认截图翻译快捷键：Option + S（keyCode 1 = kVK_ANSI_S），与常见翻译工具「⌥D 划词、⌥S 截图」的习惯一致。
-    static let standardScreenTranslator = LauncherShortcut(keyCode: 1, modifiers: 1 << 11)
+    static let defaultScreenTranslator = GlobalShortcut(keyCode: 1, modifiers: 1 << 11)
 }
 
 /// 应用级用户设置（设置面板读写）。开机自启动不在此存储：其状态由系统登录项持有，
@@ -58,26 +58,26 @@ struct AppSettings: Sendable, Equatable {
     /// 启动历史排序：记录启动次数与最近使用时间，优化常用应用排序。
     var isUsageRankingEnabled: Bool = true
     /// 全局呼出快捷键。
-    var launcherShortcut: LauncherShortcut = .standard
+    var launcherShortcut: GlobalShortcut = .defaultLauncher
     /// Quick AI 接口地址（OpenAI Chat Completions 兼容，如 `https://api.openai.com/v1`）。
     var quickAIBaseURL: String = ""
-    /// Quick AI 模型名。API Key 不在此存储，见 `QuickAIKeyStoring`。
+    /// Quick AI 模型名。API Key 不在此存储，见 `APIKeyStoring`。
     var quickAIModel: String = ""
     /// Quick AI 思考强度，对应接口的 `reasoning_effort` 参数；留空时不发送。
     var quickAIReasoningEffort: String = ""
     /// 触控板用力点按（二段压力）取词翻译。
     var isForceTouchTranslationEnabled: Bool = true
     /// 划词翻译快捷键：翻译选中的文字，未选中时翻译剪贴板。
-    var translatorShortcut: LauncherShortcut = .standardTranslator
+    var translatorShortcut: GlobalShortcut = .defaultTranslator
     /// 截图翻译快捷键：框选屏幕区域，识别其中的文字并翻译。
-    var screenTranslatorShortcut: LauncherShortcut = .standardScreenTranslator
+    var screenTranslatorShortcut: GlobalShortcut = .defaultScreenTranslator
     /// 翻译目标语言。
     var translationTargetLanguage: TranslationLanguage = .simplifiedChinese
     /// 原文已是目标语言时改译为此语言，默认组合即中文与外文双向互译。
     var translationAlternateLanguage: TranslationLanguage = .english
     /// 划词翻译接口地址，与 Quick AI 分开填写，可以使用不同的服务。
     var translationBaseURL: String = ""
-    /// 划词翻译模型名。API Key 同样与 Quick AI 分开存放，见 `QuickAIKeyStoring`。
+    /// 划词翻译模型名。API Key 同样与 Quick AI 分开存放，见 `APIKeyStoring`。
     var translationModel: String = ""
     /// 划词翻译思考强度，规则同 `quickAIReasoningEffort`。
     var translationReasoningEffort: String = ""

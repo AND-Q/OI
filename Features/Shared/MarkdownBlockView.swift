@@ -2,18 +2,18 @@ import SwiftUI
 
 /// 一个 Markdown 块（标题、段落、列表、引用、代码、表格、分隔线）的显示，
 /// 用于 Quick AI 回答与检查更新时的更新日志。
-struct QuickAIMarkdownBlockView: View {
-    let block: QuickAIMarkdownBlock
+struct MarkdownBlockView: View {
+    let block: MarkdownBlock
 
     var body: some View {
         switch block {
         case .heading(let level, let text):
-            Text(QuickAIMarkdown.inline(text))
+            Text(MarkdownParser.inline(text))
                 .font(.system(size: level == 1 ? 20 : level == 2 ? 17 : 15, weight: .semibold))
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 2)
         case .paragraph(let text):
-            Text(QuickAIMarkdown.inline(text))
+            Text(MarkdownParser.inline(text))
                 .font(.system(size: 14))
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
@@ -21,7 +21,7 @@ struct QuickAIMarkdownBlockView: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(marker)
                     .foregroundStyle(.secondary)
-                Text(QuickAIMarkdown.inline(text))
+                Text(MarkdownParser.inline(text))
                     .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -32,7 +32,7 @@ struct QuickAIMarkdownBlockView: View {
                 RoundedRectangle(cornerRadius: 1.5)
                     .fill(Color.secondary.opacity(0.4))
                     .frame(width: 3)
-                Text(QuickAIMarkdown.inline(text))
+                Text(MarkdownParser.inline(text))
                     .font(.system(size: 14))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -76,7 +76,7 @@ struct QuickAIMarkdownBlockView: View {
     }
 
     private func tableCell(_ text: String) -> some View {
-        Text(QuickAIMarkdown.inline(text))
+        Text(MarkdownParser.inline(text))
             .fixedSize(horizontal: false, vertical: true)
     }
 }

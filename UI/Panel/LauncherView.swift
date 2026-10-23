@@ -4,7 +4,7 @@ import SwiftUI
 struct LauncherView: View {
     @ObservedObject var viewModel: LauncherViewModel
     @ObservedObject var animation: PanelAnimationCoordinator
-    let iconProvider: any ApplicationIconProviding
+    let iconProvider: any IconProviding
     let onOpen: (SearchResult) -> Void
     let onAction: (ResultMenuAction, SearchResult) -> Void
     let onDismiss: () -> Void

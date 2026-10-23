@@ -130,17 +130,17 @@ App -> UI -> Features / Application / Domain
 - [Application/](Application/)：业务流程契约与纯业务逻辑。
   - [Application/Ports/](Application/Ports/)：定义外部依赖协议契约，每个端口一个文件：
     - 启动器：`AppCatalog`、`ApplicationLaunching`、`AppUsageStoring`、`FileSearching`、`FileOpening`（打开、在 Finder 中显示、在终端打开、用其他 App 打开、按路径取条目）、`URLOpening`、`GlobalShortcutHandling`；
-    - Quick AI 与划词翻译：`QuickAIAnswering`、`QuickAIKeyStoring`、`TextCapturing`、`WordSelecting`、`ForceTouchMonitoring`、`LanguageDetecting`、`ScreenTextRecognizing`、`TextSpeaking`、`TranslatorEnvironmentHandling`（辅助功能与屏幕录制权限）；
+    - Quick AI 与划词翻译：`AIAnswering`、`APIKeyStoring`、`TextCapturing`、`WordSelecting`、`ForceTouchMonitoring`、`LanguageDetecting`、`ScreenTextRecognizing`、`TextSpeaking`、`TranslatorEnvironmentHandling`（辅助功能与屏幕录制权限）；
     - 通用：`AppSettingsStoring`（`AppSettings` 设置模型也定义在这里）、`LoginItemControlling`、`UserNotifying`、`LatestReleaseFetching`。
-    - 部分端口文件同时提供内存实现（`MemoryAppUsageStore`、`MemoryAppSettingsStore`、`MemoryQuickAIKeyStore`、`MemoryUserNotifier`、`MemoryTranslatorEnvironment`），用作默认值与测试替身。
-  - [Application/UseCases/](Application/UseCases/)：用例流程：`DiscoverApplications`、`LaunchApplication`、`SearchFiles`（含文件结果的二次排序 `FileResultRanker`）、`OpenFile`、`OpenURL`、`AskQuickAI`、`TranslateText`、`CheckForUpdates`；[Application/UseCases/QuickAIStreaming.swift](Application/UseCases/QuickAIStreaming.swift) 是 Quick AI 与翻译共用的流式请求（两者的接口地址、模型与 API Key 各自填写）。
+    - 部分端口文件同时提供内存实现（`MemoryAppUsageStore`、`MemoryAppSettingsStore`、`MemoryAPIKeyStore`、`MemoryUserNotifier`、`MemoryTranslatorEnvironment`），用作默认值与测试替身。
+  - [Application/UseCases/](Application/UseCases/)：用例流程：`DiscoverApplications`、`LaunchApplication`、`SearchFiles`（含文件结果的二次排序 `FileResultRanker`）、`OpenFile`、`OpenURL`、`AskQuickAI`、`TranslateText`、`CheckForUpdates`；[Application/UseCases/AIStreaming.swift](Application/UseCases/AIStreaming.swift) 是 Quick AI 与翻译共用的流式请求（两者的接口地址、模型与 API Key 各自填写）。
   - [Application/Search/](Application/Search/)：自建纯内存搜索引擎，包含分级匹配索引（[Application/Search/ApplicationSearchIndex.swift](Application/Search/ApplicationSearchIndex.swift)）、搜索文档模型（[Application/Search/ApplicationSearchDocument.swift](Application/Search/ApplicationSearchDocument.swift)）与文本分词/拼音/首字母归一化处理（`SearchTextNormalizer`）。
   - [Application/Errors/](Application/Errors/)：稳定的跨层错误模型（[Application/Errors/ApplicationError.swift](Application/Errors/ApplicationError.swift)），屏蔽平台底层异常细节。
 - [Infrastructure/](Infrastructure/)：系统能力具体实现。
   - [Infrastructure/AppCatalog/](Infrastructure/AppCatalog/)：文件系统应用遍历（[Infrastructure/AppCatalog/FileSystemAppCatalog.swift](Infrastructure/AppCatalog/FileSystemAppCatalog.swift)）与应用目录变动监听（[Infrastructure/AppCatalog/AppDirectoryWatcher.swift](Infrastructure/AppCatalog/AppDirectoryWatcher.swift)）。
   - [Infrastructure/FileSearch/](Infrastructure/FileSearch/)：基于系统 Spotlight 索引（`MDQuery`）的文件搜索（[Infrastructure/FileSearch/SpotlightFileSearcher.swift](Infrastructure/FileSearch/SpotlightFileSearcher.swift)）。
   - [Infrastructure/Launch/](Infrastructure/Launch/)：基于 `NSWorkspace` 的应用启动、文件与网址打开（`WorkspaceApplicationLauncher`、`WorkspaceFileOpener`、`WorkspaceURLOpener`）。
-  - [Infrastructure/QuickAI/](Infrastructure/QuickAI/)：OpenAI 兼容接口的流式客户端（`OpenAICompatibleQuickAIClient`）与钥匙串中的 API Key 存储（`KeychainQuickAIKeyStore`，Quick AI 与翻译各存一份）。
+  - [Infrastructure/AI/](Infrastructure/AI/)：OpenAI 兼容接口的流式客户端（`OpenAICompatibleAIClient`）与钥匙串中的 API Key 存储（`KeychainAPIKeyStore`，Quick AI 与翻译各存一份）。
   - [Infrastructure/Translator/](Infrastructure/Translator/)：辅助功能取词（`AccessibilityTextCapturer`）、取不到时模拟双击选词（`DoubleClickWordSelector`）、触控板用力点按监听（`GlobalForceTouchMonitor`）、语种识别（`NaturalLanguageDetector`）、截图识字（`VisionScreenTextRecognizer`，ScreenCaptureKit + Vision）、发音朗读（`SystemTextSpeaker`，`AVSpeechSynthesizer`）、权限状态与授权流程（`SystemTranslatorEnvironment`）。
   - [Infrastructure/Shortcut/](Infrastructure/Shortcut/)：基于 Carbon API 的全局热键注册，每个快捷键一个实例，按热键 ID 区分。
   - [Infrastructure/Settings/](Infrastructure/Settings/)：基于 `UserDefaults` 的设置存储。
@@ -155,13 +155,13 @@ App -> UI -> Features / Application / Domain
   - [UI/Settings/](UI/Settings/)：设置窗口（`SettingsWindowController` 托管 SwiftUI 的 `SettingsView`）与快捷键录制控件（`ShortcutRecorderField`）。
   - [UI/StatusBar/](UI/StatusBar/)：菜单栏状态项管理（[UI/StatusBar/StatusBarController.swift](UI/StatusBar/StatusBarController.swift)）。
   - [UI/Update/](UI/Update/)：检查更新的结果提醒框（`UpdateCheckController`）。
-  - [UI/Icons/](UI/Icons/)：原生应用高清图标提取与缓存；图标是 `NSImage`，`ApplicationIconProviding` 协议也定义在本层。
+  - [UI/Icons/](UI/Icons/)：原生应用高清图标提取与缓存；图标是 `NSImage`，`IconProviding` 协议也定义在本层。
   - *约束：`NSImage`、`NSPanel`、`NSStatusItem` 等 UI 专属类型仅限在此层流转。*
 - [Features/](Features/)：用户功能的视图模型、状态与 SwiftUI 视图。
   - [Features/Launcher/](Features/Launcher/)：[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift) 统一编排搜索输入、结果排列与选中、`⌘K` 菜单、Quick AI 模式与打开调度；`QuickQueryResolver`（计算、本机 IP）、`WebURLResolver`（网址识别）、`LauncherActionMenu`（`⌘K` 动作）、`LauncherLayout`（面板尺寸）、`QuickAIAnswerView`（回答区）。
   - [Features/Translator/](Features/Translator/)：`TranslatorViewModel`（每个气泡一份：取词、截图识别、流式翻译、朗读）、`TranslatorState`（会话与提示）、`TranslatorView`（气泡内容）。
   - [Features/Settings/](Features/Settings/)：`SettingsViewModel`、`SettingsCategory`（侧边栏分类与可搜索的设置项名称）、`ShortcutFormatter`（快捷键展示，只用 Carbon 的键码常量）。
-  - [Features/Shared/](Features/Shared/)：Quick AI 与翻译共用的 Markdown 解析与显示（`QuickAIMarkdown`、`QuickAIMarkdownBlockView`）与流式增量合并上屏（`StreamingTextBuffer`）。
+  - [Features/Shared/](Features/Shared/)：Quick AI 与翻译共用的 Markdown 解析与显示（`MarkdownParser`、`MarkdownBlockView`）与流式增量合并上屏（`StreamingTextBuffer`）。
   - 使用显式状态枚举（如 [Features/Launcher/LauncherState.swift](Features/Launcher/LauncherState.swift)、[Features/Translator/TranslatorState.swift](Features/Translator/TranslatorState.swift)）管理状态，避免布尔变量交叉冲突。
 
 ## 4. 搜索与排序引擎机制

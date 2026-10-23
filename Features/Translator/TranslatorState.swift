@@ -38,7 +38,7 @@ struct TranslatorSession: Equatable, Sendable {
 
     /// 展示与复制的译文：去掉推理模型输出在开头的思考内容。
     var visibleTranslation: String {
-        QuickAIMarkdown.removingThinking(from: translation)
+        MarkdownParser.removingThinking(from: translation)
     }
 
     /// 待翻译时翻译（原文为空则不响应）；识别与输出期间不响应；失败或没有译文时重试；否则复制并关闭。

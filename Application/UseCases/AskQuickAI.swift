@@ -5,14 +5,14 @@ struct AskQuickAI {
     static let systemPrompt =
         "你是 macOS 启动器里的快速问答助手。请直接、简洁地回答，使用与提问相同的语言，需要时使用 Markdown。"
 
-    private let streaming: QuickAIStreaming
+    private let streaming: AIStreaming
 
     init(
-        answerer: any QuickAIAnswering,
+        answerer: any AIAnswering,
         settingsStore: any AppSettingsStoring,
-        keyStore: any QuickAIKeyStoring
+        keyStore: any APIKeyStoring
     ) {
-        streaming = QuickAIStreaming(
+        streaming = AIStreaming(
             answerer: answerer,
             settingsStore: settingsStore,
             keyStore: keyStore,

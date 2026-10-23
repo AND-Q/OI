@@ -112,10 +112,10 @@ struct SettingsView: View {
                         viewModel.applyLauncherShortcut($0)
                     }
                     Button("恢复默认") {
-                        viewModel.applyLauncherShortcut(.standard)
+                        viewModel.applyLauncherShortcut(.defaultLauncher)
                     }
                     .disabled(
-                        viewModel.settings.launcherShortcut == .standard
+                        viewModel.settings.launcherShortcut == .defaultLauncher
                             && viewModel.launcherShortcutNotice == nil
                     )
                 }
@@ -185,10 +185,10 @@ struct SettingsView: View {
                         viewModel.applyTranslatorShortcut($0)
                     }
                     Button("恢复默认") {
-                        viewModel.applyTranslatorShortcut(.standardTranslator)
+                        viewModel.applyTranslatorShortcut(.defaultTranslator)
                     }
                     .disabled(
-                        viewModel.settings.translatorShortcut == .standardTranslator
+                        viewModel.settings.translatorShortcut == .defaultTranslator
                             && viewModel.translatorShortcutNotice == nil
                     )
                 }
@@ -204,10 +204,10 @@ struct SettingsView: View {
                         viewModel.applyScreenTranslatorShortcut($0)
                     }
                     Button("恢复默认") {
-                        viewModel.applyScreenTranslatorShortcut(.standardScreenTranslator)
+                        viewModel.applyScreenTranslatorShortcut(.defaultScreenTranslator)
                     }
                     .disabled(
-                        viewModel.settings.screenTranslatorShortcut == .standardScreenTranslator
+                        viewModel.settings.screenTranslatorShortcut == .defaultScreenTranslator
                             && viewModel.screenTranslatorShortcutNotice == nil
                     )
                 }
@@ -373,7 +373,7 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private func shortcutNoticeRow(_ notice: LauncherShortcutNotice) -> some View {
+    private func shortcutNoticeRow(_ notice: GlobalShortcutNotice) -> some View {
         switch notice {
         case .failure(let reason):
             Label("快捷键注册失败：\(reason)", systemImage: "exclamationmark.triangle.fill")

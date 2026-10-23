@@ -169,7 +169,7 @@ final class SettingsViewModelTests: XCTestCase {
         let viewModel = makeViewModel(settingsStore: settingsStore)
         let activator = StubShortcutActivator()
         viewModel.launcherShortcutActivator = activator.activate
-        let shortcut = LauncherShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 12)
+        let shortcut = GlobalShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 12)
 
         viewModel.applyLauncherShortcut(shortcut)
 
@@ -183,16 +183,16 @@ final class SettingsViewModelTests: XCTestCase {
         let settingsStore = MemoryAppSettingsStore()
         let viewModel = makeViewModel(settingsStore: settingsStore)
         let activator = StubShortcutActivator()
-        activator.errors[LauncherShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11)] = "该快捷键已被其他应用占用"
+        activator.errors[GlobalShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11)] = "该快捷键已被其他应用占用"
         viewModel.launcherShortcutActivator = activator.activate
-        let rejected = LauncherShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11)
+        let rejected = GlobalShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11)
 
         viewModel.applyLauncherShortcut(rejected)
 
         // 注册失败后按原快捷键重新激活，保证呼出热键始终可用。
-        XCTAssertEqual(activator.attempts, [rejected, LauncherShortcut.standard])
-        XCTAssertEqual(viewModel.settings.launcherShortcut, LauncherShortcut.standard)
-        XCTAssertEqual(settingsStore.load().launcherShortcut, LauncherShortcut.standard)
+        XCTAssertEqual(activator.attempts, [rejected, GlobalShortcut.defaultLauncher])
+        XCTAssertEqual(viewModel.settings.launcherShortcut, GlobalShortcut.defaultLauncher)
+        XCTAssertEqual(settingsStore.load().launcherShortcut, GlobalShortcut.defaultLauncher)
         XCTAssertEqual(viewModel.launcherShortcutNotice, .failure("该快捷键已被其他应用占用"))
     }
 
@@ -202,15 +202,15 @@ final class SettingsViewModelTests: XCTestCase {
         let settingsStore = MemoryAppSettingsStore()
         let viewModel = makeViewModel(settingsStore: settingsStore)
         let activator = StubShortcutActivator()
-        activator.errors[LauncherShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11)] = "新组合被占用"
-        activator.errors[LauncherShortcut.standard] = "原组合被抢占"
+        activator.errors[GlobalShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11)] = "新组合被占用"
+        activator.errors[GlobalShortcut.defaultLauncher] = "原组合被抢占"
         viewModel.launcherShortcutActivator = activator.activate
 
-        viewModel.applyLauncherShortcut(LauncherShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11))
+        viewModel.applyLauncherShortcut(GlobalShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11))
 
-        XCTAssertEqual(activator.attempts, [LauncherShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11), .standard])
-        XCTAssertEqual(viewModel.settings.launcherShortcut, LauncherShortcut.standard)
-        XCTAssertEqual(settingsStore.load().launcherShortcut, LauncherShortcut.standard)
+        XCTAssertEqual(activator.attempts, [GlobalShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11), .defaultLauncher])
+        XCTAssertEqual(viewModel.settings.launcherShortcut, GlobalShortcut.defaultLauncher)
+        XCTAssertEqual(settingsStore.load().launcherShortcut, GlobalShortcut.defaultLauncher)
         XCTAssertEqual(
             viewModel.launcherShortcutNotice,
             .failure("原快捷键重新注册也失败，当前没有可用的呼出快捷键（新组合原因：新组合被占用）。请重新录制组合或重启 OI")
@@ -220,14 +220,14 @@ final class SettingsViewModelTests: XCTestCase {
     func testApplyLauncherShortcutClearsFailureNoticeOnSuccess() {
         let viewModel = makeViewModel()
         let activator = StubShortcutActivator()
-        activator.errors[LauncherShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11)] = "占用"
+        activator.errors[GlobalShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11)] = "占用"
         viewModel.launcherShortcutActivator = activator.activate
-        viewModel.applyLauncherShortcut(LauncherShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11))
+        viewModel.applyLauncherShortcut(GlobalShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11))
 
-        viewModel.applyLauncherShortcut(LauncherShortcut(keyCode: 3, modifiers: 1 << 11))
+        viewModel.applyLauncherShortcut(GlobalShortcut(keyCode: 3, modifiers: 1 << 11))
 
         XCTAssertNil(viewModel.launcherShortcutNotice)
-        XCTAssertEqual(viewModel.settings.launcherShortcut, LauncherShortcut(keyCode: 3, modifiers: 1 << 11))
+        XCTAssertEqual(viewModel.settings.launcherShortcut, GlobalShortcut(keyCode: 3, modifiers: 1 << 11))
     }
 
     func testApplyInvalidLauncherShortcutIsRejectedWithoutActivation() {
@@ -236,11 +236,11 @@ final class SettingsViewModelTests: XCTestCase {
         let activator = StubShortcutActivator()
         viewModel.launcherShortcutActivator = activator.activate
 
-        viewModel.applyLauncherShortcut(LauncherShortcut(keyCode: 0, modifiers: 0))
+        viewModel.applyLauncherShortcut(GlobalShortcut(keyCode: 0, modifiers: 0))
 
         XCTAssertEqual(activator.attempts, [])
-        XCTAssertEqual(viewModel.settings.launcherShortcut, LauncherShortcut.standard)
-        XCTAssertEqual(settingsStore.load().launcherShortcut, LauncherShortcut.standard)
+        XCTAssertEqual(viewModel.settings.launcherShortcut, GlobalShortcut.defaultLauncher)
+        XCTAssertEqual(settingsStore.load().launcherShortcut, GlobalShortcut.defaultLauncher)
         XCTAssertEqual(viewModel.launcherShortcutNotice, .failure("快捷键需包含 ⌘、⌥ 或 ⌃ 修饰键"))
     }
 
@@ -251,10 +251,10 @@ final class SettingsViewModelTests: XCTestCase {
         let activator = StubShortcutActivator()
         viewModel.launcherShortcutActivator = activator.activate
 
-        viewModel.applyLauncherShortcut(LauncherShortcut(keyCode: 12, modifiers: 1 << 8)) // ⌘Q
+        viewModel.applyLauncherShortcut(GlobalShortcut(keyCode: 12, modifiers: 1 << 8)) // ⌘Q
 
         XCTAssertEqual(activator.attempts, [])
-        XCTAssertEqual(settingsStore.load().launcherShortcut, LauncherShortcut.standard)
+        XCTAssertEqual(settingsStore.load().launcherShortcut, GlobalShortcut.defaultLauncher)
         XCTAssertEqual(
             viewModel.launcherShortcutNotice,
             .failure("只用 ⌘ 会覆盖各应用的同名快捷键，请加上 ⌥ 或 ⌃")
@@ -266,7 +266,7 @@ final class SettingsViewModelTests: XCTestCase {
         let activator = StubShortcutActivator()
         viewModel.launcherShortcutActivator = activator.activate
 
-        viewModel.applyLauncherShortcut(.standard)
+        viewModel.applyLauncherShortcut(.defaultLauncher)
 
         XCTAssertEqual(activator.attempts, [])
         XCTAssertNil(viewModel.launcherShortcutNotice)
@@ -277,29 +277,29 @@ final class SettingsViewModelTests: XCTestCase {
     func testReapplyingCurrentShortcutAfterFailureReactivatesAndClearsNotice() {
         let viewModel = makeViewModel()
         let activator = StubShortcutActivator()
-        activator.errors[LauncherShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11)] = "该快捷键已被其他应用占用"
+        activator.errors[GlobalShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11)] = "该快捷键已被其他应用占用"
         viewModel.launcherShortcutActivator = activator.activate
-        viewModel.applyLauncherShortcut(LauncherShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11))
+        viewModel.applyLauncherShortcut(GlobalShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11))
         XCTAssertEqual(viewModel.launcherShortcutNotice, .failure("该快捷键已被其他应用占用"))
 
-        viewModel.applyLauncherShortcut(.standard)
+        viewModel.applyLauncherShortcut(.defaultLauncher)
 
         XCTAssertEqual(
             activator.attempts,
-            [LauncherShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11), .standard, .standard]
+            [GlobalShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11), .defaultLauncher, .defaultLauncher]
         )
         XCTAssertNil(viewModel.launcherShortcutNotice)
-        XCTAssertEqual(viewModel.settings.launcherShortcut, .standard)
+        XCTAssertEqual(viewModel.settings.launcherShortcut, .defaultLauncher)
     }
 
     func testApplyLauncherShortcutWithoutActivatorIsNoOp() {
         let settingsStore = MemoryAppSettingsStore()
         let viewModel = makeViewModel(settingsStore: settingsStore)
 
-        viewModel.applyLauncherShortcut(LauncherShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11))
+        viewModel.applyLauncherShortcut(GlobalShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 11))
 
-        XCTAssertEqual(viewModel.settings.launcherShortcut, LauncherShortcut.standard)
-        XCTAssertEqual(settingsStore.load().launcherShortcut, LauncherShortcut.standard)
+        XCTAssertEqual(viewModel.settings.launcherShortcut, GlobalShortcut.defaultLauncher)
+        XCTAssertEqual(settingsStore.load().launcherShortcut, GlobalShortcut.defaultLauncher)
         XCTAssertNil(viewModel.launcherShortcutNotice)
     }
 
@@ -316,7 +316,7 @@ final class SettingsViewModelTests: XCTestCase {
             .failure("该快捷键已被其他应用占用，请换一个组合")
         )
         // 设置值本身不变，恢复默认按钮因提示存在而可点击重试。
-        XCTAssertEqual(viewModel.settings.launcherShortcut, LauncherShortcut.standard)
+        XCTAssertEqual(viewModel.settings.launcherShortcut, GlobalShortcut.defaultLauncher)
     }
 
     /// 文件搜索从关闭切到开启时请求一次目录授权；其他设置变化或关闭时不请求。
@@ -413,11 +413,11 @@ final class SettingsViewModelTests: XCTestCase {
 @MainActor
 private final class StubShortcutActivator {
     /// 按调用顺序记录尝试激活的组合。
-    private(set) var attempts: [LauncherShortcut] = []
+    private(set) var attempts: [GlobalShortcut] = []
     /// 按组合注入的失败原因；未注入的组合视为激活成功。
-    var errors: [LauncherShortcut: String] = [:]
+    var errors: [GlobalShortcut: String] = [:]
 
-    func activate(_ shortcut: LauncherShortcut) throws {
+    func activate(_ shortcut: GlobalShortcut) throws {
         attempts.append(shortcut)
         if let error = errors[shortcut] {
             throw StubShortcutError(message: error)

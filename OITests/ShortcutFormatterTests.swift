@@ -6,7 +6,7 @@ import XCTest
 final class ShortcutFormatterTests: XCTestCase {
     func testModifierSymbolsFollowSystemOrder() {
         // ⌃ ⌥ ⇧ ⌘ = 1 << 12 | 1 << 11 | 1 << 9 | 1 << 8。
-        let all = LauncherShortcut(keyCode: 49, modifiers: (1 << 8) | (1 << 9) | (1 << 11) | (1 << 12))
+        let all = GlobalShortcut(keyCode: 49, modifiers: (1 << 8) | (1 << 9) | (1 << 11) | (1 << 12))
         XCTAssertEqual(ShortcutFormatter.modifierSymbols(for: all.modifiers), ["⌃", "⌥", "⇧", "⌘"])
         XCTAssertEqual(ShortcutFormatter.modifierSymbols(for: 0), [])
     }
@@ -30,7 +30,7 @@ final class ShortcutFormatterTests: XCTestCase {
     }
 
     func testDisplayNameJoinsModifiersAndKey() {
-        let shortcut = LauncherShortcut(keyCode: 49, modifiers: 1 << 11)
+        let shortcut = GlobalShortcut(keyCode: 49, modifiers: 1 << 11)
         XCTAssertEqual(ShortcutFormatter.displayName(for: shortcut), "⌥ Space")
     }
 }

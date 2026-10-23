@@ -9,7 +9,7 @@ enum LaunchAtLoginNotice: Equatable {
 }
 
 /// 全局快捷键（呼出启动器、划词翻译、截图翻译）切换需要注意的用户可见状态。
-enum LauncherShortcutNotice: Equatable {
+enum GlobalShortcutNotice: Equatable {
     /// 新快捷键注册失败（如被其他应用占用），携带原因。
     case failure(String)
 }
@@ -31,9 +31,9 @@ final class SettingsViewModel: ObservableObject {
     /// 开机自启动的开关状态来自系统登录项，而非持久化存储。
     @Published private(set) var isLaunchAtLoginEnabled: Bool
     @Published private(set) var launchAtLoginNotice: LaunchAtLoginNotice?
-    @Published private(set) var launcherShortcutNotice: LauncherShortcutNotice?
-    @Published private(set) var translatorShortcutNotice: LauncherShortcutNotice?
-    @Published private(set) var screenTranslatorShortcutNotice: LauncherShortcutNotice?
+    @Published private(set) var launcherShortcutNotice: GlobalShortcutNotice?
+    @Published private(set) var translatorShortcutNotice: GlobalShortcutNotice?
+    @Published private(set) var screenTranslatorShortcutNotice: GlobalShortcutNotice?
     /// Quick AI API Key 存于独立的密钥存储，设置窗口展示时才读取，不在启动期访问钥匙串。
     @Published private(set) var quickAIAPIKey = ""
     /// 划词翻译的 API Key，与 Quick AI 的分开存放，读取时机同上。
@@ -45,21 +45,21 @@ final class SettingsViewModel: ObservableObject {
 
     /// Quick AI 接口地址经 http 访问公网主机时为 true，设置面板据此在地址栏下方提示明文传输。
     var isQuickAIBaseURLPlaintext: Bool {
-        QuickAIConfiguration.isPlaintextOverPublicNetwork(baseURLString: settings.quickAIBaseURL)
+        AIEndpointConfiguration.isPlaintextOverPublicNetwork(baseURLString: settings.quickAIBaseURL)
     }
 
     /// 划词翻译接口地址的明文提示，规则同上。
     var isTranslationBaseURLPlaintext: Bool {
-        QuickAIConfiguration.isPlaintextOverPublicNetwork(baseURLString: settings.translationBaseURL)
+        AIEndpointConfiguration.isPlaintextOverPublicNetwork(baseURLString: settings.translationBaseURL)
     }
 
     /// 由 AppCoordinator 注入：把呼出快捷键切换为给定组合并接管按键处理，
     /// 注册失败时抛错，不产生部分生效的状态。
-    var launcherShortcutActivator: ((LauncherShortcut) throws -> Void)?
+    var launcherShortcutActivator: ((GlobalShortcut) throws -> Void)?
     /// 由 AppCoordinator 注入：翻译快捷键的激活闭包，约定同上。
-    var translatorShortcutActivator: ((LauncherShortcut) throws -> Void)?
+    var translatorShortcutActivator: ((GlobalShortcut) throws -> Void)?
     /// 由 AppCoordinator 注入：截图翻译快捷键的激活闭包，约定同上。
-    var screenTranslatorShortcutActivator: ((LauncherShortcut) throws -> Void)?
+    var screenTranslatorShortcutActivator: ((GlobalShortcut) throws -> Void)?
     /// 由 AppCoordinator 注入：文件搜索从关闭切到开启时请求桌面、文稿、下载目录授权。
     var fileSearchAccessRequester: (() -> Void)?
     /// 由 AppCoordinator 注入：用力点按取词开关变化时启动（true）或停止（false）全局监听。
@@ -67,8 +67,8 @@ final class SettingsViewModel: ObservableObject {
 
     private let settingsStore: any AppSettingsStoring
     private let loginItemController: any LoginItemControlling
-    private let quickAIKeyStore: any QuickAIKeyStoring
-    private let translatorKeyStore: any QuickAIKeyStoring
+    private let quickAIKeyStore: any APIKeyStoring
+    private let translatorKeyStore: any APIKeyStoring
     private let translatorEnvironment: any TranslatorEnvironmentHandling
     private var savedQuickAIAPIKey = ""
     private var savedTranslationAPIKey = ""
@@ -76,8 +76,8 @@ final class SettingsViewModel: ObservableObject {
     init(
         settingsStore: any AppSettingsStoring,
         loginItemController: any LoginItemControlling,
-        quickAIKeyStore: any QuickAIKeyStoring = MemoryQuickAIKeyStore(),
-        translatorKeyStore: any QuickAIKeyStoring = MemoryQuickAIKeyStore(),
+        quickAIKeyStore: any APIKeyStoring = MemoryAPIKeyStore(),
+        translatorKeyStore: any APIKeyStoring = MemoryAPIKeyStore(),
         translatorEnvironment: any TranslatorEnvironmentHandling = MemoryTranslatorEnvironment()
     ) {
         self.settingsStore = settingsStore
@@ -115,17 +115,17 @@ final class SettingsViewModel: ObservableObject {
     }
 
     /// 应用新的呼出快捷键，规则见 `applyShortcut(_:to:)`。
-    func applyLauncherShortcut(_ shortcut: LauncherShortcut) {
+    func applyLauncherShortcut(_ shortcut: GlobalShortcut) {
         applyShortcut(shortcut, to: .launcher)
     }
 
     /// 应用新的翻译快捷键，规则见 `applyShortcut(_:to:)`。
-    func applyTranslatorShortcut(_ shortcut: LauncherShortcut) {
+    func applyTranslatorShortcut(_ shortcut: GlobalShortcut) {
         applyShortcut(shortcut, to: .translator)
     }
 
     /// 应用新的截图翻译快捷键，规则见 `applyShortcut(_:to:)`。
-    func applyScreenTranslatorShortcut(_ shortcut: LauncherShortcut) {
+    func applyScreenTranslatorShortcut(_ shortcut: GlobalShortcut) {
         applyShortcut(shortcut, to: .screenTranslator)
     }
 
@@ -239,7 +239,7 @@ final class SettingsViewModel: ObservableObject {
         case translator
         case screenTranslator
 
-        var setting: WritableKeyPath<AppSettings, LauncherShortcut> {
+        var setting: WritableKeyPath<AppSettings, GlobalShortcut> {
             switch self {
             case .launcher: \.launcherShortcut
             case .translator: \.translatorShortcut
@@ -260,7 +260,7 @@ final class SettingsViewModel: ObservableObject {
     /// 保证原快捷键始终可用。与其他快捷键相同的组合直接拒绝，不尝试注册。
     /// 重申当前快捷键（冲突后按原键确认、重试默认键）仍执行激活——
     /// 既是重试入口也能自愈回滚失败的场景，仅在无失败提示可清理时跳过。
-    private func applyShortcut(_ shortcut: LauncherShortcut, to target: ShortcutTarget) {
+    private func applyShortcut(_ shortcut: GlobalShortcut, to target: ShortcutTarget) {
         if let problem = shortcut.problem {
             setNotice(.failure(ShortcutFormatter.description(of: problem)), for: target)
             return
@@ -295,7 +295,7 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
-    private func activator(for target: ShortcutTarget) -> ((LauncherShortcut) throws -> Void)? {
+    private func activator(for target: ShortcutTarget) -> ((GlobalShortcut) throws -> Void)? {
         switch target {
         case .launcher: launcherShortcutActivator
         case .translator: translatorShortcutActivator
@@ -303,7 +303,7 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
-    private func notice(for target: ShortcutTarget) -> LauncherShortcutNotice? {
+    private func notice(for target: ShortcutTarget) -> GlobalShortcutNotice? {
         switch target {
         case .launcher: launcherShortcutNotice
         case .translator: translatorShortcutNotice
@@ -311,7 +311,7 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
-    private func setNotice(_ notice: LauncherShortcutNotice?, for target: ShortcutTarget) {
+    private func setNotice(_ notice: GlobalShortcutNotice?, for target: ShortcutTarget) {
         switch target {
         case .launcher: launcherShortcutNotice = notice
         case .translator: translatorShortcutNotice = notice

@@ -80,7 +80,7 @@ final class UserDefaultsAppSettingsStoreTests: XCTestCase {
     func testShortcutRoundTripsAcrossStoreInstances() throws {
         let context = try makeStore()
         defer { context.cleanup() }
-        let settings = AppSettings(launcherShortcut: LauncherShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 12))
+        let settings = AppSettings(launcherShortcut: GlobalShortcut(keyCode: 2, modifiers: 1 << 8 | 1 << 12))
 
         context.store.save(settings)
 
@@ -98,7 +98,7 @@ final class UserDefaultsAppSettingsStoreTests: XCTestCase {
 
         XCTAssertEqual(
             context.store.load().launcherShortcut,
-            LauncherShortcut.standard
+            GlobalShortcut.defaultLauncher
         )
     }
 
@@ -120,7 +120,7 @@ final class UserDefaultsAppSettingsStoreTests: XCTestCase {
 
             XCTAssertEqual(
                 context.store.load().launcherShortcut,
-                LauncherShortcut.standard,
+                GlobalShortcut.defaultLauncher,
                 "脏数据 \(corrupt) 应回退默认组合"
             )
         }
@@ -129,13 +129,13 @@ final class UserDefaultsAppSettingsStoreTests: XCTestCase {
         context.defaults.set(49, forKey: "settings.launcherShortcut.keyCode")
         context.defaults.set(0, forKey: "settings.launcherShortcut.modifiers")
 
-        XCTAssertEqual(context.store.load().launcherShortcut, LauncherShortcut.standard)
+        XCTAssertEqual(context.store.load().launcherShortcut, GlobalShortcut.defaultLauncher)
 
         // 旧版本允许保存的 ⌘C 这类组合会覆盖各应用的同名快捷键，同样回退默认。
         context.defaults.set(8, forKey: "settings.launcherShortcut.keyCode")
         context.defaults.set(1 << 8, forKey: "settings.launcherShortcut.modifiers")
 
-        XCTAssertEqual(context.store.load().launcherShortcut, LauncherShortcut.standard)
+        XCTAssertEqual(context.store.load().launcherShortcut, GlobalShortcut.defaultLauncher)
     }
 
     // MARK: - Helpers

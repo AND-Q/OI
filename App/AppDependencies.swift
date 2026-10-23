@@ -6,7 +6,7 @@ struct AppDependencies {
     let launcherViewModel: LauncherViewModel
     let settingsViewModel: SettingsViewModel
     let settingsStore: any AppSettingsStoring
-    let applicationIconProvider: any ApplicationIconProviding
+    let iconProvider: any IconProviding
     let globalShortcutService: any GlobalShortcutHandling
     /// 持有引用以确保目录事件在整个应用生命周期内持续送达；测试注入依赖图时可省略，
     /// 此时不监听目录变动。
@@ -30,12 +30,12 @@ struct AppDependencies {
         let urlOpener = WorkspaceURLOpener()
         let openURL = OpenURL(opener: urlOpener)
         let usageStore = UserDefaultsAppUsageStore()
-        let quickAIKeyStore = KeychainQuickAIKeyStore()
-        let translatorKeyStore = KeychainQuickAIKeyStore(
-            account: KeychainQuickAIKeyStore.translatorAccount,
-            initialValueAccount: KeychainQuickAIKeyStore.quickAIAccount
+        let quickAIKeyStore = KeychainAPIKeyStore()
+        let translatorKeyStore = KeychainAPIKeyStore(
+            account: KeychainAPIKeyStore.translatorAccount,
+            initialValueAccount: KeychainAPIKeyStore.quickAIAccount
         )
-        let quickAIClient = OpenAICompatibleQuickAIClient()
+        let aiClient = OpenAICompatibleAIClient()
         let translatorEnvironment = SystemTranslatorEnvironment()
         let textCapturer = AccessibilityTextCapturer()
         let launcherViewModel = LauncherViewModel(
@@ -48,7 +48,7 @@ struct AppDependencies {
             openFile: OpenFile(opener: fileOpener),
             openURL: openURL,
             askQuickAI: AskQuickAI(
-                answerer: quickAIClient,
+                answerer: aiClient,
                 settingsStore: settingsStore,
                 keyStore: quickAIKeyStore
             ),
@@ -59,7 +59,7 @@ struct AppDependencies {
             fileSearchMinimumQueryLength: configuration.fileSearchMinimumQueryLength
         )
         let translateText = TranslateText(
-            answerer: quickAIClient,
+            answerer: aiClient,
             languageDetector: NaturalLanguageDetector(),
             settingsStore: settingsStore,
             keyStore: translatorKeyStore
@@ -78,7 +78,7 @@ struct AppDependencies {
                 translatorEnvironment: translatorEnvironment
             ),
             settingsStore: settingsStore,
-            applicationIconProvider: WorkspaceApplicationIconProvider(),
+            iconProvider: WorkspaceIconProvider(),
             globalShortcutService: CarbonGlobalShortcutService(hotKeyIdentifier: 1),
             appDirectoryWatcher: AppDirectoryWatcher(
                 directories: configuration.applicationSearchDirectories

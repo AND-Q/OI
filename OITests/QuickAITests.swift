@@ -9,11 +9,11 @@ final class QuickAITests: XCTestCase {
     // MARK: - Configuration
 
     func testConfigurationRequiresHTTPURLAndModel() {
-        XCTAssertNil(QuickAIConfiguration(baseURLString: "", model: "gpt", apiKey: nil))
-        XCTAssertNil(QuickAIConfiguration(baseURLString: "ftp://example.com", model: "gpt", apiKey: nil))
-        XCTAssertNil(QuickAIConfiguration(baseURLString: "https://api.openai.com/v1", model: "  ", apiKey: nil))
+        XCTAssertNil(AIEndpointConfiguration(baseURLString: "", model: "gpt", apiKey: nil))
+        XCTAssertNil(AIEndpointConfiguration(baseURLString: "ftp://example.com", model: "gpt", apiKey: nil))
+        XCTAssertNil(AIEndpointConfiguration(baseURLString: "https://api.openai.com/v1", model: "  ", apiKey: nil))
 
-        let configuration = QuickAIConfiguration(
+        let configuration = AIEndpointConfiguration(
             baseURLString: " http://localhost:11434/v1 ",
             model: " qwen2.5 ",
             apiKey: "  "
@@ -25,7 +25,7 @@ final class QuickAITests: XCTestCase {
 
     func testConfigurationTrimsReasoningEffort() {
         func reasoningEffort(_ string: String?) -> String? {
-            let configuration = QuickAIConfiguration(
+            let configuration = AIEndpointConfiguration(
                 baseURLString: "https://api.openai.com/v1",
                 model: "gpt",
                 apiKey: nil,
@@ -40,7 +40,7 @@ final class QuickAITests: XCTestCase {
 
     func testConfigurationAddsMissingScheme() {
         func baseURL(_ string: String) -> String? {
-            QuickAIConfiguration(baseURLString: string, model: "gpt", apiKey: nil)?.baseURL.absoluteString
+            AIEndpointConfiguration(baseURLString: string, model: "gpt", apiKey: nil)?.baseURL.absoluteString
         }
         XCTAssertEqual(baseURL("api.openai.com/v1"), "https://api.openai.com/v1")
         XCTAssertEqual(baseURL(" localhost:11434/v1 "), "http://localhost:11434/v1")
@@ -56,7 +56,7 @@ final class QuickAITests: XCTestCase {
 
     func testPlaintextOverPublicNetworkOnlyForHTTPToNonLocalHosts() {
         func isPlaintext(_ string: String) -> Bool {
-            QuickAIConfiguration.isPlaintextOverPublicNetwork(baseURLString: string)
+            AIEndpointConfiguration.isPlaintextOverPublicNetwork(baseURLString: string)
         }
         XCTAssertTrue(isPlaintext("http://203.0.113.10:11434/v1"))
         XCTAssertTrue(isPlaintext(" HTTP://api.example.com/v1 "))
@@ -77,7 +77,7 @@ final class QuickAITests: XCTestCase {
     // MARK: - OpenAI compatible client
 
     func testParseStreamLineExtractsDeltaDoneAndErrors() {
-        typealias Client = OpenAICompatibleQuickAIClient
+        typealias Client = OpenAICompatibleAIClient
         XCTAssertEqual(
             Client.parseStreamLine(#"data: {"choices":[{"delta":{"content":"你好"}}]}"#),
             .delta("你好")
@@ -93,7 +93,7 @@ final class QuickAITests: XCTestCase {
     }
 
     func testErrorMessageSupportsOpenAIAndOllamaShapes() {
-        typealias Client = OpenAICompatibleQuickAIClient
+        typealias Client = OpenAICompatibleAIClient
         XCTAssertEqual(
             Client.errorMessage(from: Data(#"{"error":{"message":"Incorrect API key"}}"#.utf8)),
             "Incorrect API key"
@@ -107,13 +107,13 @@ final class QuickAITests: XCTestCase {
     }
 
     func testMakeRequestTargetsChatCompletionsWithStreamingBody() throws {
-        let configuration = try XCTUnwrap(QuickAIConfiguration(
+        let configuration = try XCTUnwrap(AIEndpointConfiguration(
             baseURLString: "https://api.openai.com/v1",
             model: "gpt-4o-mini",
             apiKey: "sk-test"
         ))
 
-        let request = OpenAICompatibleQuickAIClient.makeRequest(
+        let request = OpenAICompatibleAIClient.makeRequest(
             question: "1+1?",
             systemPrompt: AskQuickAI.systemPrompt,
             configuration: configuration
@@ -121,7 +121,7 @@ final class QuickAITests: XCTestCase {
 
         XCTAssertEqual(request.url?.absoluteString, "https://api.openai.com/v1/chat/completions")
         XCTAssertEqual(request.httpMethod, "POST")
-        XCTAssertEqual(request.timeoutInterval, OpenAICompatibleQuickAIClient.idleTimeout)
+        XCTAssertEqual(request.timeoutInterval, OpenAICompatibleAIClient.idleTimeout)
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer sk-test")
         let body = try XCTUnwrap(request.httpBody)
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
@@ -133,13 +133,13 @@ final class QuickAITests: XCTestCase {
     }
 
     func testMakeRequestKeepsFullEndpointAndOmitsMissingKey() throws {
-        let configuration = try XCTUnwrap(QuickAIConfiguration(
+        let configuration = try XCTUnwrap(AIEndpointConfiguration(
             baseURLString: "http://localhost:11434/v1/chat/completions",
             model: "qwen2.5",
             apiKey: nil
         ))
 
-        let request = OpenAICompatibleQuickAIClient.makeRequest(
+        let request = OpenAICompatibleAIClient.makeRequest(
             question: "hi",
             systemPrompt: AskQuickAI.systemPrompt,
             configuration: configuration
@@ -152,13 +152,13 @@ final class QuickAITests: XCTestCase {
     /// 未填写思考强度时请求中不带 `reasoning_effort` 字段：不支持该参数的服务可能直接拒绝请求。
     func testMakeRequestSendsReasoningEffortOnlyWhenSet() throws {
         func body(reasoningEffort: String?) throws -> [String: Any] {
-            let configuration = try XCTUnwrap(QuickAIConfiguration(
+            let configuration = try XCTUnwrap(AIEndpointConfiguration(
                 baseURLString: "https://api.openai.com/v1",
                 model: "gpt-5-mini",
                 apiKey: nil,
                 reasoningEffort: reasoningEffort
             ))
-            let request = OpenAICompatibleQuickAIClient.makeRequest(
+            let request = OpenAICompatibleAIClient.makeRequest(
                 question: "hi",
                 systemPrompt: AskQuickAI.systemPrompt,
                 configuration: configuration
@@ -171,13 +171,13 @@ final class QuickAITests: XCTestCase {
     }
 
     func testMakeRequestNormalizesTrailingSlashOnEndpoint() throws {
-        let configuration = try XCTUnwrap(QuickAIConfiguration(
+        let configuration = try XCTUnwrap(AIEndpointConfiguration(
             baseURLString: "https://api.openai.com/v1/chat/completions/",
             model: "gpt-4o-mini",
             apiKey: nil
         ))
 
-        let request = OpenAICompatibleQuickAIClient.makeRequest(
+        let request = OpenAICompatibleAIClient.makeRequest(
             question: "hi",
             systemPrompt: AskQuickAI.systemPrompt,
             configuration: configuration
@@ -204,7 +204,7 @@ final class QuickAITests: XCTestCase {
         ```
         """
 
-        XCTAssertEqual(QuickAIMarkdown.blocks(from: markdown), [
+        XCTAssertEqual(MarkdownParser.blocks(from: markdown), [
             .heading(level: 1, text: "标题"),
             .paragraph("第一行\n第二行"),
             .listItem(marker: "•", text: "苹果", indent: 0),
@@ -218,7 +218,7 @@ final class QuickAITests: XCTestCase {
 
     func testMarkdownTrimsExtraSpacesAfterBullet() {
         XCTAssertEqual(
-            QuickAIMarkdown.blocks(from: "-   苹果\n*  香蕉"),
+            MarkdownParser.blocks(from: "-   苹果\n*  香蕉"),
             [
                 .listItem(marker: "•", text: "苹果", indent: 0),
                 .listItem(marker: "•", text: "香蕉", indent: 0),
@@ -228,21 +228,21 @@ final class QuickAITests: XCTestCase {
 
     func testMarkdownRendersUnclosedCodeFenceWhileStreaming() {
         XCTAssertEqual(
-            QuickAIMarkdown.blocks(from: "示例：\n```\nprint(1)"),
+            MarkdownParser.blocks(from: "示例：\n```\nprint(1)"),
             [.paragraph("示例："), .code(language: "", code: "print(1)")]
         )
     }
 
     func testMarkdownDoesNotTreatHashtagOrDecimalAsBlock() {
         XCTAssertEqual(
-            QuickAIMarkdown.blocks(from: "#tag\n3.14 是圆周率"),
+            MarkdownParser.blocks(from: "#tag\n3.14 是圆周率"),
             [.paragraph("#tag\n3.14 是圆周率")]
         )
     }
 
     func testMarkdownHandlesCRLFNewlines() {
         let markdown = "# 标题\r\n第一段\r\n\r\n第二段"
-        XCTAssertEqual(QuickAIMarkdown.blocks(from: markdown), [
+        XCTAssertEqual(MarkdownParser.blocks(from: markdown), [
             .heading(level: 1, text: "标题"),
             .paragraph("第一段"),
             .paragraph("第二段"),
@@ -257,7 +257,7 @@ final class QuickAITests: XCTestCase {
         | 香蕉 |
         后记
         """
-        XCTAssertEqual(QuickAIMarkdown.blocks(from: markdown), [
+        XCTAssertEqual(MarkdownParser.blocks(from: markdown), [
             .table(header: ["名称", "价格"], rows: [["苹果", "3"], ["香蕉", ""]]),
             .paragraph("后记"),
         ])
@@ -265,32 +265,32 @@ final class QuickAITests: XCTestCase {
 
     func testMarkdownShowsTableHeaderAsParagraphUntilSeparatorArrives() {
         XCTAssertEqual(
-            QuickAIMarkdown.blocks(from: "| 名称 | 价格 |"),
+            MarkdownParser.blocks(from: "| 名称 | 价格 |"),
             [.paragraph("| 名称 | 价格 |")]
         )
     }
 
     func testMarkdownSupportsTildeFenceAndOnlyMatchingFenceCloses() {
         let markdown = "~~~python\n```\nprint(1)\n~~~"
-        XCTAssertEqual(QuickAIMarkdown.blocks(from: markdown), [
+        XCTAssertEqual(MarkdownParser.blocks(from: markdown), [
             .code(language: "python", code: "```\nprint(1)"),
         ])
     }
 
     func testRemovingThinkingHidesClosedAndUnclosedReasoning() {
         XCTAssertEqual(
-            QuickAIMarkdown.removingThinking(from: "<think>\n先想想\n</think>\n\n答案是 2"),
+            MarkdownParser.removingThinking(from: "<think>\n先想想\n</think>\n\n答案是 2"),
             "答案是 2"
         )
-        XCTAssertEqual(QuickAIMarkdown.removingThinking(from: "<think>\n还在想"), "")
-        XCTAssertEqual(QuickAIMarkdown.removingThinking(from: "没有思考"), "没有思考")
+        XCTAssertEqual(MarkdownParser.removingThinking(from: "<think>\n还在想"), "")
+        XCTAssertEqual(MarkdownParser.removingThinking(from: "没有思考"), "没有思考")
         XCTAssertEqual(
-            QuickAIMarkdown.removingThinking(from: "<think> 标签用于包裹推理过程。"),
+            MarkdownParser.removingThinking(from: "<think> 标签用于包裹推理过程。"),
             "",
             "以 <think> 开头且未闭合时按推理中处理"
         )
         XCTAssertEqual(
-            QuickAIMarkdown.removingThinking(from: "DeepSeek 用 <think> 标签包裹推理过程。"),
+            MarkdownParser.removingThinking(from: "DeepSeek 用 <think> 标签包裹推理过程。"),
             "DeepSeek 用 <think> 标签包裹推理过程。",
             "正文中提到的 <think> 不应被截断"
         )
@@ -299,27 +299,27 @@ final class QuickAITests: XCTestCase {
     // MARK: - Use case
 
     func testAskQuickAIThrowsNotConfiguredWithoutRequesting() async {
-        let answerer = StubQuickAIAnswerer(deltas: ["不应到达"])
+        let answerer = StubAIAnswerer(deltas: ["不应到达"])
         let useCase = AskQuickAI(
             answerer: answerer,
             settingsStore: MemoryAppSettingsStore(),
-            keyStore: MemoryQuickAIKeyStore()
+            keyStore: MemoryAPIKeyStore()
         )
 
         do {
             try await useCase.execute(question: "hi") { _ in XCTFail("不应收到增量") }
             XCTFail("应抛出未配置错误")
         } catch {
-            XCTAssertEqual(error as? ApplicationError, .quickAINotConfigured)
+            XCTAssertEqual(error as? ApplicationError, .aiNotConfigured)
         }
     }
 
     func testAskQuickAIPassesKeyAndMapsFailures() async {
-        let answerer = StubQuickAIAnswerer(deltas: ["半"], error: QuickAIClientError.httpStatus(401, "Incorrect API key"))
+        let answerer = StubAIAnswerer(deltas: ["半"], error: AIClientError.httpStatus(401, "Incorrect API key"))
         let useCase = AskQuickAI(
             answerer: answerer,
             settingsStore: configuredSettingsStore(),
-            keyStore: MemoryQuickAIKeyStore(initial: "sk-test")
+            keyStore: MemoryAPIKeyStore(initial: "sk-test")
         )
         var received: [String] = []
 
@@ -327,14 +327,14 @@ final class QuickAITests: XCTestCase {
             try await useCase.execute(question: "hi") { received.append($0) }
             XCTFail("应抛出失败错误")
         } catch {
-            XCTAssertEqual(error as? ApplicationError, .quickAIFailed(reason: "服务返回 401：Incorrect API key"))
+            XCTAssertEqual(error as? ApplicationError, .aiRequestFailed(reason: "服务返回 401：Incorrect API key"))
         }
         XCTAssertEqual(received, ["半"])
         XCTAssertEqual(answerer.recorder.configurations.first?.apiKey, "sk-test")
     }
 
     func testAskQuickAIUsesQuickAIReasoningEffort() async throws {
-        let answerer = StubQuickAIAnswerer(deltas: ["2"])
+        let answerer = StubAIAnswerer(deltas: ["2"])
         let useCase = AskQuickAI(
             answerer: answerer,
             settingsStore: MemoryAppSettingsStore(initial: AppSettings(
@@ -343,7 +343,7 @@ final class QuickAITests: XCTestCase {
                 quickAIReasoningEffort: "high",
                 translationReasoningEffort: "low"
             )),
-            keyStore: MemoryQuickAIKeyStore()
+            keyStore: MemoryAPIKeyStore()
         )
 
         try await useCase.execute(question: "1+1") { _ in }
@@ -354,7 +354,7 @@ final class QuickAITests: XCTestCase {
     // MARK: - View model
 
     func testTabEntersQuickAIModeBeforeTypingQuestion() {
-        let viewModel = makeQuickAIViewModel(answerer: StubQuickAIAnswerer(deltas: []))
+        let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: []))
 
         viewModel.toggleQuickAIMode()
         viewModel.query = "1+1 等于几"
@@ -367,7 +367,7 @@ final class QuickAITests: XCTestCase {
     }
 
     func testTabTogglesBackToSearchKeepingText() async throws {
-        let viewModel = makeQuickAIViewModel(answerer: StubQuickAIAnswerer(deltas: ["回答"]))
+        let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: ["回答"]))
         viewModel.toggleQuickAIMode()
         viewModel.query = "问题"
         try await XCTUnwrap(viewModel.startQuickAI()).value
@@ -382,7 +382,7 @@ final class QuickAITests: XCTestCase {
     }
 
     func testQuickAIRequiresQuickAIMode() {
-        let viewModel = makeQuickAIViewModel(answerer: StubQuickAIAnswerer(deltas: []))
+        let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: []))
         viewModel.query = "问题"
 
         XCTAssertNil(viewModel.startQuickAI())
@@ -390,7 +390,7 @@ final class QuickAITests: XCTestCase {
     }
 
     func testEnterStartsQuickAIAndStreamsAnswer() async throws {
-        let viewModel = makeQuickAIViewModel(answerer: StubQuickAIAnswerer(deltas: ["**1+1**", " = 2"]))
+        let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: ["**1+1**", " = 2"]))
         viewModel.toggleQuickAIMode()
         viewModel.query = "1+1 等于几"
 
@@ -411,7 +411,7 @@ final class QuickAITests: XCTestCase {
     }
 
     func testQuickAIIgnoresEmptyQuery() {
-        let viewModel = makeQuickAIViewModel(answerer: StubQuickAIAnswerer(deltas: []))
+        let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: []))
         viewModel.toggleQuickAIMode()
         viewModel.query = "   "
 
@@ -421,7 +421,7 @@ final class QuickAITests: XCTestCase {
 
     func testQuickAIShowsConfigurationHintWhenNotConfigured() async throws {
         let viewModel = makeQuickAIViewModel(
-            answerer: StubQuickAIAnswerer(deltas: []),
+            answerer: StubAIAnswerer(deltas: []),
             settingsStore: MemoryAppSettingsStore()
         )
         viewModel.toggleQuickAIMode()
@@ -437,7 +437,7 @@ final class QuickAITests: XCTestCase {
     }
 
     func testStopQuickAIKeepsPartialAnswer() async throws {
-        let viewModel = makeQuickAIViewModel(answerer: HangingQuickAIAnswerer())
+        let viewModel = makeQuickAIViewModel(answerer: HangingAIAnswerer())
         viewModel.toggleQuickAIMode()
         viewModel.query = "写一首诗"
         let task = try XCTUnwrap(viewModel.startQuickAI())
@@ -451,7 +451,7 @@ final class QuickAITests: XCTestCase {
     }
 
     func testEditingQuestionDiscardsAnswerButStaysInQuickAIMode() async throws {
-        let viewModel = makeQuickAIViewModel(answerer: HangingQuickAIAnswerer())
+        let viewModel = makeQuickAIViewModel(answerer: HangingAIAnswerer())
         viewModel.toggleQuickAIMode()
         viewModel.query = "写一首诗"
         let task = try XCTUnwrap(viewModel.startQuickAI())
@@ -467,7 +467,7 @@ final class QuickAITests: XCTestCase {
 
     func testAnswerToCopyExcludesThinking() async throws {
         let viewModel = makeQuickAIViewModel(
-            answerer: StubQuickAIAnswerer(deltas: ["<think>推理", "</think>", "答案"])
+            answerer: StubAIAnswerer(deltas: ["<think>推理", "</think>", "答案"])
         )
         viewModel.toggleQuickAIMode()
         viewModel.query = "问题"
@@ -478,7 +478,7 @@ final class QuickAITests: XCTestCase {
     }
 
     func testScrollQuickAIAnswerOnlyWithSession() async throws {
-        let viewModel = makeQuickAIViewModel(answerer: StubQuickAIAnswerer(deltas: ["回答"]))
+        let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: ["回答"]))
         viewModel.toggleQuickAIMode()
         viewModel.scrollQuickAIAnswer(by: 1)
         XCTAssertEqual(viewModel.quickAIScrollRequest, QuickAIScrollRequest())
@@ -510,7 +510,7 @@ final class QuickAITests: XCTestCase {
 
     func testRetryAfterFailureStartsNewSession() async throws {
         let viewModel = makeQuickAIViewModel(
-            answerer: StubQuickAIAnswerer(deltas: []),
+            answerer: StubAIAnswerer(deltas: []),
             settingsStore: MemoryAppSettingsStore()
         )
         viewModel.toggleQuickAIMode()
@@ -524,7 +524,7 @@ final class QuickAITests: XCTestCase {
     }
 
     func testMarkQuickAIAnswerCopied() async throws {
-        let viewModel = makeQuickAIViewModel(answerer: StubQuickAIAnswerer(deltas: ["答案"]))
+        let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: ["答案"]))
         viewModel.toggleQuickAIMode()
         viewModel.query = "问题"
         try await XCTUnwrap(viewModel.startQuickAI()).value
@@ -535,7 +535,7 @@ final class QuickAITests: XCTestCase {
     }
 
     func testPrepareForPresentationResetsQuickAISession() async throws {
-        let viewModel = makeQuickAIViewModel(answerer: StubQuickAIAnswerer(deltas: ["回答"]))
+        let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: ["回答"]))
         viewModel.toggleQuickAIMode()
         viewModel.query = "问题"
         try await XCTUnwrap(viewModel.startQuickAI()).value
@@ -587,7 +587,7 @@ final class QuickAITests: XCTestCase {
     }
 
     func testSettingsViewModelSavesAndReloadsAPIKey() {
-        let keyStore = MemoryQuickAIKeyStore(initial: "sk-old")
+        let keyStore = MemoryAPIKeyStore(initial: "sk-old")
         let viewModel = SettingsViewModel(
             settingsStore: MemoryAppSettingsStore(),
             loginItemController: StubLoginItemController(),
@@ -608,9 +608,9 @@ final class QuickAITests: XCTestCase {
         XCTAssertNil(keyStore.load())
     }
 
-    func testKeychainQuickAIKeyStoreRoundTripsAndDeletes() {
-        let testService = "OITests.KeychainQuickAIKeyStore.\(UUID().uuidString)"
-        let store = KeychainQuickAIKeyStore(service: testService)
+    func testKeychainAPIKeyStoreRoundTripsAndDeletes() {
+        let testService = "OITests.KeychainAPIKeyStore.\(UUID().uuidString)"
+        let store = KeychainAPIKeyStore(service: testService)
         defer { store.save(nil) }
 
         XCTAssertNil(store.load())
@@ -626,8 +626,8 @@ final class QuickAITests: XCTestCase {
     }
 
     func testSettingsViewModelKeepsTranslationAPIKeySeparate() {
-        let quickAIKeyStore = MemoryQuickAIKeyStore(initial: "sk-quick")
-        let translatorKeyStore = MemoryQuickAIKeyStore(initial: "sk-translate")
+        let quickAIKeyStore = MemoryAPIKeyStore(initial: "sk-quick")
+        let translatorKeyStore = MemoryAPIKeyStore(initial: "sk-translate")
         let viewModel = SettingsViewModel(
             settingsStore: MemoryAppSettingsStore(),
             loginItemController: StubLoginItemController(),
@@ -653,9 +653,9 @@ final class QuickAITests: XCTestCase {
 
     /// 升级前两者共用密钥：翻译密钥首次读取时复制 Quick AI 的密钥，此后互不影响，清空后也不再复制。
     func testKeychainTranslatorKeyStoreCopiesQuickAIKeyOnce() {
-        let testService = "OITests.KeychainQuickAIKeyStore.\(UUID().uuidString)"
+        let testService = "OITests.KeychainAPIKeyStore.\(UUID().uuidString)"
         defer { deleteKeychainItems(service: testService) }
-        let quickAIStore = KeychainQuickAIKeyStore(service: testService)
+        let quickAIStore = KeychainAPIKeyStore(service: testService)
         quickAIStore.save("sk-shared")
 
         XCTAssertEqual(makeTranslatorKeyStore(service: testService).load(), "sk-shared")
@@ -670,23 +670,23 @@ final class QuickAITests: XCTestCase {
 
     /// 全新安装时两者都没有密钥：之后填写的 Quick AI 密钥不会被复制给翻译。
     func testKeychainTranslatorKeyStoreDoesNotCopyLaterQuickAIKey() {
-        let testService = "OITests.KeychainQuickAIKeyStore.\(UUID().uuidString)"
+        let testService = "OITests.KeychainAPIKeyStore.\(UUID().uuidString)"
         defer { deleteKeychainItems(service: testService) }
 
         XCTAssertNil(makeTranslatorKeyStore(service: testService).load())
 
-        KeychainQuickAIKeyStore(service: testService).save("sk-quick")
+        KeychainAPIKeyStore(service: testService).save("sk-quick")
         XCTAssertNil(makeTranslatorKeyStore(service: testService).load())
     }
 
     // MARK: - Helpers
 
     /// 每次新建实例，避免内存缓存掩盖钥匙串中的实际内容。
-    private func makeTranslatorKeyStore(service: String) -> KeychainQuickAIKeyStore {
-        KeychainQuickAIKeyStore(
+    private func makeTranslatorKeyStore(service: String) -> KeychainAPIKeyStore {
+        KeychainAPIKeyStore(
             service: service,
-            account: KeychainQuickAIKeyStore.translatorAccount,
-            initialValueAccount: KeychainQuickAIKeyStore.quickAIAccount
+            account: KeychainAPIKeyStore.translatorAccount,
+            initialValueAccount: KeychainAPIKeyStore.quickAIAccount
         )
     }
 
@@ -706,7 +706,7 @@ final class QuickAITests: XCTestCase {
     }
 
     private func makeQuickAIViewModel(
-        answerer: any QuickAIAnswering,
+        answerer: any AIAnswering,
         settingsStore: MemoryAppSettingsStore? = nil
     ) -> LauncherViewModel {
         let settingsStore = settingsStore ?? configuredSettingsStore()
@@ -716,7 +716,7 @@ final class QuickAITests: XCTestCase {
             askQuickAI: AskQuickAI(
                 answerer: answerer,
                 settingsStore: settingsStore,
-                keyStore: MemoryQuickAIKeyStore()
+                keyStore: MemoryAPIKeyStore()
             ),
             settingsStore: settingsStore
         )
@@ -735,24 +735,24 @@ final class QuickAITests: XCTestCase {
 /// Records the configurations the answerer was asked with.
 private final class QuickAIRequestRecorder: @unchecked Sendable {
     private let lock = NSLock()
-    private var storedConfigurations: [QuickAIConfiguration] = []
+    private var storedConfigurations: [AIEndpointConfiguration] = []
 
-    var configurations: [QuickAIConfiguration] {
+    var configurations: [AIEndpointConfiguration] {
         lock.withLock { storedConfigurations }
     }
 
-    func record(_ configuration: QuickAIConfiguration) {
+    func record(_ configuration: AIEndpointConfiguration) {
         lock.withLock { storedConfigurations.append(configuration) }
     }
 }
 
 /// Yields the given deltas, then finishes (or fails with `error`).
-private struct StubQuickAIAnswerer: QuickAIAnswering {
+private struct StubAIAnswerer: AIAnswering {
     let deltas: [String]
-    let error: QuickAIClientError?
+    let error: AIClientError?
     let recorder = QuickAIRequestRecorder()
 
-    init(deltas: [String], error: QuickAIClientError? = nil) {
+    init(deltas: [String], error: AIClientError? = nil) {
         self.deltas = deltas
         self.error = error
     }
@@ -760,7 +760,7 @@ private struct StubQuickAIAnswerer: QuickAIAnswering {
     func streamAnswer(
         to question: String,
         systemPrompt: String,
-        configuration: QuickAIConfiguration
+        configuration: AIEndpointConfiguration
     ) -> AsyncThrowingStream<String, Error> {
         recorder.record(configuration)
         return AsyncThrowingStream { continuation in
@@ -774,14 +774,14 @@ private struct StubQuickAIAnswerer: QuickAIAnswering {
 
 /// Yields one delta and never finishes: an answer still being generated.
 /// Continuations are retained so the stream only ends when the consumer cancels.
-private final class HangingQuickAIAnswerer: QuickAIAnswering, @unchecked Sendable {
+private final class HangingAIAnswerer: AIAnswering, @unchecked Sendable {
     private let lock = NSLock()
     private var continuations: [AsyncThrowingStream<String, Error>.Continuation] = []
 
     func streamAnswer(
         to question: String,
         systemPrompt: String,
-        configuration: QuickAIConfiguration
+        configuration: AIEndpointConfiguration
     ) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             lock.withLock { continuations.append(continuation) }

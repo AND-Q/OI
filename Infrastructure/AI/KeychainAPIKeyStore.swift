@@ -6,7 +6,7 @@ import Security
 /// 读到的值缓存在内存里：本地签名的构建每次重新编译后访问钥匙串都可能弹授权框，
 /// 缓存后每次运行最多读取一次，不会在每次提问时都访问钥匙串。
 @MainActor
-final class KeychainQuickAIKeyStore: QuickAIKeyStoring {
+final class KeychainAPIKeyStore: APIKeyStoring {
     nonisolated static let quickAIAccount = "quickAI.apiKey"
     nonisolated static let translatorAccount = "translator.apiKey"
 
@@ -17,9 +17,10 @@ final class KeychainQuickAIKeyStore: QuickAIKeyStoring {
     private var hasCachedKey = false
     private var cachedKey: String?
 
+    /// `service` 沿用早期只有 Quick AI 时的名称：改名会读不到用户已保存的密钥。
     init(
         service: String = (Bundle.main.bundleIdentifier ?? "OI") + ".quickAI",
-        account: String = KeychainQuickAIKeyStore.quickAIAccount,
+        account: String = KeychainAPIKeyStore.quickAIAccount,
         initialValueAccount: String? = nil
     ) {
         self.service = service

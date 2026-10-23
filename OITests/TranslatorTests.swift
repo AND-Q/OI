@@ -84,7 +84,7 @@ final class TranslatorTests: XCTestCase {
             answerer: RecordingAnswerer(deltas: []),
             languageDetector: NaturalLanguageDetector(),
             settingsStore: MemoryAppSettingsStore(initial: Self.configuredSettings),
-            keyStore: MemoryQuickAIKeyStore()
+            keyStore: MemoryAPIKeyStore()
         )
 
         let identifier = useCase.makeRequest(for: "reduceKernel")
@@ -141,13 +141,13 @@ final class TranslatorTests: XCTestCase {
             try await useCase.execute(useCase.makeRequest(for: "Hello")) { _ in XCTFail("不应收到增量") }
             XCTFail("应抛出未配置错误")
         } catch {
-            XCTAssertEqual(error as? ApplicationError, .quickAINotConfigured)
+            XCTAssertEqual(error as? ApplicationError, .aiNotConfigured)
         }
         XCTAssertEqual(answerer.recorder.questions, [])
     }
 
     func testTranslateTextSendsTranslationPromptAndMapsFailures() async {
-        let answerer = RecordingAnswerer(deltas: ["你"], error: QuickAIClientError.server("rate limited"))
+        let answerer = RecordingAnswerer(deltas: ["你"], error: AIClientError.server("rate limited"))
         let useCase = makeUseCase(answerer: answerer, detector: StubLanguageDetector(code: "en"))
         var received: [String] = []
 
@@ -155,7 +155,7 @@ final class TranslatorTests: XCTestCase {
             try await useCase.execute(useCase.makeRequest(for: "Hello")) { received.append($0) }
             XCTFail("应抛出失败错误")
         } catch {
-            XCTAssertEqual(error as? ApplicationError, .quickAIFailed(reason: "rate limited"))
+            XCTAssertEqual(error as? ApplicationError, .aiRequestFailed(reason: "rate limited"))
         }
         XCTAssertEqual(received, ["你"])
         XCTAssertEqual(answerer.recorder.questions, ["Hello"])
@@ -192,12 +192,12 @@ final class TranslatorTests: XCTestCase {
                 translationModel: "qwen2.5",
                 translationReasoningEffort: "low"
             )),
-            keyStore: MemoryQuickAIKeyStore(initial: "sk-translate")
+            keyStore: MemoryAPIKeyStore(initial: "sk-translate")
         )
 
         try await useCase.execute(useCase.makeRequest(for: "Hello")) { _ in }
 
-        let expected = try XCTUnwrap(QuickAIConfiguration(
+        let expected = try XCTUnwrap(AIEndpointConfiguration(
             baseURLString: "http://localhost:11434/v1",
             model: "qwen2.5",
             apiKey: "sk-translate",
@@ -966,8 +966,8 @@ final class TranslatorTests: XCTestCase {
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let settings = AppSettings(
             isForceTouchTranslationEnabled: false,
-            translatorShortcut: LauncherShortcut(keyCode: 17, modifiers: 1 << 8 | 1 << 11),
-            screenTranslatorShortcut: LauncherShortcut(keyCode: 1, modifiers: 1 << 11 | 1 << 12),
+            translatorShortcut: GlobalShortcut(keyCode: 17, modifiers: 1 << 8 | 1 << 11),
+            screenTranslatorShortcut: GlobalShortcut(keyCode: 1, modifiers: 1 << 11 | 1 << 12),
             translationTargetLanguage: .japanese,
             translationAlternateLanguage: .french,
             translationBaseURL: "http://localhost:11434/v1",
@@ -993,8 +993,8 @@ final class TranslatorTests: XCTestCase {
         let settings = UserDefaultsAppSettingsStore(defaults: defaults).load()
 
         XCTAssertEqual(settings.translationTargetLanguage, .simplifiedChinese)
-        XCTAssertEqual(settings.translatorShortcut, .standardTranslator)
-        XCTAssertEqual(settings.screenTranslatorShortcut, .standardScreenTranslator, "只有 ⇧ 不能用作全局快捷键")
+        XCTAssertEqual(settings.translatorShortcut, .defaultTranslator)
+        XCTAssertEqual(settings.screenTranslatorShortcut, .defaultScreenTranslator, "只有 ⇧ 不能用作全局快捷键")
     }
 
     func testApplyTranslatorShortcutActivatesAndPersists() {
@@ -1002,7 +1002,7 @@ final class TranslatorTests: XCTestCase {
         let viewModel = makeSettingsViewModel(settingsStore: settingsStore)
         let activator = RecordingActivator()
         viewModel.translatorShortcutActivator = activator.activate
-        let shortcut = LauncherShortcut(keyCode: 17, modifiers: 1 << 8 | 1 << 11)
+        let shortcut = GlobalShortcut(keyCode: 17, modifiers: 1 << 8 | 1 << 11)
 
         viewModel.applyTranslatorShortcut(shortcut)
 
@@ -1014,14 +1014,14 @@ final class TranslatorTests: XCTestCase {
     func testApplyTranslatorShortcutFailureRollsBack() {
         let viewModel = makeSettingsViewModel()
         let activator = RecordingActivator()
-        let rejected = LauncherShortcut(keyCode: 17, modifiers: 1 << 8 | 1 << 12)
+        let rejected = GlobalShortcut(keyCode: 17, modifiers: 1 << 8 | 1 << 12)
         activator.errors[rejected] = "该快捷键已被其他应用占用"
         viewModel.translatorShortcutActivator = activator.activate
 
         viewModel.applyTranslatorShortcut(rejected)
 
-        XCTAssertEqual(activator.attempts, [rejected, .standardTranslator])
-        XCTAssertEqual(viewModel.settings.translatorShortcut, .standardTranslator)
+        XCTAssertEqual(activator.attempts, [rejected, .defaultTranslator])
+        XCTAssertEqual(viewModel.settings.translatorShortcut, .defaultTranslator)
         XCTAssertEqual(viewModel.translatorShortcutNotice, .failure("该快捷键已被其他应用占用"))
         XCTAssertNil(viewModel.launcherShortcutNotice, "失败提示只出现在翻译快捷键下")
     }
@@ -1036,10 +1036,10 @@ final class TranslatorTests: XCTestCase {
         let screenActivator = RecordingActivator()
         viewModel.screenTranslatorShortcutActivator = screenActivator.activate
 
-        viewModel.applyTranslatorShortcut(.standard)
-        viewModel.applyLauncherShortcut(.standardTranslator)
-        viewModel.applyScreenTranslatorShortcut(.standardTranslator)
-        viewModel.applyTranslatorShortcut(.standardScreenTranslator)
+        viewModel.applyTranslatorShortcut(.defaultLauncher)
+        viewModel.applyLauncherShortcut(.defaultTranslator)
+        viewModel.applyScreenTranslatorShortcut(.defaultTranslator)
+        viewModel.applyTranslatorShortcut(.defaultScreenTranslator)
 
         XCTAssertEqual(translatorActivator.attempts, [])
         XCTAssertEqual(launcherActivator.attempts, [])
@@ -1047,9 +1047,9 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(viewModel.translatorShortcutNotice, .failure("与截图翻译快捷键相同，请换一个组合"))
         XCTAssertEqual(viewModel.launcherShortcutNotice, .failure("与翻译快捷键相同，请换一个组合"))
         XCTAssertEqual(viewModel.screenTranslatorShortcutNotice, .failure("与翻译快捷键相同，请换一个组合"))
-        XCTAssertEqual(viewModel.settings.translatorShortcut, .standardTranslator)
-        XCTAssertEqual(viewModel.settings.launcherShortcut, .standard)
-        XCTAssertEqual(viewModel.settings.screenTranslatorShortcut, .standardScreenTranslator)
+        XCTAssertEqual(viewModel.settings.translatorShortcut, .defaultTranslator)
+        XCTAssertEqual(viewModel.settings.launcherShortcut, .defaultLauncher)
+        XCTAssertEqual(viewModel.settings.screenTranslatorShortcut, .defaultScreenTranslator)
     }
 
     func testApplyScreenTranslatorShortcutActivatesAndPersists() {
@@ -1057,7 +1057,7 @@ final class TranslatorTests: XCTestCase {
         let viewModel = makeSettingsViewModel(settingsStore: settingsStore)
         let activator = RecordingActivator()
         viewModel.screenTranslatorShortcutActivator = activator.activate
-        let shortcut = LauncherShortcut(keyCode: 1, modifiers: 1 << 11 | 1 << 12)
+        let shortcut = GlobalShortcut(keyCode: 1, modifiers: 1 << 11 | 1 << 12)
 
         viewModel.applyScreenTranslatorShortcut(shortcut)
 
@@ -1133,7 +1133,7 @@ final class TranslatorTests: XCTestCase {
                 launcherViewModel: makeViewModel(with: [], settingsStore: settingsStore),
                 settingsViewModel: makeSettingsViewModel(settingsStore: settingsStore),
                 settingsStore: settingsStore,
-                applicationIconProvider: StubIconProvider(),
+                iconProvider: StubIconProvider(),
                 globalShortcutService: launcherService,
                 translator: TranslatorDependencies(
                     makeViewModel: { self.makeTranslatorViewModel(settings: AppSettings()) },
@@ -1147,10 +1147,10 @@ final class TranslatorTests: XCTestCase {
 
         coordinator.start()
 
-        XCTAssertEqual(launcherService.registeredShortcuts, [.standard])
-        XCTAssertEqual(translatorService.registeredShortcuts, [.standardTranslator])
+        XCTAssertEqual(launcherService.registeredShortcuts, [.defaultLauncher])
+        XCTAssertEqual(translatorService.registeredShortcuts, [.defaultTranslator])
         XCTAssertNotNil(translatorService.handler)
-        XCTAssertEqual(screenService.registeredShortcuts, [.standardScreenTranslator])
+        XCTAssertEqual(screenService.registeredShortcuts, [.defaultScreenTranslator])
         XCTAssertNotNil(screenService.handler)
         XCTAssertTrue(monitor.isRunning)
 
@@ -1171,7 +1171,7 @@ final class TranslatorTests: XCTestCase {
                 launcherViewModel: makeViewModel(with: [], settingsStore: settingsStore),
                 settingsViewModel: settingsViewModel,
                 settingsStore: settingsStore,
-                applicationIconProvider: StubIconProvider(),
+                iconProvider: StubIconProvider(),
                 globalShortcutService: RecordingShortcutService(),
                 translator: TranslatorDependencies(
                     makeViewModel: { self.makeTranslatorViewModel(settings: AppSettings()) },
@@ -1198,7 +1198,7 @@ final class TranslatorTests: XCTestCase {
     private static let visibleFrame = NSRect(x: 0, y: 0, width: 1440, height: 875)
 
     private func makeUseCase(
-        answerer: any QuickAIAnswering = RecordingAnswerer(deltas: []),
+        answerer: any AIAnswering = RecordingAnswerer(deltas: []),
         detector: StubLanguageDetector = StubLanguageDetector(code: "en"),
         settings: AppSettings = TranslatorTests.configuredSettings
     ) -> TranslateText {
@@ -1206,7 +1206,7 @@ final class TranslatorTests: XCTestCase {
             answerer: answerer,
             languageDetector: detector,
             settingsStore: MemoryAppSettingsStore(initial: settings),
-            keyStore: MemoryQuickAIKeyStore()
+            keyStore: MemoryAPIKeyStore()
         )
     }
 
@@ -1214,7 +1214,7 @@ final class TranslatorTests: XCTestCase {
         capturer: StubTextCapturer = StubTextCapturer(),
         wordSelector: RecordingWordSelector = RecordingWordSelector(),
         screenRecognizer: RecordingScreenTextRecognizer = RecordingScreenTextRecognizer(),
-        answerer: any QuickAIAnswering = RecordingAnswerer(deltas: ["你好"]),
+        answerer: any AIAnswering = RecordingAnswerer(deltas: ["你好"]),
         detector: StubLanguageDetector = StubLanguageDetector(code: "en"),
         environment: MemoryTranslatorEnvironment? = nil,
         settings: AppSettings = TranslatorTests.configuredSettings,
@@ -1226,7 +1226,7 @@ final class TranslatorTests: XCTestCase {
                 answerer: answerer,
                 languageDetector: detector,
                 settingsStore: settingsStore,
-                keyStore: MemoryQuickAIKeyStore()
+                keyStore: MemoryAPIKeyStore()
             ),
             textCapturer: capturer,
             wordSelector: wordSelector,
@@ -1366,7 +1366,7 @@ private final class TranslationRequestRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private var storedQuestions: [String] = []
     private var storedPrompts: [String] = []
-    private var storedConfigurations: [QuickAIConfiguration] = []
+    private var storedConfigurations: [AIEndpointConfiguration] = []
 
     var questions: [String] {
         lock.withLock { storedQuestions }
@@ -1376,11 +1376,11 @@ private final class TranslationRequestRecorder: @unchecked Sendable {
         lock.withLock { storedPrompts }
     }
 
-    var configurations: [QuickAIConfiguration] {
+    var configurations: [AIEndpointConfiguration] {
         lock.withLock { storedConfigurations }
     }
 
-    func record(question: String, prompt: String, configuration: QuickAIConfiguration) {
+    func record(question: String, prompt: String, configuration: AIEndpointConfiguration) {
         lock.withLock {
             storedQuestions.append(question)
             storedPrompts.append(prompt)
@@ -1390,12 +1390,12 @@ private final class TranslationRequestRecorder: @unchecked Sendable {
 }
 
 /// Yields the given deltas, then finishes (or fails with `error`).
-private struct RecordingAnswerer: QuickAIAnswering {
+private struct RecordingAnswerer: AIAnswering {
     let deltas: [String]
-    let error: QuickAIClientError?
+    let error: AIClientError?
     let recorder = TranslationRequestRecorder()
 
-    init(deltas: [String], error: QuickAIClientError? = nil) {
+    init(deltas: [String], error: AIClientError? = nil) {
         self.deltas = deltas
         self.error = error
     }
@@ -1403,7 +1403,7 @@ private struct RecordingAnswerer: QuickAIAnswering {
     func streamAnswer(
         to question: String,
         systemPrompt: String,
-        configuration: QuickAIConfiguration
+        configuration: AIEndpointConfiguration
     ) -> AsyncThrowingStream<String, Error> {
         recorder.record(question: question, prompt: systemPrompt, configuration: configuration)
         return AsyncThrowingStream { continuation in
@@ -1450,14 +1450,14 @@ private final class RecordingTextSpeaker: TextSpeaking {
 
 /// Yields one delta and never finishes: a translation still being generated.
 /// Continuations are retained so the stream only ends when the consumer cancels.
-private final class HangingAnswerer: QuickAIAnswering, @unchecked Sendable {
+private final class HangingAnswerer: AIAnswering, @unchecked Sendable {
     private let lock = NSLock()
     private var continuations: [AsyncThrowingStream<String, Error>.Continuation] = []
 
     func streamAnswer(
         to question: String,
         systemPrompt: String,
-        configuration: QuickAIConfiguration
+        configuration: AIEndpointConfiguration
     ) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             lock.withLock { continuations.append(continuation) }
@@ -1468,10 +1468,10 @@ private final class HangingAnswerer: QuickAIAnswering, @unchecked Sendable {
 
 @MainActor
 private final class RecordingActivator {
-    private(set) var attempts: [LauncherShortcut] = []
-    var errors: [LauncherShortcut: String] = [:]
+    private(set) var attempts: [GlobalShortcut] = []
+    var errors: [GlobalShortcut: String] = [:]
 
-    func activate(_ shortcut: LauncherShortcut) throws {
+    func activate(_ shortcut: GlobalShortcut) throws {
         attempts.append(shortcut)
         if let error = errors[shortcut] {
             throw StubError(message: error)
@@ -1481,11 +1481,11 @@ private final class RecordingActivator {
 
 @MainActor
 private final class RecordingShortcutService: GlobalShortcutHandling {
-    private(set) var registeredShortcuts: [LauncherShortcut] = []
+    private(set) var registeredShortcuts: [GlobalShortcut] = []
     private(set) var handler: (() -> Void)?
 
     func register(keyCode: UInt32, modifiers: UInt32, handler: @escaping () -> Void) throws {
-        registeredShortcuts.append(LauncherShortcut(keyCode: keyCode, modifiers: modifiers))
+        registeredShortcuts.append(GlobalShortcut(keyCode: keyCode, modifiers: modifiers))
         self.handler = handler
     }
 
@@ -1514,7 +1514,7 @@ private struct StubError: LocalizedError {
 }
 
 @MainActor
-private final class StubIconProvider: ApplicationIconProviding {
+private final class StubIconProvider: IconProviding {
     func icon(for url: URL) -> NSImage { NSImage() }
 }
 

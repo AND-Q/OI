@@ -1,7 +1,7 @@
 import Foundation
 
-/// 一次 Quick AI 请求所需的接口配置（OpenAI Chat Completions 兼容接口）。
-struct QuickAIConfiguration: Sendable, Equatable {
+/// 一次问答请求（Quick AI 或划词翻译）所需的接口配置（OpenAI Chat Completions 兼容接口）。
+struct AIEndpointConfiguration: Sendable, Equatable {
     let baseURL: URL
     let model: String
     /// 本地服务（如 Ollama）无需鉴权时为 nil。
@@ -78,10 +78,10 @@ struct QuickAIConfiguration: Sendable, Equatable {
 
 /// 流式问答端口：按到达顺序逐段产出回答文本增量。
 /// `systemPrompt` 由用例给出（Quick AI 问答与划词翻译各有指令）；取消消费方任务即中断底层请求。
-protocol QuickAIAnswering: Sendable {
+protocol AIAnswering: Sendable {
     func streamAnswer(
         to question: String,
         systemPrompt: String,
-        configuration: QuickAIConfiguration
+        configuration: AIEndpointConfiguration
     ) -> AsyncThrowingStream<String, Error>
 }

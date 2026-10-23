@@ -6,7 +6,7 @@ struct LauncherResultsList: NSViewRepresentable {
     let rows: [LauncherRow]
     let selectedRowIndex: Int
     let resetRequest: Int
-    let iconProvider: any ApplicationIconProviding
+    let iconProvider: any IconProviding
     let onOpen: (SearchResult) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -235,7 +235,7 @@ struct LauncherResultsList: NSViewRepresentable {
 
         static func icon(
             for result: SearchResult,
-            provider: any ApplicationIconProviding
+            provider: any IconProviding
         ) -> NSImage {
             if let symbolName = result.symbolName {
                 return NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)

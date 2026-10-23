@@ -7,7 +7,7 @@ import SwiftUI
 @MainActor
 final class LauncherPanelController {
     private let viewModel: LauncherViewModel
-    private let iconProvider: any ApplicationIconProviding
+    private let iconProvider: any IconProviding
     let quickLook = QuickLookPresenter()
     let panel: LauncherPanel
     private let animationCoordinator: PanelAnimationCoordinator
@@ -21,7 +21,7 @@ final class LauncherPanelController {
 
     init(
         viewModel: LauncherViewModel,
-        iconProvider: any ApplicationIconProviding
+        iconProvider: any IconProviding
     ) {
         self.viewModel = viewModel
         self.iconProvider = iconProvider

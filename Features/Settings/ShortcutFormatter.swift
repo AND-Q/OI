@@ -1,7 +1,7 @@
 import Carbon.HIToolbox
 import Foundation
 
-/// 呼出快捷键的人类可读展示：修饰键符号 + 按键名。
+/// 全局快捷键的人类可读展示：修饰键符号 + 按键名。
 /// 仅使用 Carbon 键码常量做查询，不使用 Carbon 界面 API。
 enum ShortcutFormatter {
     /// 修饰键符号，按系统惯例 ⌃ ⌥ ⇧ ⌘ 排序。
@@ -22,13 +22,13 @@ enum ShortcutFormatter {
         return "按键 \(keyCode)"
     }
 
-    static func displayName(for shortcut: LauncherShortcut) -> String {
+    static func displayName(for shortcut: GlobalShortcut) -> String {
         (modifierSymbols(for: shortcut.modifiers) + [keyName(for: shortcut.keyCode)])
             .joined(separator: " ")
     }
 
     /// 组合不能用作全局快捷键的原因，录制时的行内提示与设置面板的失败提示共用。
-    static func description(of problem: LauncherShortcut.Problem) -> String {
+    static func description(of problem: GlobalShortcut.Problem) -> String {
         switch problem {
         case .missingModifier:
             "快捷键需包含 ⌘、⌥ 或 ⌃ 修饰键"

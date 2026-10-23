@@ -12,7 +12,7 @@ final class LauncherPanelControllerTests: XCTestCase {
         let viewModel = makeViewModel(with: [])
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
 
@@ -50,7 +50,7 @@ final class LauncherPanelControllerTests: XCTestCase {
         let viewModel = makeViewModel(with: [])
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
 
@@ -85,7 +85,7 @@ final class LauncherPanelControllerTests: XCTestCase {
         let viewModel = makeViewModel(with: [app])
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
 
@@ -106,7 +106,7 @@ final class LauncherPanelControllerTests: XCTestCase {
         )
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
 
@@ -132,7 +132,7 @@ final class LauncherPanelControllerTests: XCTestCase {
         )
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
 
@@ -156,7 +156,7 @@ final class LauncherPanelControllerTests: XCTestCase {
         )
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
 
@@ -183,7 +183,7 @@ final class LauncherPanelControllerTests: XCTestCase {
         let viewModel = makeViewModel(with: [])
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
 
@@ -200,7 +200,7 @@ final class LauncherPanelControllerTests: XCTestCase {
         let viewModel = makeViewModel(with: [])
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
 
@@ -236,7 +236,7 @@ final class LauncherPanelControllerTests: XCTestCase {
         let viewModel = makeViewModel(with: [app])
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
 
@@ -273,7 +273,7 @@ final class LauncherPanelControllerTests: XCTestCase {
         let viewModel = makeViewModel(with: [app], urlOpener: OpenURL(opener: opener))
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
 
@@ -314,7 +314,7 @@ final class LauncherPanelControllerTests: XCTestCase {
         let viewModel = makeViewModel(with: [], urlOpener: OpenURL(opener: opener))
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
 
@@ -350,7 +350,7 @@ final class LauncherPanelControllerTests: XCTestCase {
         let viewModel = makeViewModel(with: [], urlOpener: OpenURL(opener: opener), notifier: notifier)
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
 
@@ -392,7 +392,7 @@ final class LauncherPanelControllerTests: XCTestCase {
         let viewModel = makeViewModel(with: [app])
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceApplicationIconProvider()
+            iconProvider: WorkspaceIconProvider()
         )
         defer { controller.stop() }
 

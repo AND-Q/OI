@@ -60,7 +60,7 @@ struct QuickAIAnswerView: View {
 
     @ViewBuilder
     private var content: some View {
-        let visibleAnswer = QuickAIMarkdown.removingThinking(from: session.answer)
+        let visibleAnswer = MarkdownParser.removingThinking(from: session.answer)
         if visibleAnswer.isEmpty {
             switch session.state {
             case .streaming:
@@ -77,8 +77,8 @@ struct QuickAIAnswerView: View {
                 errorLabel(message)
             }
         } else {
-            ForEach(Array(QuickAIMarkdown.blocks(from: visibleAnswer).enumerated()), id: \.offset) { _, block in
-                QuickAIMarkdownBlockView(block: block)
+            ForEach(Array(MarkdownParser.blocks(from: visibleAnswer).enumerated()), id: \.offset) { _, block in
+                MarkdownBlockView(block: block)
             }
             if case .failed(let message) = session.state {
                 errorLabel(message)

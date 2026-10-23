@@ -11,17 +11,17 @@ struct TranslationRequest: Equatable, Sendable {
 /// 划词翻译：识别语种、选定目标语言，并经划词翻译单独配置的接口流式翻译。
 @MainActor
 struct TranslateText {
-    private let streaming: QuickAIStreaming
+    private let streaming: AIStreaming
     private let languageDetector: any LanguageDetecting
     private let settingsStore: any AppSettingsStoring
 
     init(
-        answerer: any QuickAIAnswering,
+        answerer: any AIAnswering,
         languageDetector: any LanguageDetecting,
         settingsStore: any AppSettingsStoring,
-        keyStore: any QuickAIKeyStoring
+        keyStore: any APIKeyStoring
     ) {
-        self.streaming = QuickAIStreaming(
+        self.streaming = AIStreaming(
             answerer: answerer,
             settingsStore: settingsStore,
             keyStore: keyStore,
