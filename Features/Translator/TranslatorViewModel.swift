@@ -164,7 +164,8 @@ final class TranslatorViewModel: ObservableObject {
             } catch {
                 result = .failure(error)
             }
-            guard let self, generation == self.captureGeneration else { return }
+            // 识别不一定响应取消（如 Vision 照常返回文字）：已取消（气泡收起）时同样丢弃结果，不再发出翻译请求。
+            guard let self, !Task.isCancelled, generation == self.captureGeneration else { return }
             self.recognitionTask = nil
             self.finishRecognition(result, in: rect)
         }
@@ -287,7 +288,8 @@ final class TranslatorViewModel: ObservableObject {
         }
     }
 
-    private func cancelRecognition() {
+    /// 中断进行中的截图识别，识别结果到达后丢弃；会话保持识别中，避免气泡淡出途中内容变化。
+    func cancelRecognition() {
         recognitionTask?.cancel()
         recognitionTask = nil
     }

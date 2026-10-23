@@ -706,6 +706,22 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(viewModel.session?.sourceText, "second")
     }
 
+    /// 气泡收起时取消识别：识别没有响应取消、照常返回文字时结果也被丢弃，不再发出翻译请求，淡出途中气泡内容不变。
+    func testCancelledRecognitionDoesNotStartTranslation() async throws {
+        let answerer = RecordingAnswerer(deltas: ["你好"])
+        let recognizer = RecordingScreenTextRecognizer { _ in "Hello" }
+        let viewModel = makeTranslatorViewModel(screenRecognizer: recognizer, answerer: answerer)
+
+        _ = viewModel.translateScreenRegion(CGRect(x: 0, y: 0, width: 200, height: 40), in: Self.snapshot)
+        viewModel.cancelRecognition()
+        try await waitUntil { recognizer.rects.count == 1 }
+        try await Task.sleep(for: .milliseconds(20))
+
+        XCTAssertEqual(viewModel.session?.state, .recognizing)
+        XCTAssertNil(viewModel.notice)
+        XCTAssertEqual(answerer.recorder.questions, [])
+    }
+
     /// 识别期间在气泡中切换的目标语言，识别完成后仍然沿用。
     func testTargetLanguageChosenWhileRecognizingIsKept() async throws {
         let viewModel = makeTranslatorViewModel(screenRecognizer: RecordingScreenTextRecognizer { _ in "Hello" })

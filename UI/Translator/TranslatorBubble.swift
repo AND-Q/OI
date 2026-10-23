@@ -195,10 +195,11 @@ final class TranslatorBubble {
         }
     }
 
-    /// 中断翻译并淡出，完成后清空翻译状态并通知 `onHidden`。
+    /// 中断截图识别与翻译并淡出，完成后清空翻译状态并通知 `onHidden`。
     func hide() {
         guard panel.isVisible, !isDismissing else { return }
         isDismissing = true
+        viewModel.cancelRecognition()
         viewModel.stopTranslation()
         cancelKeyFocusTask()
         removeScrollMonitor()
