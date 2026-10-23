@@ -71,15 +71,13 @@ final class LauncherViewModel: ObservableObject {
     private var loadTask: Task<Void, Never>?
     private var fileSearchTask: Task<Void, Never>?
     private var pathLookupTask: Task<Void, Never>?
-    private var quickAITask: Task<Void, Never>?
-    private lazy var quickAIAnswerBuffer = StreamingTextBuffer(interval: LauncherViewModel.quickAIFlushInterval) { [weak self] text in
+    private lazy var quickAIRequest = StreamingRequest(flushInterval: LauncherViewModel.quickAIFlushInterval) { [weak self] text in
         self?.quickAISession?.answer += text
         self?.quickAISession?.isAnswerCopied = false
     }
     private var refreshGeneration = 0
     private var fileSearchGeneration = 0
     private var pathLookupGeneration = 0
-    private var quickAIGeneration = 0
     private var searchIndex = ApplicationSearchIndex()
     private var usageRecords: [String: AppUsageRecord] = [:]
     private var lastRefreshedAt: Date?
@@ -121,7 +119,6 @@ final class LauncherViewModel: ObservableObject {
         loadTask?.cancel()
         fileSearchTask?.cancel()
         pathLookupTask?.cancel()
-        quickAITask?.cancel()
     }
 
     /// 全部结果：网址与路径直达在前，其后依次是快速查询、应用与文件。
@@ -433,43 +430,25 @@ final class LauncherViewModel: ObservableObject {
         guard let askQuickAI, isQuickAIModeActive, !question.isEmpty else { return nil }
 
         stopQuickAI()
-        quickAIGeneration += 1
-        let generation = quickAIGeneration
         isActionSheetVisible = false
         quickAISession = QuickAISession(question: question)
         updatePanelHeight()
 
-        let task = Task { [weak self] in
-            do {
-                try await askQuickAI.execute(question: question) { delta in
-                    guard let self, self.quickAIGeneration == generation else { return }
-                    self.quickAIAnswerBuffer.append(delta)
-                }
-                guard let self, self.quickAIGeneration == generation else { return }
-                self.quickAIAnswerBuffer.flush()
-                self.quickAISession?.state = .finished
-            } catch {
-                // 中断（Esc、隐藏面板、改动输入）会递增 generation，取消带来的错误在此丢弃。
-                guard let self, self.quickAIGeneration == generation else { return }
-                self.quickAIAnswerBuffer.flush()
-                self.quickAISession?.state = .failed(LauncherErrorMessage.message(for: error))
-            }
-
-            if let self, self.quickAIGeneration == generation {
-                self.quickAITask = nil
+        // 中断（Esc、隐藏面板、改动输入）后到达的增量与错误由 `quickAIRequest` 丢弃。
+        return quickAIRequest.start { onDelta in
+            try await askQuickAI.execute(question: question, onDelta: onDelta)
+        } onCompletion: { [weak self] error in
+            if let error {
+                self?.quickAISession?.state = .failed(LauncherErrorMessage.message(for: error))
+            } else {
+                self?.quickAISession?.state = .finished
             }
         }
-        quickAITask = task
-        return task
     }
 
     /// 中断进行中的回答，保留已经到达的内容，避免隐藏面板时在淡出途中改变面板高度。
     func stopQuickAI() {
-        guard quickAITask != nil else { return }
-        quickAIGeneration += 1
-        quickAITask?.cancel()
-        quickAITask = nil
-        quickAIAnswerBuffer.flush()
+        guard quickAIRequest.stop() else { return }
         if quickAISession?.isStreaming == true {
             quickAISession?.state = .finished
         }
@@ -557,7 +536,7 @@ final class LauncherViewModel: ObservableObject {
     /// 丢弃当前回答；Quick AI 模式本身保持不变。
     private func discardQuickAISession() {
         stopQuickAI()
-        quickAIAnswerBuffer.discard()
+        quickAIRequest.discard()
         guard quickAISession != nil else { return }
         quickAISession = nil
         updatePanelHeight()
@@ -725,51 +704,5 @@ final class LauncherViewModel: ObservableObject {
 
     private func requestListReset() {
         listResetRequest &+= 1
-    }
-}
-
-private enum LauncherErrorMessage {
-    static func message(for error: Error) -> String {
-        switch error {
-        case let applicationError as ApplicationError:
-            return message(for: applicationError)
-        default:
-            return "操作未能完成，请重试。"
-        }
-    }
-
-    private static func message(for applicationError: ApplicationError) -> String {
-        switch applicationError {
-        case .discoveryFailed(let reason):
-            return "无法加载应用列表：\(reason)"
-        case .launchFailed(let applicationName, let reason):
-            return "无法启动 \(applicationName)：\(reason)"
-        case .fileSearchFailed(let reason):
-            return "无法搜索文件：\(reason)"
-        case .fileOpenFailed(let fileName, let reason):
-            return "无法打开 \(fileName)：\(reason)"
-        case .urlOpenFailed(let reason):
-            return "无法打开链接：\(reason)"
-        case .aiNotConfigured:
-            return "请先在「设置… → Quick AI」中填写接口地址与模型。"
-        case .aiRequestFailed(let reason):
-            return "回答失败：\(reason)"
-        case .updateCheckFailed(let reason):
-            return "检查更新失败：\(reason)"
-        }
-    }
-
-    /// 后台打开失败的系统通知：标题说明哪一项没能打开，正文为原因。
-    static func notification(for error: Error) -> (title: String, body: String) {
-        switch error as? ApplicationError {
-        case .launchFailed(let applicationName, let reason)?:
-            ("无法启动 \(applicationName)", reason)
-        case .fileOpenFailed(let fileName, let reason)?:
-            ("无法打开 \(fileName)", reason)
-        case .urlOpenFailed(let reason)?:
-            ("无法打开链接", reason)
-        default:
-            ("操作未能完成", "请重试。")
-        }
     }
 }

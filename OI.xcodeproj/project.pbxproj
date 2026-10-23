@@ -129,10 +129,19 @@
 		A100000100000072 /* TextSpeaking.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000072 /* TextSpeaking.swift */; };
 		A100000100000073 /* SystemTextSpeaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000073 /* SystemTextSpeaker.swift */; };
 		B10000010000001E /* UpdateCheckTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001F /* UpdateCheckTests.swift */; };
-		B10000010000001D /* TranslatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001E /* TranslatorTests.swift */; };
 		A100000100000074 /* LocalIPAddressProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000074 /* LocalIPAddressProviding.swift */; };
 		A100000100000075 /* SearchResultPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000075 /* SearchResultPresentation.swift */; };
 		A100000100000076 /* NetworkInterfaceIPAddressProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000076 /* NetworkInterfaceIPAddressProvider.swift */; };
+		A100000100000077 /* StreamingRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000077 /* StreamingRequest.swift */; };
+		A100000100000078 /* LauncherErrorMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000078 /* LauncherErrorMessage.swift */; };
+		B10000010000001F /* TranslatorTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000020 /* TranslatorTestSupport.swift */; };
+		B100000100000020 /* TranslationLanguageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000021 /* TranslationLanguageTests.swift */; };
+		B100000100000021 /* TranslateTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000022 /* TranslateTextTests.swift */; };
+		B100000100000022 /* TextCaptureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000023 /* TextCaptureTests.swift */; };
+		B100000100000023 /* TranslatorViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000024 /* TranslatorViewModelTests.swift */; };
+		B100000100000024 /* ScreenTranslationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000025 /* ScreenTranslationTests.swift */; };
+		B100000100000025 /* TranslatorPlacementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000026 /* TranslatorPlacementTests.swift */; };
+		B100000100000026 /* TranslatorSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000027 /* TranslatorSettingsTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -271,10 +280,19 @@
 		A200000100000072 /* TextSpeaking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextSpeaking.swift; sourceTree = "<group>"; };
 		A200000100000073 /* SystemTextSpeaker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemTextSpeaker.swift; sourceTree = "<group>"; };
 		B20000010000001F /* UpdateCheckTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateCheckTests.swift; sourceTree = "<group>"; };
-		B20000010000001E /* TranslatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorTests.swift; sourceTree = "<group>"; };
 		A200000100000074 /* LocalIPAddressProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalIPAddressProviding.swift; sourceTree = "<group>"; };
 		A200000100000075 /* SearchResultPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultPresentation.swift; sourceTree = "<group>"; };
 		A200000100000076 /* NetworkInterfaceIPAddressProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkInterfaceIPAddressProvider.swift; sourceTree = "<group>"; };
+		A200000100000077 /* StreamingRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingRequest.swift; sourceTree = "<group>"; };
+		A200000100000078 /* LauncherErrorMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherErrorMessage.swift; sourceTree = "<group>"; };
+		B200000100000020 /* TranslatorTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorTestSupport.swift; sourceTree = "<group>"; };
+		B200000100000021 /* TranslationLanguageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationLanguageTests.swift; sourceTree = "<group>"; };
+		B200000100000022 /* TranslateTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslateTextTests.swift; sourceTree = "<group>"; };
+		B200000100000023 /* TextCaptureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextCaptureTests.swift; sourceTree = "<group>"; };
+		B200000100000024 /* TranslatorViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorViewModelTests.swift; sourceTree = "<group>"; };
+		B200000100000025 /* ScreenTranslationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenTranslationTests.swift; sourceTree = "<group>"; };
+		B200000100000026 /* TranslatorPlacementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorPlacementTests.swift; sourceTree = "<group>"; };
+		B200000100000027 /* TranslatorSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorSettingsTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -399,8 +417,15 @@
 				B20000010000001B /* ShortcutFormatterTests.swift */,
 				B20000010000001C /* AppCoordinatorTests.swift */,
 				B20000010000001D /* QuickAITests.swift */,
-				B20000010000001E /* TranslatorTests.swift */,
 				B20000010000001F /* UpdateCheckTests.swift */,
+				B200000100000020 /* TranslatorTestSupport.swift */,
+				B200000100000021 /* TranslationLanguageTests.swift */,
+				B200000100000022 /* TranslateTextTests.swift */,
+				B200000100000023 /* TextCaptureTests.swift */,
+				B200000100000024 /* TranslatorViewModelTests.swift */,
+				B200000100000025 /* ScreenTranslationTests.swift */,
+				B200000100000026 /* TranslatorPlacementTests.swift */,
+				B200000100000027 /* TranslatorSettingsTests.swift */,
 			);
 			path = OITests;
 			sourceTree = "<group>";
@@ -467,6 +492,7 @@
 				A20000010000003F /* LauncherActionMenu.swift */,
 				A20000010000004F /* QuickAIAnswerView.swift */,
 				A200000100000075 /* SearchResultPresentation.swift */,
+				A200000100000078 /* LauncherErrorMessage.swift */,
 			);
 			path = Launcher;
 			sourceTree = "<group>";
@@ -683,6 +709,7 @@
 				A20000010000004E /* MarkdownParser.swift */,
 				A200000100000070 /* MarkdownBlockView.swift */,
 				A200000100000063 /* StreamingTextBuffer.swift */,
+				A200000100000077 /* StreamingRequest.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -911,6 +938,8 @@
 				A100000100000074 /* LocalIPAddressProviding.swift in Sources */,
 				A100000100000075 /* SearchResultPresentation.swift in Sources */,
 				A100000100000076 /* NetworkInterfaceIPAddressProvider.swift in Sources */,
+				A100000100000077 /* StreamingRequest.swift in Sources */,
+				A100000100000078 /* LauncherErrorMessage.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -938,8 +967,15 @@
 				B10000010000001A /* ShortcutFormatterTests.swift in Sources */,
 				B10000010000001B /* AppCoordinatorTests.swift in Sources */,
 				B10000010000001C /* QuickAITests.swift in Sources */,
-				B10000010000001D /* TranslatorTests.swift in Sources */,
 				B10000010000001E /* UpdateCheckTests.swift in Sources */,
+				B10000010000001F /* TranslatorTestSupport.swift in Sources */,
+				B100000100000020 /* TranslationLanguageTests.swift in Sources */,
+				B100000100000021 /* TranslateTextTests.swift in Sources */,
+				B100000100000022 /* TextCaptureTests.swift in Sources */,
+				B100000100000023 /* TranslatorViewModelTests.swift in Sources */,
+				B100000100000024 /* ScreenTranslationTests.swift in Sources */,
+				B100000100000025 /* TranslatorPlacementTests.swift in Sources */,
+				B100000100000026 /* TranslatorSettingsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

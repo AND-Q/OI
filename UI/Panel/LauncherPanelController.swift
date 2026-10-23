@@ -249,20 +249,7 @@ final class LauncherPanelController {
 
         switch event.keyCode {
         case UInt16(kVK_Escape):
-            // Quick Look 打开时 Esc 只收起预览；动作菜单展开时 Esc 只收起菜单。
-            if quickLook.isActive {
-                quickLook.close()
-            } else if viewModel.isActionSheetVisible {
-                viewModel.dismissActionSheet()
-            } else if viewModel.quickAISession != nil {
-                // 已提问：Esc 一次即中断回答并关闭面板。
-                hide()
-            } else if viewModel.isQuickAIModeActive {
-                // 尚未提问：Esc 返回检索，已输入的文字保留。
-                viewModel.toggleQuickAIMode()
-            } else {
-                handleEscape()
-            }
+            handleEscapeKey()
             return markHandled(event)
         case UInt16(kVK_Tab):
             // Tab 在检索与 Quick AI 模式间切换，已输入的文字保留；带修饰键时保持系统默认行为。
@@ -274,34 +261,7 @@ final class LauncherPanelController {
             quickLook.close()
             return markHandled(event)
         case UInt16(kVK_Return), UInt16(kVK_ANSI_KeypadEnter):
-            // Cmd+Return 在默认浏览器中网页搜索；单独的 Return 打开选中项。
-            if event.modifierFlags.contains(.command) {
-                searchWebAndDismiss()
-            } else if viewModel.isQuickAIModeActive {
-                // 输入态 Enter 发起提问；有回答时按会话状态复制并关闭或重试，输出期间不响应。
-                if let session = viewModel.quickAISession {
-                    switch session.returnAction {
-                    case .copyAndClose:
-                        if let answer = viewModel.quickAIAnswerToCopy {
-                            copyText(answer)
-                        }
-                    case .retry:
-                        viewModel.startQuickAI()
-                    case .none:
-                        break
-                    }
-                } else {
-                    viewModel.startQuickAI()
-                }
-            } else if viewModel.isActionSheetVisible {
-                // 菜单展开时独占回车；选中项暂不可用时也不穿透启动底层应用。
-                if let action = viewModel.selectedAction,
-                   let result = viewModel.selectedResult {
-                    performMenuAction(action, for: result)
-                }
-            } else if let result = viewModel.selectedResult {
-                open(result)
-            }
+            handleReturnKey(isCommandPressed: event.modifierFlags.contains(.command))
             return markHandled(event)
         case UInt16(kVK_ANSI_F):
             guard event.modifierFlags.contains(.command) else { return event }
@@ -337,53 +297,12 @@ final class LauncherPanelController {
             }
             return event
         case UInt16(kVK_ANSI_C):
-            if viewModel.quickAISession != nil,
-               event.modifierFlags.contains(.command),
-               !event.modifierFlags.contains(.option) {
-                // Quick AI 中 Cmd+C 优先复制选中的文字（输入框或回答区）；都没有选中时复制整段回答
-                // 并保留面板，流式输出期间复制当前已到达的部分。
-                if isSearchFieldFocused {
-                    // 输入框选区直接交给系统复制；按选区长度判断，不依赖空选区时 copy: 的行为。
-                    if let editor = panel.firstResponder as? NSTextView, editor.selectedRange().length > 0 {
-                        return event
-                    }
-                } else if copySelectionFromFirstResponder() {
-                    viewModel.markQuickAIAnswerCopied()
-                    return markHandled(event)
-                }
-                if let answer = viewModel.quickAIAnswerToCopy {
-                    writeToPasteboard(answer)
-                    viewModel.markQuickAIAnswerCopied()
-                }
-                return markHandled(event)
-            }
-            if event.modifierFlags.contains(.command) && event.modifierFlags.contains(.option) {
-                // 只有文件地址的路径值得复制；网址只取路径会丢掉主机名。
-                if let result = viewModel.selectedResult, result.url?.isFileURL == true {
-                    performMenuAction(.copyPath, for: result)
-                    return markHandled(event)
-                }
-            }
-            return event
+            return handleCopyKey(event)
         case UInt16(kVK_UpArrow):
-            if viewModel.isActionSheetVisible {
-                viewModel.moveActionSelection(by: -1)
-            } else if viewModel.quickAISession != nil {
-                viewModel.scrollQuickAIAnswer(by: -1)
-            } else {
-                viewModel.moveSelection(by: -1)
-                updateQuickLookPreviewForCurrentSelection()
-            }
+            handleVerticalArrowKey(by: -1)
             return markHandled(event)
         case UInt16(kVK_DownArrow):
-            if viewModel.isActionSheetVisible {
-                viewModel.moveActionSelection(by: 1)
-            } else if viewModel.quickAISession != nil {
-                viewModel.scrollQuickAIAnswer(by: 1)
-            } else {
-                viewModel.moveSelection(by: 1)
-                updateQuickLookPreviewForCurrentSelection()
-            }
+            handleVerticalArrowKey(by: 1)
             return markHandled(event)
         default:
             // 在回答区点选文字后焦点离开了输入框：继续打字时先把焦点交回输入框，按键照常输入。
@@ -393,6 +312,98 @@ final class LauncherPanelController {
                 focusSearchFieldAtEnd()
             }
             return event
+        }
+    }
+
+    /// Esc 分级关闭：Quick Look 打开时 Esc 只收起预览；动作菜单展开时 Esc 只收起菜单。
+    private func handleEscapeKey() {
+        if quickLook.isActive {
+            quickLook.close()
+        } else if viewModel.isActionSheetVisible {
+            viewModel.dismissActionSheet()
+        } else if viewModel.quickAISession != nil {
+            // 已提问：Esc 一次即中断回答并关闭面板。
+            hide()
+        } else if viewModel.isQuickAIModeActive {
+            // 尚未提问：Esc 返回检索，已输入的文字保留。
+            viewModel.toggleQuickAIMode()
+        } else {
+            handleEscape()
+        }
+    }
+
+    /// Cmd+Return 在默认浏览器中网页搜索；单独的 Return 打开选中项。
+    private func handleReturnKey(isCommandPressed: Bool) {
+        if isCommandPressed {
+            searchWebAndDismiss()
+        } else if viewModel.isQuickAIModeActive {
+            // 输入态 Enter 发起提问；有回答时按会话状态复制并关闭或重试，输出期间不响应。
+            if let session = viewModel.quickAISession {
+                switch session.returnAction {
+                case .copyAndClose:
+                    if let answer = viewModel.quickAIAnswerToCopy {
+                        copyText(answer)
+                    }
+                case .retry:
+                    viewModel.startQuickAI()
+                case .none:
+                    break
+                }
+            } else {
+                viewModel.startQuickAI()
+            }
+        } else if viewModel.isActionSheetVisible {
+            // 菜单展开时独占回车；选中项暂不可用时也不穿透启动底层应用。
+            if let action = viewModel.selectedAction,
+               let result = viewModel.selectedResult {
+                performMenuAction(action, for: result)
+            }
+        } else if let result = viewModel.selectedResult {
+            open(result)
+        }
+    }
+
+    /// Quick AI 中的 Cmd+C 与复制路径的 Cmd+Option+C；其余组合交还给系统。
+    private func handleCopyKey(_ event: NSEvent) -> NSEvent? {
+        if viewModel.quickAISession != nil,
+           event.modifierFlags.contains(.command),
+           !event.modifierFlags.contains(.option) {
+            // Quick AI 中 Cmd+C 优先复制选中的文字（输入框或回答区）；都没有选中时复制整段回答
+            // 并保留面板，流式输出期间复制当前已到达的部分。
+            if isSearchFieldFocused {
+                // 输入框选区直接交给系统复制；按选区长度判断，不依赖空选区时 copy: 的行为。
+                if let editor = panel.firstResponder as? NSTextView, editor.selectedRange().length > 0 {
+                    return event
+                }
+            } else if copySelectionFromFirstResponder() {
+                viewModel.markQuickAIAnswerCopied()
+                return markHandled(event)
+            }
+            if let answer = viewModel.quickAIAnswerToCopy {
+                writeToPasteboard(answer)
+                viewModel.markQuickAIAnswerCopied()
+            }
+            return markHandled(event)
+        }
+        if event.modifierFlags.contains(.command) && event.modifierFlags.contains(.option) {
+            // 只有文件地址的路径值得复制；网址只取路径会丢掉主机名。
+            if let result = viewModel.selectedResult, result.url?.isFileURL == true {
+                performMenuAction(.copyPath, for: result)
+                return markHandled(event)
+            }
+        }
+        return event
+    }
+
+    /// `↑` / `↓`：操作菜单展开时移动菜单选择，有回答时滚动回答区，否则移动结果选择（预览随之跟随）。
+    private func handleVerticalArrowKey(by offset: Int) {
+        if viewModel.isActionSheetVisible {
+            viewModel.moveActionSelection(by: offset)
+        } else if viewModel.quickAISession != nil {
+            viewModel.scrollQuickAIAnswer(by: offset)
+        } else {
+            viewModel.moveSelection(by: offset)
+            updateQuickLookPreviewForCurrentSelection()
         }
     }
 

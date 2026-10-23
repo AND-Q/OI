@@ -130,8 +130,3 @@ private struct StubGlobalShortcutError: LocalizedError {
 
     var errorDescription: String? { message }
 }
-
-@MainActor
-private final class StubIconProvider: IconProviding {
-    func icon(for url: URL) -> NSImage { NSImage() }
-}

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import XCTest
 
@@ -232,3 +233,8 @@ final class StubLoginItemController: LoginItemControlling {
     }
 }
 
+/// 图标提供者的桩：一律返回空图标。
+@MainActor
+final class StubIconProvider: IconProviding {
+    func icon(for url: URL) -> NSImage { NSImage() }
+}

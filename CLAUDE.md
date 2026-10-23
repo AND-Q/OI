@@ -159,10 +159,10 @@ App -> UI -> Features / Application / Domain
   - [UI/Icons/](UI/Icons/)：原生应用高清图标提取与缓存；图标是 `NSImage`，`IconProviding` 协议也定义在本层。
   - *约束：`NSImage`、`NSPanel`、`NSStatusItem` 等 UI 专属类型仅限在此层流转。*
 - [Features/](Features/)：用户功能的视图模型、状态与 SwiftUI 视图。
-  - [Features/Launcher/](Features/Launcher/)：[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift) 统一编排搜索输入、结果排列与选中、`⌘K` 菜单、Quick AI 模式与打开调度；`QuickQueryResolver`（计算、本机 IP）、`SearchResultPresentation`（结果行的副标题与图标）、`WebURLResolver`（网址识别）、`LauncherActionMenu`（`⌘K` 动作）、`LauncherLayout`（面板尺寸）、`QuickAIAnswerView`（回答区）。
+  - [Features/Launcher/](Features/Launcher/)：[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift) 统一编排搜索输入、结果排列与选中、`⌘K` 菜单、Quick AI 模式与打开调度；`QuickQueryResolver`（计算、本机 IP）、`SearchResultPresentation`（结果行的副标题与图标）、`WebURLResolver`（网址识别）、`LauncherActionMenu`（`⌘K` 动作）、`LauncherLayout`（面板尺寸）、`LauncherErrorMessage`（错误提示文案）、`QuickAIAnswerView`（回答区）。
   - [Features/Translator/](Features/Translator/)：`TranslatorViewModel`（每个气泡一份：取词、截图识别、流式翻译、朗读）、`TranslatorState`（会话与提示）、`TranslatorView`（气泡内容）。
   - [Features/Settings/](Features/Settings/)：`SettingsViewModel`、`SettingsCategory`（侧边栏分类与可搜索的设置项名称）、`ShortcutFormatter`（快捷键展示，只用 Carbon 的键码常量）。
-  - [Features/Shared/](Features/Shared/)：Quick AI 与翻译共用的 Markdown 解析与显示（`MarkdownParser`、`MarkdownBlockView`）与流式增量合并上屏（`StreamingTextBuffer`）。
+  - [Features/Shared/](Features/Shared/)：Quick AI 与翻译共用的 Markdown 解析与显示（`MarkdownParser`、`MarkdownBlockView`）、流式增量合并上屏（`StreamingTextBuffer`）与流式请求的运行与中断（`StreamingRequest`）。
   - 使用显式状态枚举（如 [Features/Launcher/LauncherState.swift](Features/Launcher/LauncherState.swift)、[Features/Translator/TranslatorState.swift](Features/Translator/TranslatorState.swift)）管理状态，避免布尔变量交叉冲突。
 
 ## 4. 搜索与排序引擎机制

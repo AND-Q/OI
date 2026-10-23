@@ -28,15 +28,13 @@ final class TranslatorViewModel: ObservableObject {
     private let settingsStore: any AppSettingsStoring
     private let speaker: any TextSpeaking
 
-    private var translationTask: Task<Void, Never>?
     /// 截图翻译中识别选区文字的任务。
     private var recognitionTask: Task<Void, Never>?
     private var speechTask: Task<Void, Never>?
-    private lazy var translationBuffer = StreamingTextBuffer(interval: TranslatorViewModel.flushInterval) { [weak self] text in
+    private lazy var translationRequest = StreamingRequest(flushInterval: TranslatorViewModel.flushInterval) { [weak self] text in
         self?.session?.translation += text
         self?.session?.isCopied = false
     }
-    private var translationGeneration = 0
     private var captureGeneration = 0
 
     init(
@@ -58,7 +56,6 @@ final class TranslatorViewModel: ObservableObject {
     }
 
     deinit {
-        translationTask?.cancel()
         recognitionTask?.cancel()
         speechTask?.cancel()
     }
@@ -223,11 +220,7 @@ final class TranslatorViewModel: ObservableObject {
 
     /// 中断进行中的翻译，保留已到达的译文，避免气泡淡出途中内容变化。
     func stopTranslation() {
-        guard translationTask != nil else { return }
-        translationGeneration += 1
-        translationTask?.cancel()
-        translationTask = nil
-        translationBuffer.flush()
+        guard translationRequest.stop() else { return }
         if session?.isStreaming == true {
             session?.state = .finished
         }
@@ -237,7 +230,7 @@ final class TranslatorViewModel: ObservableObject {
     func reset() {
         cancelRecognition()
         stopTranslation()
-        translationBuffer.discard()
+        translationRequest.discard()
         session = nil
         notice = nil
         isPinned = false
@@ -302,34 +295,21 @@ final class TranslatorViewModel: ObservableObject {
 
     private func stream(_ request: TranslationRequest) {
         stopTranslation()
-        translationBuffer.discard()
-        translationGeneration += 1
-        let generation = translationGeneration
         session?.sourceLanguageCode = request.sourceLanguageCode
         session?.targetLanguage = request.targetLanguage
         session?.translation = ""
         session?.state = .streaming
         session?.isCopied = false
 
+        // 中断（隐藏气泡、修改原文、切换语言）后到达的增量与错误由 `translationRequest` 丢弃。
         let translateText = self.translateText
-        translationTask = Task { [weak self] in
-            do {
-                try await translateText.execute(request) { delta in
-                    guard let self, self.translationGeneration == generation else { return }
-                    self.translationBuffer.append(delta)
-                }
-                guard let self, self.translationGeneration == generation else { return }
-                self.translationBuffer.flush()
-                self.session?.state = .finished
-            } catch {
-                // 中断（隐藏气泡、修改原文、切换语言）会递增 generation，取消带来的错误在此丢弃。
-                guard let self, self.translationGeneration == generation else { return }
-                self.translationBuffer.flush()
-                self.session?.state = .failed(TranslatorErrorMessage.message(for: error))
-            }
-
-            if let self, self.translationGeneration == generation {
-                self.translationTask = nil
+        translationRequest.start { onDelta in
+            try await translateText.execute(request, onDelta: onDelta)
+        } onCompletion: { [weak self] error in
+            if let error {
+                self?.session?.state = .failed(TranslatorErrorMessage.message(for: error))
+            } else {
+                self?.session?.state = .finished
             }
         }
     }
