@@ -34,6 +34,7 @@ struct SpotlightFileSearcher: FileSearching {
     func search(query: String, limit: Int) async throws -> [FileDescriptor] {
         let queryString = Self.queryString(for: query)
         let excludedDirectories = Self.excludedDirectories(homeDirectory: homeDirectory)
+        let includedDirectories = Self.includedDirectories(homeDirectory: homeDirectory)
         // 同步查询一旦开始就无法中途停止；排队期间已被新输入取代的查询直接跳过，
         // 最新查询至多等正在执行的那一次，而不是等过期查询依次跑完。
         let isCancelled = OSAllocatedUnfairLock(initialState: false)
@@ -43,7 +44,12 @@ struct SpotlightFileSearcher: FileSearching {
                 Self.queue.async {
                     continuation.resume(with: Result {
                         guard !isCancelled.withLock({ $0 }) else { throw CancellationError() }
-                        return try Self.execute(queryString, excludedDirectories: excludedDirectories, limit: limit)
+                        return try Self.execute(
+                            queryString,
+                            excludedDirectories: excludedDirectories,
+                            includedDirectories: includedDirectories,
+                            limit: limit
+                        )
                     })
                 }
             }
@@ -92,20 +98,32 @@ struct SpotlightFileSearcher: FileSearching {
         [homeDirectory.appendingPathComponent("Library", isDirectory: true)]
     }
 
-    /// 过滤排除目录下的条目以及路径中含隐藏分量的条目。
-    static func isVisible(path: String, excludedDirectories: [URL]) -> Bool {
+    /// 排除目录中仍然保留的子目录：iCloud 云盘的本地文件（云盘根目录与 Pages、Numbers 等 App 的文件夹）
+    /// 存放在 `~/Library/Mobile Documents` 下，原生 Spotlight 同样能搜到。
+    static func includedDirectories(homeDirectory: URL) -> [URL] {
+        [homeDirectory.appendingPathComponent("Library/Mobile Documents", isDirectory: true)]
+    }
+
+    /// 过滤排除目录下（保留的子目录除外）的条目以及路径中含隐藏分量的条目。
+    static func isVisible(path: String, excludedDirectories: [URL], includedDirectories: [URL]) -> Bool {
         let url = URL(fileURLWithPath: path).standardizedFileURL
-        for directory in excludedDirectories {
-            let prefix = directory.path.hasSuffix("/") ? directory.path : directory.path + "/"
-            if url.path.hasPrefix(prefix) { return false }
+        if !includedDirectories.contains(where: { isPath(url.path, inside: $0) }),
+           excludedDirectories.contains(where: { isPath(url.path, inside: $0) }) {
+            return false
         }
         return !url.pathComponents.dropFirst().contains { $0.hasPrefix(".") }
+    }
+
+    private static func isPath(_ path: String, inside directory: URL) -> Bool {
+        let prefix = directory.path.hasSuffix("/") ? directory.path : directory.path + "/"
+        return path.hasPrefix(prefix)
     }
 
     /// 同步执行查询并按粗排顺序转换前 `limit` 条可见结果。
     private static func execute(
         _ queryString: String,
         excludedDirectories: [URL],
+        includedDirectories: [URL],
         limit: Int
     ) throws -> [FileDescriptor] {
         guard let query = MDQueryCreate(
@@ -132,7 +150,7 @@ struct SpotlightFileSearcher: FileSearching {
             guard let result = MDQueryGetResultAtIndex(query, index) else { continue }
             let item = Unmanaged<MDItem>.fromOpaque(result).takeUnretainedValue()
             guard let path = MDItemCopyAttribute(item, kMDItemPath) as? String,
-                  isVisible(path: path, excludedDirectories: excludedDirectories)
+                  isVisible(path: path, excludedDirectories: excludedDirectories, includedDirectories: includedDirectories)
             else { continue }
             let url = URL(fileURLWithPath: path)
             files.append(FileDescriptor(

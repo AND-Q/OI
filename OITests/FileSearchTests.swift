@@ -194,11 +194,30 @@ final class FileSearchTests: XCTestCase {
     func testVisibilityFilterExcludesLibraryAndHiddenPaths() {
         let home = URL(fileURLWithPath: "/Users/demo", isDirectory: true)
         let excluded = SpotlightFileSearcher.excludedDirectories(homeDirectory: home)
+        let included = SpotlightFileSearcher.includedDirectories(homeDirectory: home)
+        func isVisible(_ path: String) -> Bool {
+            SpotlightFileSearcher.isVisible(path: path, excludedDirectories: excluded, includedDirectories: included)
+        }
 
-        XCTAssertTrue(SpotlightFileSearcher.isVisible(path: "/Users/demo/Documents/plan.md", excludedDirectories: excluded))
-        XCTAssertFalse(SpotlightFileSearcher.isVisible(path: "/Users/demo/Library/Caches/x", excludedDirectories: excluded))
-        XCTAssertFalse(SpotlightFileSearcher.isVisible(path: "/Users/demo/.config/plan.md", excludedDirectories: excluded))
-        XCTAssertTrue(SpotlightFileSearcher.isVisible(path: "/Users/demo/LibraryNotes/plan.md", excludedDirectories: excluded))
+        XCTAssertTrue(isVisible("/Users/demo/Documents/plan.md"))
+        XCTAssertFalse(isVisible("/Users/demo/Library/Caches/x"))
+        XCTAssertFalse(isVisible("/Users/demo/.config/plan.md"))
+        XCTAssertTrue(isVisible("/Users/demo/LibraryNotes/plan.md"))
+    }
+
+    /// iCloud 云盘的本地文件在 `~/Library/Mobile Documents` 下，不随 `~/Library` 一起排除；其中的隐藏路径照常排除。
+    func testVisibilityFilterKeepsICloudDriveInsideLibrary() {
+        let home = URL(fileURLWithPath: "/Users/demo", isDirectory: true)
+        let excluded = SpotlightFileSearcher.excludedDirectories(homeDirectory: home)
+        let included = SpotlightFileSearcher.includedDirectories(homeDirectory: home)
+        func isVisible(_ path: String) -> Bool {
+            SpotlightFileSearcher.isVisible(path: path, excludedDirectories: excluded, includedDirectories: included)
+        }
+
+        XCTAssertTrue(isVisible("/Users/demo/Library/Mobile Documents/com~apple~CloudDocs/plan.md"))
+        XCTAssertTrue(isVisible("/Users/demo/Library/Mobile Documents/com~apple~Pages/Documents/report.pages"))
+        XCTAssertFalse(isVisible("/Users/demo/Library/Mobile Documents/com~apple~CloudDocs/.Trash/old.md"))
+        XCTAssertFalse(isVisible("/Users/demo/Library/Mobile DocumentsBackup/plan.md"))
     }
 
     // MARK: - ViewModel integration
