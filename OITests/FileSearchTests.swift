@@ -551,6 +551,7 @@ final class FileSearchTests: XCTestCase {
 
         viewModel.query = " ~/Library/Caches "
         await viewModel.waitForFileSearch()
+        await waitUntil { viewModel.pathResult != nil }
 
         XCTAssertEqual(opener.lookedUpPaths.last, "~/Library/Caches")
         XCTAssertEqual(viewModel.results, [.file(folder)])
@@ -568,6 +569,7 @@ final class FileSearchTests: XCTestCase {
 
         viewModel.query = "/Users/demo/missing"
         await viewModel.waitForFileSearch()
+        await waitUntil { opener.lookedUpPaths.count == 1 }
 
         XCTAssertNil(viewModel.pathResult)
         XCTAssertTrue(viewModel.results.isEmpty)
@@ -582,30 +584,61 @@ final class FileSearchTests: XCTestCase {
         XCTAssertEqual(viewModel.results, [.file(file("notes.txt"))])
     }
 
-    /// 按路径直接查看文件系统：隐藏文件、带结尾斜杠的文件夹与 `~` 都能取到，不存在的路径为 nil。
-    func testWorkspaceOpenerFindsItemsByPath() throws {
+    /// 后台查看比新的输入晚到时丢弃：先输入的慢路径结果到达后，直达行仍是最新输入的路径。
+    func testViewModelDropsSupersededPathLookup() async {
+        let slow = FileDescriptor(name: "NAS", url: URL(fileURLWithPath: "/Volumes/NAS"), isDirectory: true)
+        let fast = FileDescriptor(name: "tmp", url: URL(fileURLWithPath: "/tmp"), isDirectory: true)
+        let opener = StubFileOpener()
+        opener.items = ["/Volumes/NAS": slow, "/tmp": fast]
+        opener.delays = ["/Volumes/NAS": .milliseconds(100)]
+        let viewModel = makeViewModel(apps: [], searcher: StubFileSearcher(results: []), opener: opener)
+        await viewModel.loadApps()?.value
+
+        viewModel.query = "/Volumes/NAS"
+        viewModel.query = "/tmp"
+        await waitUntil { viewModel.pathResult == fast }
+        try? await Task.sleep(for: .milliseconds(200))
+
+        XCTAssertEqual(Set(opener.lookedUpPaths), ["/Volumes/NAS", "/tmp"])
+        XCTAssertEqual(viewModel.pathResult, fast)
+        XCTAssertEqual(viewModel.selectedResult, .file(fast))
+    }
+
+    /// 按路径直接查看文件系统：隐藏文件、带结尾斜杠的文件夹、`.app` 文件包与 `~` 都能取到，不存在的路径为 nil。
+    func testWorkspaceOpenerFindsItemsByPath() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let hidden = root.appendingPathComponent(".env")
         try Data().write(to: hidden)
+        let package = root.appendingPathComponent("Demo.app", isDirectory: true)
+        try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
         let opener = WorkspaceFileOpener()
 
-        let hiddenItem = try XCTUnwrap(opener.item(atPath: hidden.path))
+        let foundHidden = await opener.item(atPath: hidden.path)
+        let hiddenItem = try XCTUnwrap(foundHidden)
         XCTAssertEqual(hiddenItem.name, ".env")
         XCTAssertEqual(hiddenItem.url, hidden.standardizedFileURL)
         XCTAssertFalse(hiddenItem.isDirectory)
 
-        let folder = try XCTUnwrap(opener.item(atPath: root.path + "/"))
+        let foundFolder = await opener.item(atPath: root.path + "/")
+        let folder = try XCTUnwrap(foundFolder)
         XCTAssertEqual(folder.url.path, root.standardizedFileURL.path)
         XCTAssertTrue(folder.isDirectory)
 
-        let home = try XCTUnwrap(opener.item(atPath: "~"))
+        let foundPackage = await opener.item(atPath: package.path)
+        let packageItem = try XCTUnwrap(foundPackage)
+        XCTAssertFalse(packageItem.isDirectory, "文件包按文件处理")
+
+        let foundHome = await opener.item(atPath: "~")
+        let home = try XCTUnwrap(foundHome)
         XCTAssertEqual(home.url.path, FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path)
         XCTAssertTrue(home.isDirectory)
 
-        XCTAssertNil(opener.item(atPath: root.appendingPathComponent("missing").path))
-        XCTAssertNil(opener.item(atPath: "~no-such-user-\(UUID().uuidString)"), "展开后不是绝对路径")
+        let missing = await opener.item(atPath: root.appendingPathComponent("missing").path)
+        XCTAssertNil(missing)
+        let unknownUser = await opener.item(atPath: "~no-such-user-\(UUID().uuidString)")
+        XCTAssertNil(unknownUser, "展开后不是绝对路径")
     }
 
     private func makeViewModel(
@@ -622,6 +655,14 @@ final class FileSearchTests: XCTestCase {
             settingsStore: settingsStore,
             fileSearchDebounce: .zero
         )
+    }
+
+    private func waitUntil(timeout: Duration = .seconds(2), _ condition: () -> Bool) async {
+        let clock = ContinuousClock()
+        let deadline = clock.now + timeout
+        while !condition(), clock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(5))
+        }
     }
 }
 
@@ -668,6 +709,8 @@ private final class StubFileOpener: FileOpening {
     var applications: [OpenWithApplication] = []
     /// Items found by `item(atPath:)`, keyed by the path as typed.
     var items: [String: FileDescriptor] = [:]
+    /// 查看这些路径时先等待，且不响应取消，模拟卡住的网络卷。
+    var delays: [String: Duration] = [:]
     private(set) var lookedUpPaths: [String] = []
 
     func open(_ file: FileDescriptor) async throws {
@@ -692,8 +735,11 @@ private final class StubFileOpener: FileOpening {
         terminalURLs.append(url)
     }
 
-    func item(atPath path: String) -> FileDescriptor? {
+    func item(atPath path: String) async -> FileDescriptor? {
         lookedUpPaths.append(path)
+        if let delay = delays[path] {
+            _ = await Task.detached { try? await Task.sleep(for: delay) }.value
+        }
         return items[path]
     }
 }

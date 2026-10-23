@@ -69,6 +69,7 @@ final class LauncherViewModel: ObservableObject {
 
     private var loadTask: Task<Void, Never>?
     private var fileSearchTask: Task<Void, Never>?
+    private var pathLookupTask: Task<Void, Never>?
     private var quickAITask: Task<Void, Never>?
     private lazy var quickAIAnswerBuffer = StreamingTextBuffer(interval: LauncherViewModel.quickAIFlushInterval) { [weak self] text in
         self?.quickAISession?.answer += text
@@ -76,6 +77,7 @@ final class LauncherViewModel: ObservableObject {
     }
     private var refreshGeneration = 0
     private var fileSearchGeneration = 0
+    private var pathLookupGeneration = 0
     private var quickAIGeneration = 0
     private var searchIndex = ApplicationSearchIndex()
     private var usageRecords: [String: AppUsageRecord] = [:]
@@ -115,6 +117,7 @@ final class LauncherViewModel: ObservableObject {
     deinit {
         loadTask?.cancel()
         fileSearchTask?.cancel()
+        pathLookupTask?.cancel()
         quickAITask?.cancel()
     }
 
@@ -572,7 +575,7 @@ final class LauncherViewModel: ObservableObject {
         }
         quickQueryResult = QuickQueryResolver.resolve(query)
         webURLResult = WebURLResolver.recognize(query)
-        pathResult = isPathQuery ? openFile?.item(atPath: normalizedQuery) : nil
+        schedulePathLookup()
         scheduleFileSearch()
         updateFilteredApps()
         requestListReset()
@@ -634,6 +637,34 @@ final class LauncherViewModel: ObservableObject {
         selectedIndex = 0
         updatePanelHeight()
         return false
+    }
+
+    /// 路径直达在后台查看文件系统：路径落在无响应的网络卷上时可能阻塞数秒，不能逐字卡住主线程。
+    /// 过期的结果按 generation 丢弃，最新的输入总是胜出；查看期间保留上一次的直达行，
+    /// 逐字输入一个仍然存在的路径时，直达行不会先消失再出现、带着面板高度来回跳动。
+    private func schedulePathLookup() {
+        pathLookupTask?.cancel()
+        pathLookupTask = nil
+        pathLookupGeneration += 1
+        let generation = pathLookupGeneration
+
+        guard isPathQuery, let openFile else {
+            pathResult = nil
+            return
+        }
+        let path = normalizedQuery
+        pathLookupTask = Task { [weak self] in
+            let item = await openFile.item(atPath: path)
+            guard let self, self.pathLookupGeneration == generation else { return }
+            self.pathLookupTask = nil
+            guard item != self.pathResult else { return }
+            self.pathResult = item
+            // 直达行排在最前，其后的结果整体移动：选择回到第一项，展开中的操作菜单随之收起。
+            self.isActionSheetVisible = false
+            self.selectedIndex = 0
+            self.updatePanelHeight()
+            self.requestListReset()
+        }
     }
 
     /// Debounced file lookup; stale results are dropped by generation so the

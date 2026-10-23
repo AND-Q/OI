@@ -1,7 +1,12 @@
 import AppKit
+import os
 
 @MainActor
 final class WorkspaceFileOpener: FileOpening {
+    /// 路径直达查看文件系统的串行队列：路径落在无响应的网络卷上时一次查看可能阻塞数秒，串行执行使连续输入
+    /// 至多占住一个线程；排队期间已被新输入取代的查看直接跳过，最新的输入至多等正在执行的那一次。
+    private nonisolated static let itemLookupQueue = DispatchQueue(label: "oi.path-item-lookup", qos: .userInitiated)
+
     /// 文件夹没有系统登记的「打开方式」（Finder 右键菜单中也没有），补上这些常用编辑器中本机已安装的。
     private static let folderEditorBundleIdentifiers = [
         "com.microsoft.VSCode", // Visual Studio Code
@@ -74,16 +79,34 @@ final class WorkspaceFileOpener: FileOpening {
 
     /// 按路径直接查看文件系统，路径中的符号链接照常跟随。文件夹按文件夹处理（Enter 在 Finder 中打开），
     /// App 等文件包按文件处理（Enter 与在 Finder 中双击一样，App 即启动）。展开后不是绝对路径（如 `~不存在的用户`）时为 nil。
-    func item(atPath path: String) -> FileDescriptor? {
+    /// 在串行队列上查看，不占用主线程；排队期间任务已取消时直接返回 nil。
+    func item(atPath path: String) async -> FileDescriptor? {
+        let isCancelled = OSAllocatedUnfairLock(initialState: false)
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { (continuation: CheckedContinuation<FileDescriptor?, Never>) in
+                // 在后台队列执行：显式标为 @Sendable，Swift 6 下才不会被当作主线程闭包而在运行时断言失败。
+                Self.itemLookupQueue.async { @Sendable in
+                    let isSuperseded = isCancelled.withLock { $0 }
+                    continuation.resume(returning: isSuperseded ? nil : Self.lookUpItem(atPath: path))
+                }
+            }
+        } onCancel: {
+            isCancelled.withLock { $0 = true }
+        }
+    }
+
+    /// 只用 Foundation 查看文件系统，可在后台线程执行；文件包按资源属性判断，不依赖 AppKit。
+    private nonisolated static func lookUpItem(atPath path: String) -> FileDescriptor? {
         let expandedPath = (path as NSString).expandingTildeInPath
         var isDirectory: ObjCBool = false
         guard expandedPath.hasPrefix("/"),
               FileManager.default.fileExists(atPath: expandedPath, isDirectory: &isDirectory) else { return nil }
-        let isFolder = isDirectory.boolValue && !NSWorkspace.shared.isFilePackage(atPath: expandedPath)
+        let url = URL(fileURLWithPath: expandedPath, isDirectory: isDirectory.boolValue)
+        let isPackage = (try? url.resourceValues(forKeys: [.isPackageKey]))?.isPackage == true
         return FileDescriptor(
             name: FileManager.default.displayName(atPath: expandedPath),
-            url: URL(fileURLWithPath: expandedPath, isDirectory: isDirectory.boolValue),
-            isDirectory: isFolder
+            url: url,
+            isDirectory: isDirectory.boolValue && !isPackage
         )
     }
 
