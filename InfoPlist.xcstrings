@@ -1,0 +1,54 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "NSDesktopFolderUsageDescription" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OI needs access to your Desktop to include the files and folders on it in search results."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OI 需要访问桌面，才能在搜索结果中包含桌面上的文件与文件夹。"
+          }
+        }
+      }
+    },
+    "NSDocumentsFolderUsageDescription" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OI needs access to your Documents folder to include its files and folders in search results."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OI 需要访问文稿，才能在搜索结果中包含文稿中的文件与文件夹。"
+          }
+        }
+      }
+    },
+    "NSDownloadsFolderUsageDescription" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OI needs access to your Downloads folder to include its files and folders in search results."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OI 需要访问下载，才能在搜索结果中包含下载中的文件与文件夹。"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

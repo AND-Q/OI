@@ -35,6 +35,8 @@ final class SettingsViewModel: ObservableObject {
     }
     /// 开机自启动的开关状态来自系统登录项，而非持久化存储。
     @Published private(set) var isLaunchAtLoginEnabled: Bool
+    /// 界面语言来自本应用的系统语言偏好，而非持久化存储；改动在重新打开 OI 后生效。
+    @Published private(set) var appLanguage: AppLanguage
     @Published private(set) var launchAtLoginNotice: LaunchAtLoginNotice?
     @Published private(set) var launcherShortcutNotice: GlobalShortcutNotice?
     @Published private(set) var translatorShortcutNotice: GlobalShortcutNotice?
@@ -67,6 +69,8 @@ final class SettingsViewModel: ObservableObject {
     var screenTranslatorShortcutActivator: ((GlobalShortcut) throws -> Void)?
     /// 由 AppCoordinator 注入：文件搜索从关闭切到开启时请求桌面、文稿、下载目录授权。
     var fileSearchAccessRequester: (() -> Void)?
+    /// 由 AppCoordinator 注入：退出并重新打开 OI，让改动后的界面语言生效。
+    var relaunchHandler: (() -> Void)?
     /// 由 AppCoordinator 注入：用力点按取词开关变化时启动（true）或停止（false）全局监听。
     var forceTouchTranslationActivator: ((Bool) -> Void)?
 
@@ -75,6 +79,9 @@ final class SettingsViewModel: ObservableObject {
     private let quickAIKeyStore: any APIKeyStoring
     private let translatorKeyStore: any APIKeyStoring
     private let translatorEnvironment: any TranslatorEnvironmentHandling
+    private let appLanguageController: any AppLanguageControlling
+    /// OI 启动时的界面语言，即当前界面实际使用的语言。
+    private let launchAppLanguage: AppLanguage
     private let listAIModels: ListAIModels?
     private var savedQuickAIAPIKey = ""
     private var savedTranslationAPIKey = ""
@@ -89,6 +96,7 @@ final class SettingsViewModel: ObservableObject {
         quickAIKeyStore: any APIKeyStoring = MemoryAPIKeyStore(),
         translatorKeyStore: any APIKeyStoring = MemoryAPIKeyStore(),
         translatorEnvironment: any TranslatorEnvironmentHandling = MemoryTranslatorEnvironment(),
+        appLanguageController: any AppLanguageControlling = MemoryAppLanguageController(),
         listAIModels: ListAIModels? = nil
     ) {
         self.settingsStore = settingsStore
@@ -96,6 +104,9 @@ final class SettingsViewModel: ObservableObject {
         self.quickAIKeyStore = quickAIKeyStore
         self.translatorKeyStore = translatorKeyStore
         self.translatorEnvironment = translatorEnvironment
+        self.appLanguageController = appLanguageController
+        self.launchAppLanguage = appLanguageController.language
+        self.appLanguage = appLanguageController.language
         self.listAIModels = listAIModels
         self.settings = settingsStore.load()
         let status = loginItemController.status
@@ -123,6 +134,23 @@ final class SettingsViewModel: ObservableObject {
         isLaunchAtLoginEnabled = enabled
         launchAtLoginNotice =
             enabled && loginItemController.status == .requiresApproval ? .approvalPending : nil
+    }
+
+    /// 选择界面语言：写入系统的语言偏好，重新打开 OI 后生效。
+    func setAppLanguage(_ language: AppLanguage) {
+        guard language != appLanguage else { return }
+        appLanguageController.setLanguage(language)
+        appLanguage = language
+    }
+
+    /// 所选界面语言与当前界面使用的不同，需要重新打开 OI 才能生效；改回原来的语言即不再需要。
+    var isRelaunchNeededForAppLanguage: Bool {
+        appLanguage != launchAppLanguage
+    }
+
+    /// 退出并重新打开 OI。
+    func relaunch() {
+        relaunchHandler?()
     }
 
     /// 应用新的呼出快捷键，规则见 `applyShortcut(_:to:)`。
@@ -336,9 +364,9 @@ final class SettingsViewModel: ObservableObject {
 
         var name: String {
             switch self {
-            case .launcher: "呼出"
-            case .translator: "翻译"
-            case .screenTranslator: "截图翻译"
+            case .launcher: String(localized: "呼出")
+            case .translator: String(localized: "翻译")
+            case .screenTranslator: String(localized: "截图翻译")
             }
         }
     }
@@ -353,7 +381,7 @@ final class SettingsViewModel: ObservableObject {
             return
         }
         if let other = ShortcutTarget.allCases.first(where: { $0 != target && settings[keyPath: $0.setting] == shortcut }) {
-            setNotice(.failure("与\(other.name)快捷键相同，请换一个组合"), for: target)
+            setNotice(.failure(String(localized: "与\(other.name)快捷键相同，请换一个组合")), for: target)
             return
         }
         if shortcut == settings[keyPath: target.setting], notice(for: target) == nil {
@@ -374,7 +402,7 @@ final class SettingsViewModel: ObservableObject {
             } catch {
                 setNotice(
                     .failure(
-                        "原快捷键重新注册也失败，当前没有可用的\(target.name)快捷键（新组合原因：\(reason)）。请重新录制组合或重启 OI"
+                        String(localized: "原快捷键重新注册也失败，当前没有可用的\(target.name)快捷键（新组合原因：\(reason)）。请重新录制组合或重启 OI")
                     ),
                     for: target
                 )
@@ -440,9 +468,9 @@ final class SettingsViewModel: ObservableObject {
 
     private static func checkFailureMessage(for error: Error) -> String {
         switch error as? ApplicationError {
-        case .aiNotConfigured?: "请先填写有效的接口地址"
+        case .aiNotConfigured?: String(localized: "请先填写有效的接口地址")
         case .aiRequestFailed(let reason)?: reason
-        default: "连接失败，请重试"
+        default: String(localized: "连接失败，请重试")
         }
     }
 }

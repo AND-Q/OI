@@ -12,11 +12,11 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .general: "通用"
-        case .search: "搜索"
+        case .general: String(localized: "通用")
+        case .search: String(localized: "搜索")
         case .quickAI: "Quick AI"
-        case .translator: "划词翻译"
-        case .environment: "取词环境"
+        case .translator: String(localized: "划词翻译")
+        case .environment: String(localized: "取词环境")
         }
     }
 
@@ -33,9 +33,9 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
 
     /// 页内的分组标题与设置项名称，供侧边栏搜索匹配；与设置页上显示的文字保持一致。
     var itemNames: [String] {
-        switch self {
+        let names: [String.LocalizationValue] = switch self {
         case .general:
-            ["开机自启动", "开机静默启动", "快捷键", "呼出快捷键"]
+            ["开机自启动", "开机静默启动", "界面语言", "快捷键", "呼出快捷键"]
         case .search:
             ["文件与文件夹搜索", "启动历史排序", "网页搜索引擎"]
         case .quickAI:
@@ -49,6 +49,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
         case .environment:
             ["辅助功能权限", "屏幕录制权限", "触控板设置", "查询与数据检测器", "用力点按和触感反馈"]
         }
+        return names.map { String(localized: $0) }
     }
 
     /// 分类名或其中任一设置项名称包含 `query`（不区分大小写）即匹配；`query` 为空时匹配所有分类。

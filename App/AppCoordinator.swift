@@ -61,6 +61,9 @@ final class AppCoordinator {
         }
         // 启动时文件搜索关闭、之后才在设置中开启的，开启时补一次目录授权请求。
         settingsViewModel.fileSearchAccessRequester = dependencies.fileSearchAccessRequester
+        settingsViewModel.relaunchHandler = { [weak self] in
+            self?.relaunch()
+        }
         if let translator = dependencies.translator, let translatorPanelController {
             // 翻译与截图翻译快捷键沿用同样的注册路径与强引用约定。
             settingsViewModel.translatorShortcutActivator = Self.makeShortcutActivator(
@@ -165,6 +168,27 @@ final class AppCoordinator {
         Task {
             await updateCheckController.check()
         }
+    }
+
+    /// 退出并重新打开 OI，让改动后的界面语言生效。由一个 shell 等本进程退出后再打开：`open` 一个仍在运行的应用
+    /// 只会把它切到前台；新旧进程同时运行时，新进程注册全局快捷键也会与旧进程冲突。
+    private func relaunch() {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        // 应用路径与进程号作为 `$0`、`$1` 传入，路径中的空格等字符无需转义。
+        process.arguments = [
+            "-c",
+            "while kill -0 \"$1\" 2>/dev/null; do sleep 0.2; done; /usr/bin/open \"$0\"",
+            Bundle.main.bundlePath,
+            String(ProcessInfo.processInfo.processIdentifier),
+        ]
+        do {
+            try process.run()
+        } catch {
+            logger.error("Relaunch failed: \(error.localizedDescription, privacy: .public)")
+            return
+        }
+        NSApp.terminate(nil)
     }
 
     private func showAbout() {

@@ -462,7 +462,7 @@ final class LauncherPanelController {
               FileManager.default.fileExists(atPath: url.path) else {
             viewModel.publishFileOpenError(
                 fileName: result.name,
-                reason: "文件已被移动或删除"
+                reason: String(localized: "文件已被移动或删除")
             )
             return
         }
@@ -484,7 +484,7 @@ final class LauncherPanelController {
         guard FileManager.default.fileExists(atPath: url.path) else {
             viewModel.publishFileOpenError(
                 fileName: result.name,
-                reason: "文件已被移动或删除"
+                reason: String(localized: "文件已被移动或删除")
             )
             return
         }
@@ -531,7 +531,7 @@ final class LauncherPanelController {
             guard FileManager.default.fileExists(atPath: directory.path) else {
                 viewModel.publishFileOpenError(
                     fileName: result.name,
-                    reason: "文件已被移动或删除"
+                    reason: String(localized: "文件已被移动或删除")
                 )
                 return
             }
@@ -543,7 +543,7 @@ final class LauncherPanelController {
                 viewModel.dismissActionSheet()
                 viewModel.publishFileOpenError(
                     fileName: result.name,
-                    reason: "文件已被移动或删除"
+                    reason: String(localized: "文件已被移动或删除")
                 )
                 return
             }
@@ -556,7 +556,7 @@ final class LauncherPanelController {
     private func showOpenWithMenu(for file: FileDescriptor) {
         let menu = NSMenu()
         menu.autoenablesItems = false
-        menu.addItem(.sectionHeader(title: "用其他 App 打开"))
+        menu.addItem(.sectionHeader(title: String(localized: "用其他 App 打开")))
         let applications = viewModel.applications(toOpen: file)
         let target = OpenWithMenuTarget { [weak self] applicationURL in
             guard let self else { return }
@@ -567,7 +567,7 @@ final class LauncherPanelController {
         openWithMenuTarget = target
         for application in applications {
             let item = NSMenuItem(
-                title: application.isDefault ? "\(application.name)（默认）" : application.name,
+                title: application.isDefault ? String(localized: "\(application.name)（默认）") : application.name,
                 action: #selector(OpenWithMenuTarget.chooseApplication(_:)),
                 keyEquivalent: ""
             )
@@ -580,7 +580,7 @@ final class LauncherPanelController {
             }
         }
         if applications.isEmpty {
-            let item = NSMenuItem(title: "没有可以打开它的 App", action: nil, keyEquivalent: "")
+            let item = NSMenuItem(title: String(localized: "没有可以打开它的 App"), action: nil, keyEquivalent: "")
             item.isEnabled = false
             menu.addItem(item)
         }

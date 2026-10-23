@@ -70,6 +70,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - 允许的类型：`feat`、`fix`、`refactor`、`chore`、`docs`、`test`、`perf`、`build`、`ci`、`style`、`revert`。
   - 每个提交应只包含一项独立且完整的变更。
   - 提交说明和 PR 描述中不要添加 `Co-Authored-By` 等 AI 署名行或生成工具的署名。
+- **界面文字与本地化**
+  - 界面支持简体中文与英文：[Localizable.xcstrings](Localizable.xcstrings) 为每条界面文字提供 `en` 与 `zh-Hans` 两份，代码中的中文原文即查找键；Info.plist 中的授权说明在 [InfoPlist.xcstrings](InfoPlist.xcstrings)。
+  - SwiftUI 的 `Text`、`Button`、`Label`、`Toggle`、`TextField`、`.help` 等直接写中文字面量即自动查表；AppKit 文字、视图模型与错误描述等 `String` 用 `String(localized:)`；自定义视图接收界面文字时参数用 `LocalizedStringKey`。
+  - 新增或改动界面文字时同步更新 `Localizable.xcstrings` 中的英文：键与代码中的原文逐字一致，插值写作 `%@`（字符串）或 `%lld`（整数，其他整数类型先转为 `Int`）；发给模型的提示词与快速查询的输入关键词不是界面文字，不放进目录。
+  - 测试固定以简体中文运行（scheme 的测试语言），断言照常使用中文原文。
 - **代码注释**
   - 改动代码时，代码注释要和附近的代码（或者同类代码）的语言、语气与密度保持一致。
 
@@ -131,8 +136,8 @@ App -> UI -> Features / Application / Domain
   - [Application/Ports/](Application/Ports/)：定义外部依赖协议契约，每个端口一个文件：
     - 启动器：`AppCatalog`、`ApplicationLaunching`、`AppUsageStoring`、`FileSearching`、`FileOpening`（打开、在 Finder 中显示、在终端打开、用其他 App 打开、按路径取条目）、`URLOpening`、`GlobalShortcutHandling`、`LocalIPAddressProviding`（本机 IP）；
     - Quick AI 与划词翻译：`AIAnswering`、`AIModelListing`（设置面板的「获取模型」「测试连接」）、`APIKeyStoring`、`TextCapturing`、`WordSelecting`、`ForceTouchMonitoring`、`LanguageDetecting`、`ScreenTextRecognizing`、`TextSpeaking`、`TranslatorEnvironmentHandling`（辅助功能与屏幕录制权限）；
-    - 通用：`AppSettingsStoring`（`AppSettings` 设置模型也定义在这里）、`LoginItemControlling`、`UserNotifying`、`LatestReleaseFetching`。
-    - 部分端口文件同时提供内存实现（`MemoryAppUsageStore`、`MemoryAppSettingsStore`、`MemoryAPIKeyStore`、`MemoryUserNotifier`、`MemoryTranslatorEnvironment`、`MemoryLocalIPAddressProvider`），用作默认值与测试替身。
+    - 通用：`AppSettingsStoring`（`AppSettings` 设置模型也定义在这里）、`LoginItemControlling`、`AppLanguageControlling`（界面语言）、`UserNotifying`、`LatestReleaseFetching`。
+    - 部分端口文件同时提供内存实现（`MemoryAppUsageStore`、`MemoryAppSettingsStore`、`MemoryAPIKeyStore`、`MemoryUserNotifier`、`MemoryTranslatorEnvironment`、`MemoryLocalIPAddressProvider`、`MemoryAppLanguageController`），用作默认值与测试替身。
   - [Application/UseCases/](Application/UseCases/)：用例流程：`DiscoverApplications`、`LaunchApplication`、`SearchFiles`（含文件结果的二次排序 `FileResultRanker`）、`OpenFile`、`OpenURL`、`AskQuickAI`、`TranslateText`、`ListAIModels`、`CheckForUpdates`；[Application/UseCases/AIStreaming.swift](Application/UseCases/AIStreaming.swift) 是 Quick AI 与翻译共用的流式请求（两者的接口地址、模型与 API Key 各自填写）。
   - [Application/Search/](Application/Search/)：自建纯内存搜索引擎，包含分级匹配索引（[Application/Search/ApplicationSearchIndex.swift](Application/Search/ApplicationSearchIndex.swift)）、搜索文档模型（[Application/Search/ApplicationSearchDocument.swift](Application/Search/ApplicationSearchDocument.swift)）与文本分词/拼音/首字母归一化处理（`SearchTextNormalizer`）。
   - [Application/Errors/](Application/Errors/)：稳定的跨层错误模型（[Application/Errors/ApplicationError.swift](Application/Errors/ApplicationError.swift)），屏蔽平台底层异常细节。
@@ -143,7 +148,7 @@ App -> UI -> Features / Application / Domain
   - [Infrastructure/AI/](Infrastructure/AI/)：OpenAI 兼容接口的流式客户端（`OpenAICompatibleAIClient`，也负责读取模型列表）与钥匙串中的 API Key 存储（`KeychainAPIKeyStore`，Quick AI 与翻译各存一份）。
   - [Infrastructure/Translator/](Infrastructure/Translator/)：辅助功能取词（`AccessibilityTextCapturer`）、取不到时模拟双击选词（`DoubleClickWordSelector`）、触控板用力点按监听（`GlobalForceTouchMonitor`）、语种识别（`NaturalLanguageDetector`）、截图识字（`VisionScreenTextRecognizer`，ScreenCaptureKit + Vision）、发音朗读（`SystemTextSpeaker`，`AVSpeechSynthesizer`）、权限状态与授权流程（`SystemTranslatorEnvironment`）。
   - [Infrastructure/Shortcut/](Infrastructure/Shortcut/)：基于 Carbon API 的全局热键注册，每个快捷键一个实例，按热键 ID 区分。
-  - [Infrastructure/Settings/](Infrastructure/Settings/)：基于 `UserDefaults` 的设置存储。
+  - [Infrastructure/Settings/](Infrastructure/Settings/)：基于 `UserDefaults` 的设置存储，以及经本应用 `AppleLanguages` 偏好指定的界面语言（`UserDefaultsAppLanguageController`）。
   - [Infrastructure/Usage/](Infrastructure/Usage/)：基于 `UserDefaults` 的应用使用历史持久化存储。
   - [Infrastructure/LoginItem/](Infrastructure/LoginItem/)：基于 `SMAppService` 的开机自启。
   - [Infrastructure/Notifications/](Infrastructure/Notifications/)：基于 `UNUserNotificationCenter` 的系统通知（后台打开失败等提示）。

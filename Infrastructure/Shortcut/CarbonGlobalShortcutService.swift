@@ -7,11 +7,11 @@ enum GlobalShortcutError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .eventHandlerInstallationFailed(let status):
-            "无法安装全局快捷键事件处理器（\(status)）"
+            String(localized: "无法安装全局快捷键事件处理器（\(Int(status))）")
         case .registrationFailed(let status) where status == eventHotKeyExistsErr:
-            "该快捷键已被其他应用占用，请换一个组合"
+            String(localized: "该快捷键已被其他应用占用，请换一个组合")
         case .registrationFailed(let status):
-            "无法注册全局快捷键（\(status)）"
+            String(localized: "无法注册全局快捷键（\(Int(status))）")
         }
     }
 }

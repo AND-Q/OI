@@ -7,28 +7,28 @@ enum LauncherErrorMessage {
         case let applicationError as ApplicationError:
             message(for: applicationError)
         default:
-            "操作未能完成，请重试。"
+            String(localized: "操作未能完成，请重试。")
         }
     }
 
     private static func message(for applicationError: ApplicationError) -> String {
         switch applicationError {
         case .discoveryFailed(let reason):
-            "无法加载应用列表：\(reason)"
+            String(localized: "无法加载应用列表：\(reason)")
         case .launchFailed(let applicationName, let reason):
-            "无法启动 \(applicationName)：\(reason)"
+            String(localized: "无法启动 \(applicationName)：\(reason)")
         case .fileSearchFailed(let reason):
-            "无法搜索文件：\(reason)"
+            String(localized: "无法搜索文件：\(reason)")
         case .fileOpenFailed(let fileName, let reason):
-            "无法打开 \(fileName)：\(reason)"
+            String(localized: "无法打开 \(fileName)：\(reason)")
         case .urlOpenFailed(let reason):
-            "无法打开链接：\(reason)"
+            String(localized: "无法打开链接：\(reason)")
         case .aiNotConfigured:
-            "请先在「设置… → Quick AI」中填写接口地址与模型。"
+            String(localized: "请先在「设置… → Quick AI」中填写接口地址与模型。")
         case .aiRequestFailed(let reason):
-            "回答失败：\(reason)"
+            String(localized: "回答失败：\(reason)")
         case .updateCheckFailed(let reason):
-            "检查更新失败：\(reason)"
+            String(localized: "检查更新失败：\(reason)")
         }
     }
 
@@ -36,13 +36,13 @@ enum LauncherErrorMessage {
     static func notification(for error: Error) -> (title: String, body: String) {
         switch error as? ApplicationError {
         case .launchFailed(let applicationName, let reason)?:
-            ("无法启动 \(applicationName)", reason)
+            (String(localized: "无法启动 \(applicationName)"), reason)
         case .fileOpenFailed(let fileName, let reason)?:
-            ("无法打开 \(fileName)", reason)
+            (String(localized: "无法打开 \(fileName)"), reason)
         case .urlOpenFailed(let reason)?:
-            ("无法打开链接", reason)
+            (String(localized: "无法打开链接"), reason)
         default:
-            ("操作未能完成", "请重试。")
+            (String(localized: "操作未能完成"), String(localized: "请重试。"))
         }
     }
 }

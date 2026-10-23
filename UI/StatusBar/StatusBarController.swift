@@ -40,22 +40,22 @@ final class StatusBarController: NSObject {
 
         let menu = NSMenu()
         let showItem = NSMenuItem(
-            title: "显示启动器",
+            title: String(localized: "显示启动器"),
             action: #selector(showLauncher),
             keyEquivalent: ""
         )
-        let aboutItem = NSMenuItem(title: "关于 OI", action: #selector(about), keyEquivalent: "")
+        let aboutItem = NSMenuItem(title: String(localized: "关于 OI"), action: #selector(about), keyEquivalent: "")
         let updateItem = NSMenuItem(
-            title: "检查更新…",
+            title: String(localized: "检查更新…"),
             action: #selector(checkForUpdates),
             keyEquivalent: ""
         )
         let settingsItem = NSMenuItem(
-            title: "设置…",
+            title: String(localized: "设置…"),
             action: #selector(settings),
             keyEquivalent: ","
         )
-        let quitItem = NSMenuItem(title: "退出", action: #selector(quit), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: String(localized: "退出"), action: #selector(quit), keyEquivalent: "q")
         showItem.target = self
         aboutItem.target = self
         updateItem.target = self
@@ -111,7 +111,7 @@ extension StatusBarController: NSMenuItemValidation {
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         guard menuItem.action == #selector(checkForUpdates) else { return true }
         let isChecking = isCheckingForUpdates()
-        menuItem.title = isChecking ? "正在检查更新…" : "检查更新…"
+        menuItem.title = isChecking ? String(localized: "正在检查更新…") : String(localized: "检查更新…")
         return !isChecking
     }
 }

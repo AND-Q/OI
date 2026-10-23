@@ -41,11 +41,11 @@ final class LauncherSearchInputView: NSView, NSTextFieldDelegate {
         textField.focusRingType = .none
         textField.font = .systemFont(ofSize: 26, weight: .regular)
         textField.textColor = .labelColor
-        textField.placeholderString = "聚焦搜索"
+        textField.placeholderString = String(localized: "聚焦搜索")
         textField.cell?.usesSingleLineMode = true
         textField.cell?.isScrollable = true
         textField.cell?.sendsActionOnEndEditing = false
-        textField.setAccessibilityLabel("聚焦搜索")
+        textField.setAccessibilityLabel(String(localized: "聚焦搜索"))
         textField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         textField.delegate = self
         textField.target = self
@@ -72,7 +72,7 @@ final class LauncherSearchInputView: NSView, NSTextFieldDelegate {
     }
 
     func update(query: String, isQuickAIMode: Bool, focusRequest: Int) {
-        let placeholder = isQuickAIMode ? "向 AI 提问，按回车发送" : "聚焦搜索"
+        let placeholder = isQuickAIMode ? String(localized: "向 AI 提问，按回车发送") : String(localized: "聚焦搜索")
         if textField.placeholderString != placeholder {
             textField.placeholderString = placeholder
             textField.setAccessibilityLabel(placeholder)

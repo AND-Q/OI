@@ -25,15 +25,20 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
     private static let webSearchEngineKey = "settings.webSearchEngine"
 
     private let defaults: UserDefaults
+    /// 首选语言（界面语言在前），决定没有保存过翻译语言时的默认组合。
+    private let preferredLanguages: [String]
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, preferredLanguages: [String] = Locale.preferredLanguages) {
         self.defaults = defaults
+        self.preferredLanguages = preferredLanguages
     }
 
     func load() -> AppSettings {
         let fallback = AppSettings()
         let quickAIBaseURL = defaults.string(forKey: Self.quickAIBaseURLKey) ?? fallback.quickAIBaseURL
         let quickAIModel = defaults.string(forKey: Self.quickAIModelKey) ?? fallback.quickAIModel
+        // 翻译语言的默认值随首选语言：中文系统与 `AppSettings` 的默认相同，英文系统默认外文译英语、英文译简体中文。
+        let defaultLanguages = TranslationLanguage.defaultPair(preferredLanguages: preferredLanguages)
         return AppSettings(
             isSilentLaunchEnabled: defaults.object(forKey: Self.silentLaunchKey) as? Bool
                 ?? fallback.isSilentLaunchEnabled,
@@ -60,9 +65,9 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring {
                 modifiersKey: Self.screenTranslatorShortcutModifiersKey
             ) ?? fallback.screenTranslatorShortcut,
             translationTargetLanguage: loadLanguage(forKey: Self.translationTargetLanguageKey)
-                ?? fallback.translationTargetLanguage,
+                ?? defaultLanguages.target,
             translationAlternateLanguage: loadLanguage(forKey: Self.translationAlternateLanguageKey)
-                ?? fallback.translationAlternateLanguage,
+                ?? defaultLanguages.alternate,
             // 旧版本的划词翻译与 Quick AI 共用接口：从未保存过翻译接口时沿用 Quick AI 的值，
             // 升级后翻译照常可用；下次保存设置时写入，此后两者各自独立。
             translationBaseURL: defaults.string(forKey: Self.translationBaseURLKey) ?? quickAIBaseURL,

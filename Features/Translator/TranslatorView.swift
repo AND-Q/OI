@@ -91,7 +91,7 @@ private struct TranslatorSessionView<CloseButton: View>: View {
         HStack(spacing: 6) {
             closeButton
                 .padding(.trailing, 4)
-            Text(session.sourceLanguageName ?? "自动识别")
+            Text(session.sourceLanguageName ?? String(localized: "自动识别"))
             if session.speechText != nil {
                 TranslatorSpeakButton(isSpeaking: isSpeaking) {
                     viewModel.toggleSpeech()
@@ -364,22 +364,22 @@ private struct TranslatorNoticeView<CloseButton: View>: View {
     private var message: String {
         switch notice {
         case .nothingToTranslate:
-            "没有选中的文字，剪贴板中也没有可翻译的内容。"
+            String(localized: "没有选中的文字，剪贴板中也没有可翻译的内容。")
         case .accessibilityRequired, .clipboardUsedWithoutAccessibility:
-            "需要辅助功能权限才能读取选中的文字；也可以先复制文字，再按快捷键翻译剪贴板内容。"
+            String(localized: "需要辅助功能权限才能读取选中的文字；也可以先复制文字，再按快捷键翻译剪贴板内容。")
         case .screenRecordingRequired:
-            "截图翻译需要屏幕录制权限，用于定格屏幕画面并在本机识别框选区域中的文字。开启后请按系统提示重新打开 OI。"
+            String(localized: "截图翻译需要屏幕录制权限，用于定格屏幕画面并在本机识别框选区域中的文字。开启后请按系统提示重新打开 OI。")
         case .noTextInSelection:
-            "选区中没有识别到文字，请重新框选。"
+            String(localized: "选区中没有识别到文字，请重新框选。")
         case .screenCaptureFailed:
-            "截图失败，请重试。如果刚开启屏幕录制权限，需要重新打开 OI 才能截图。"
+            String(localized: "截图失败，请重试。如果刚开启屏幕录制权限，需要重新打开 OI 才能截图。")
         }
     }
 }
 
 private struct TranslatorShortcutHint: View {
     let key: String
-    let title: String
+    let title: LocalizedStringKey
 
     var body: some View {
         HStack(spacing: 4) {
@@ -396,7 +396,7 @@ private struct TranslatorShortcutHint: View {
 
 /// 原文来源的说明标签（剪贴板、截图）：浅底色胶囊、只有文字，与旁边的图钉按钮区分开，不像可点按的按钮。
 private struct TranslatorSourceTag: View {
-    let title: String
+    let title: LocalizedStringKey
 
     var body: some View {
         Text(title)

@@ -183,6 +183,6 @@ private enum SpotlightQueryError: LocalizedError {
     case startFailed
 
     var errorDescription: String? {
-        "无法启动 Spotlight 查询"
+        String(localized: "无法启动 Spotlight 查询")
     }
 }

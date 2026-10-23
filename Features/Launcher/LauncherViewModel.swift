@@ -7,7 +7,7 @@ final class LauncherViewModel: ObservableObject {
     /// 应用快照的有效期：超过后再次呼出面板时重新扫描。
     static let refreshInterval: TimeInterval = 600
     /// 文件与文件夹结果上方的分组标题。
-    static let fileSectionTitle = "文件与文件夹"
+    static let fileSectionTitle = String(localized: "文件与文件夹")
     /// 流式增量合并上屏的间隔：避免每个 token 都触发整段 Markdown 重新解析与重绘。
     static let quickAIFlushInterval: Duration = .milliseconds(50)
 

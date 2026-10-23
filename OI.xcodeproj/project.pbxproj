@@ -145,6 +145,11 @@
 		A100000100000079 /* AIModelListing.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000079 /* AIModelListing.swift */; };
 		A10000010000007A /* ListAIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000007A /* ListAIModels.swift */; };
 		B100000100000027 /* AIEndpointCheckTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000028 /* AIEndpointCheckTests.swift */; };
+		C100000100000002 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C200000100000002 /* Localizable.xcstrings */; };
+		C100000100000003 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C200000100000003 /* InfoPlist.xcstrings */; };
+		A10000010000007B /* AppLanguageControlling.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000007B /* AppLanguageControlling.swift */; };
+		A10000010000007C /* UserDefaultsAppLanguageController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000007C /* UserDefaultsAppLanguageController.swift */; };
+		B100000100000028 /* LocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000029 /* LocalizationTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -299,6 +304,11 @@
 		A200000100000079 /* AIModelListing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIModelListing.swift; sourceTree = "<group>"; };
 		A20000010000007A /* ListAIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListAIModels.swift; sourceTree = "<group>"; };
 		B200000100000028 /* AIEndpointCheckTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIEndpointCheckTests.swift; sourceTree = "<group>"; };
+		C200000100000002 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		C200000100000003 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
+		A20000010000007B /* AppLanguageControlling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguageControlling.swift; sourceTree = "<group>"; };
+		A20000010000007C /* UserDefaultsAppLanguageController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsAppLanguageController.swift; sourceTree = "<group>"; };
+		B200000100000029 /* LocalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -334,6 +344,8 @@
 				A400000100000017 /* Frameworks */,
 				A400000100000007 /* OITests */,
 				A400000100000008 /* Products */,
+				C200000100000002 /* Localizable.xcstrings */,
+				C200000100000003 /* InfoPlist.xcstrings */,
 			);
 			sourceTree = "<group>";
 		};
@@ -433,6 +445,7 @@
 				B200000100000026 /* TranslatorPlacementTests.swift */,
 				B200000100000027 /* TranslatorSettingsTests.swift */,
 				B200000100000028 /* AIEndpointCheckTests.swift */,
+				B200000100000029 /* LocalizationTests.swift */,
 			);
 			path = OITests;
 			sourceTree = "<group>";
@@ -485,6 +498,7 @@
 				A200000100000072 /* TextSpeaking.swift */,
 				A200000100000074 /* LocalIPAddressProviding.swift */,
 				A200000100000079 /* AIModelListing.swift */,
+				A20000010000007B /* AppLanguageControlling.swift */,
 			);
 			path = Ports;
 			sourceTree = "<group>";
@@ -637,6 +651,7 @@
 			isa = PBXGroup;
 			children = (
 				A200000100000043 /* UserDefaultsAppSettingsStore.swift */,
+				A20000010000007C /* UserDefaultsAppLanguageController.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -810,6 +825,7 @@
 			knownRegions = (
 				en,
 				Base,
+				"zh-Hans",
 			);
 			mainGroup = A400000100000001;
 			productRefGroup = A400000100000008 /* Products */;
@@ -828,6 +844,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				C100000100000001 /* Assets.xcassets in Resources */,
+				C100000100000002 /* Localizable.xcstrings in Resources */,
+				C100000100000003 /* InfoPlist.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -951,6 +969,8 @@
 				A100000100000078 /* LauncherErrorMessage.swift in Sources */,
 				A100000100000079 /* AIModelListing.swift in Sources */,
 				A10000010000007A /* ListAIModels.swift in Sources */,
+				A10000010000007B /* AppLanguageControlling.swift in Sources */,
+				A10000010000007C /* UserDefaultsAppLanguageController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -988,6 +1008,7 @@
 				B100000100000025 /* TranslatorPlacementTests.swift in Sources */,
 				B100000100000026 /* TranslatorSettingsTests.swift in Sources */,
 				B100000100000027 /* AIEndpointCheckTests.swift in Sources */,
+				B100000100000028 /* LocalizationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

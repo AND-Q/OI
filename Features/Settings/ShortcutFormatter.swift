@@ -19,7 +19,7 @@ enum ShortcutFormatter {
         if let name = keyNames[keyCode] {
             return name
         }
-        return "按键 \(keyCode)"
+        return String(localized: "按键 \(Int(keyCode))")
     }
 
     static func displayName(for shortcut: GlobalShortcut) -> String {
@@ -31,9 +31,9 @@ enum ShortcutFormatter {
     static func description(of problem: GlobalShortcut.Problem) -> String {
         switch problem {
         case .missingModifier:
-            "快捷键需包含 ⌘、⌥ 或 ⌃ 修饰键"
+            String(localized: "快捷键需包含 ⌘、⌥ 或 ⌃ 修饰键")
         case .overridesAppShortcut:
-            "只用 ⌘ 会覆盖各应用的同名快捷键，请加上 ⌥ 或 ⌃"
+            String(localized: "只用 ⌘ 会覆盖各应用的同名快捷键，请加上 ⌥ 或 ⌃")
         }
     }
 

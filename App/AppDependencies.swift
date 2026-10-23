@@ -77,6 +77,7 @@ struct AppDependencies {
                 quickAIKeyStore: quickAIKeyStore,
                 translatorKeyStore: translatorKeyStore,
                 translatorEnvironment: translatorEnvironment,
+                appLanguageController: UserDefaultsAppLanguageController(),
                 listAIModels: ListAIModels(lister: aiClient)
             ),
             settingsStore: settingsStore,

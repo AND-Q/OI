@@ -40,7 +40,7 @@ final class TranslatorSettingsTests: TranslatorTestCase {
         defaults.set(2, forKey: "settings.translator.screenShortcut.keyCode")
         defaults.set(1 << 9, forKey: "settings.translator.screenShortcut.modifiers")
 
-        let settings = UserDefaultsAppSettingsStore(defaults: defaults).load()
+        let settings = UserDefaultsAppSettingsStore(defaults: defaults, preferredLanguages: ["zh-Hans-CN"]).load()
 
         XCTAssertEqual(settings.translationTargetLanguage, .simplifiedChinese)
         XCTAssertEqual(settings.translatorShortcut, .defaultTranslator)

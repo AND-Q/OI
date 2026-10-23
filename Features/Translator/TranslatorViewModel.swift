@@ -319,11 +319,11 @@ private enum TranslatorErrorMessage {
     static func message(for error: Error) -> String {
         switch error as? ApplicationError {
         case .aiNotConfigured?:
-            "请先在「设置… → 划词翻译」中填写翻译使用的接口地址与模型。"
+            String(localized: "请先在「设置… → 划词翻译」中填写翻译使用的接口地址与模型。")
         case .aiRequestFailed(let reason)?:
-            "翻译失败：\(reason)"
+            String(localized: "翻译失败：\(reason)")
         default:
-            "翻译失败，请重试。"
+            String(localized: "翻译失败，请重试。")
         }
     }
 }

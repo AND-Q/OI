@@ -10,11 +10,11 @@ enum ResultMenuAction: CaseIterable, Hashable, Sendable {
 
     var title: String {
         switch self {
-        case .revealInFinder: "在 Finder 中显示"
-        case .copyPath: "复制路径"
-        case .copyBundleID: "复制 Bundle ID"
-        case .openInTerminal: "在终端中打开"
-        case .openWith: "用其他 App 打开…"
+        case .revealInFinder: String(localized: "在 Finder 中显示")
+        case .copyPath: String(localized: "复制路径")
+        case .copyBundleID: String(localized: "复制 Bundle ID")
+        case .openInTerminal: String(localized: "在终端中打开")
+        case .openWith: String(localized: "用其他 App 打开…")
         }
     }
 

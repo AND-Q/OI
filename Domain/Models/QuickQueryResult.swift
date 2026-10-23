@@ -15,7 +15,7 @@ enum QuickQueryResult: Hashable, Sendable {
     var value: String {
         switch self {
         case .calculation(_, let value): value
-        case .localIPAddress(let address): address ?? "未获取到局域网 IPv4 地址"
+        case .localIPAddress(let address): address ?? String(localized: "未获取到局域网 IPv4 地址")
         }
     }
 

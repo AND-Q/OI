@@ -4,9 +4,9 @@ import Foundation
 extension QuickQueryResult {
     var subtitle: String {
         switch self {
-        case .calculation(let expression, _): expression + " · 按回车复制"
+        case .calculation(let expression, _): String(localized: "\(expression) · 按回车复制")
         case .localIPAddress(let address):
-            address == nil ? "本机 IP · 当前不可用" : "本机 IP · 按回车复制"
+            address == nil ? String(localized: "本机 IP · 当前不可用") : String(localized: "本机 IP · 按回车复制")
         }
     }
 

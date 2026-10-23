@@ -12,9 +12,9 @@ enum WebSearchEngine: String, CaseIterable, Identifiable, Sendable {
     /// 设置面板中展示的名称。
     var displayName: String {
         switch self {
-        case .bing: "必应"
+        case .bing: String(localized: "必应")
         case .google: "Google"
-        case .baidu: "百度"
+        case .baidu: String(localized: "百度")
         case .duckDuckGo: "DuckDuckGo"
         }
     }

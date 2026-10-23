@@ -61,13 +61,14 @@ struct TranslatorSession: Equatable, Sendable {
         return text.isEmpty ? nil : text
     }
 
-    /// 原文语言的展示名：支持的语言使用统一译名，其余交给系统的本地化语言名；无法识别时为 nil。
+    /// 原文语言的展示名：支持的语言使用统一译名，其余交给系统按 OI 当前的界面语言给出语言名；无法识别时为 nil。
     var sourceLanguageName: String? {
         guard let sourceLanguageCode else { return nil }
         if let language = TranslationLanguage(languageCode: sourceLanguageCode) {
             return language.displayName
         }
-        return Locale(identifier: "zh-Hans").localizedString(forLanguageCode: sourceLanguageCode)
+        let interfaceLanguage = Bundle.main.preferredLocalizations.first ?? "en"
+        return Locale(identifier: interfaceLanguage).localizedString(forLanguageCode: sourceLanguageCode)
     }
 }
 

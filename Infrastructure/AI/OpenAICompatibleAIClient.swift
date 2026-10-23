@@ -186,9 +186,9 @@ enum AIClientError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .httpStatus(let status, let message?):
-            "服务返回 \(status)：\(message)"
+            String(localized: "服务返回 \(status)：\(message)")
         case .httpStatus(let status, nil):
-            "服务返回 \(status)"
+            String(localized: "服务返回 \(status)")
         case .server(let message):
             message
         }
@@ -206,17 +206,17 @@ enum AIModelListError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .unreachable(let reason):
-            "无法连接到接口地址：\(reason)"
+            String(localized: "无法连接到接口地址：\(reason)")
         case .unauthorized(let status):
-            "API Key 无效或没有权限（\(status)）"
+            String(localized: "API Key 无效或没有权限（\(status)）")
         case .notFound:
-            "接口地址不正确，或该服务不支持查询模型列表（404）"
+            String(localized: "接口地址不正确，或该服务不支持查询模型列表（404）")
         case .httpStatus(let status, let message?):
-            "服务返回 \(status)：\(message)"
+            String(localized: "服务返回 \(status)：\(message)")
         case .httpStatus(let status, nil):
-            "服务返回 \(status)"
+            String(localized: "服务返回 \(status)")
         case .invalidResponse:
-            "无法识别服务返回的模型列表"
+            String(localized: "无法识别服务返回的模型列表")
         }
     }
 }

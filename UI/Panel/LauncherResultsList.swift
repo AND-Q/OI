@@ -201,7 +201,7 @@ struct LauncherResultsList: NSViewRepresentable {
             case .quickQuery(let quickQuery):
                 return quickQuery.subtitle
             case .webURL:
-                return "按回车在浏览器中打开"
+                return String(localized: "按回车在浏览器中打开")
             case .application:
                 return nil
             }
@@ -219,7 +219,7 @@ struct LauncherResultsList: NSViewRepresentable {
                 return (path as NSString).abbreviatingWithTildeInPath
             }
             let container = components.removeFirst()
-            var displayed = ["iCloud 云盘"]
+            var displayed = [String(localized: "iCloud 云盘")]
             if container != "com~apple~CloudDocs" {
                 // App 文件夹取系统的本地化名称，取不到时显示容器文件夹名。
                 let containerURL = URL(fileURLWithPath: mobileDocuments + container, isDirectory: true)
@@ -427,7 +427,7 @@ private final class LauncherReturnBadge: NSGlassEffectView {
         )
         glyphView.image = NSImage(
             systemSymbolName: "return",
-            accessibilityDescription: "打开"
+            accessibilityDescription: String(localized: "打开")
         )?.withSymbolConfiguration(symbolConfiguration)
         glyphView.contentTintColor = .secondaryLabelColor
         glyphView.imageScaling = .scaleProportionallyDown

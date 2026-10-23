@@ -106,6 +106,28 @@ struct SettingsView: View {
         }
 
         Section {
+            Picker("界面语言", selection: appLanguage) {
+                Text("跟随系统").tag(AppLanguage.system)
+                // 语言名用各自的语言显示，不随界面翻译。
+                Text(verbatim: "简体中文").tag(AppLanguage.simplifiedChinese)
+                Text(verbatim: "English").tag(AppLanguage.english)
+            }
+            if viewModel.isRelaunchNeededForAppLanguage {
+                HStack(spacing: 8) {
+                    Label("重新打开 OI 后生效", systemImage: "arrow.clockwise.circle")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("立即重新打开") {
+                        viewModel.relaunch()
+                    }
+                }
+            }
+        } footer: {
+            Text("跟随系统时，系统语言为中文则显示中文，其他语言显示英文；也可以在「系统设置 → 通用 → 语言与地区 → 应用程序」中为 OI 单独指定语言。")
+        }
+
+        Section {
             LabeledContent {
                 HStack(spacing: 12) {
                     ShortcutRecorderField(shortcut: viewModel.settings.launcherShortcut) {
@@ -242,7 +264,7 @@ struct SettingsView: View {
         } header: {
             Text("翻译语言")
         } footer: {
-            Text("默认外文译为简体中文、中文译为英语，气泡中可临时切换目标语言。")
+            Text("原文译为目标语言，原文已是目标语言时改译为第二项；默认按系统语言选定，如中文系统为外文译简体中文、中文译英语。气泡中可临时切换本次翻译的目标语言。")
         }
 
         Section {
@@ -334,7 +356,7 @@ struct SettingsView: View {
         }
     }
 
-    private func guideRow(_ title: String, _ detail: String) -> some View {
+    private func guideRow(_ title: LocalizedStringKey, _ detail: LocalizedStringKey) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
             Text(detail)
@@ -349,6 +371,14 @@ struct SettingsView: View {
         Binding(
             get: { viewModel.isLaunchAtLoginEnabled },
             set: { viewModel.setLaunchAtLogin($0) }
+        )
+    }
+
+    /// 界面语言写入系统的语言偏好而非设置存储，因此不走 settings 绑定。
+    private var appLanguage: Binding<AppLanguage> {
+        Binding(
+            get: { viewModel.appLanguage },
+            set: { viewModel.setAppLanguage($0) }
         )
     }
 

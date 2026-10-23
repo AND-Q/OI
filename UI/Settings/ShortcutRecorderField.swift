@@ -42,7 +42,7 @@ struct ShortcutRecorderField: View {
         if isRecording {
             HStack(spacing: 6) {
                 Image(systemName: "record.circle")
-                Text(hint ?? "按下新的快捷键")
+                Text(hint ?? String(localized: "按下新的快捷键"))
                     .foregroundStyle(hint == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.red))
             }
             .font(.callout)

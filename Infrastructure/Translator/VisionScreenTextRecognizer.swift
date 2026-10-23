@@ -18,7 +18,7 @@ struct VisionScreenTextRecognizer: ScreenTextRecognizing {
         case displayNotFound
 
         var errorDescription: String? {
-            "找不到选区所在的屏幕"
+            String(localized: "找不到选区所在的屏幕")
         }
     }
 

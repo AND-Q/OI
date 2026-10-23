@@ -67,8 +67,8 @@ final class UpdateCheckController {
         let panel = NSAlert()
         switch outcome {
         case .checked(.updateAvailable(let current, let latest, let release)):
-            panel.messageText = "OI \(latest) 已发布"
-            panel.informativeText = "当前版本为 \(current)。下载 dmg 后打开，把 OI 拖到「应用程序」文件夹替换旧版本。"
+            panel.messageText = String(localized: "OI \(latest.description) 已发布")
+            panel.informativeText = String(localized: "当前版本为 \(current.description)。下载 dmg 后打开，把 OI 拖到「应用程序」文件夹替换旧版本。")
             let blocks = releaseNoteBlocks(from: release.notes)
             if !blocks.isEmpty {
                 let notesView = NSHostingView(rootView: ReleaseNotesView(blocks: blocks))
@@ -77,17 +77,17 @@ final class UpdateCheckController {
                 notesView.frame = NSRect(x: 0, y: 0, width: 400, height: 240)
                 panel.accessoryView = notesView
             }
-            panel.addButton(withTitle: "前往下载")
-            panel.addButton(withTitle: "以后再说").keyEquivalent = "\u{1b}"
+            panel.addButton(withTitle: String(localized: "前往下载"))
+            panel.addButton(withTitle: String(localized: "以后再说")).keyEquivalent = "\u{1b}"
         case .checked(.upToDate(let current)):
-            panel.messageText = "OI 已是最新版本"
-            panel.informativeText = "当前版本 \(current) 是最新版本。"
-            panel.addButton(withTitle: "好")
+            panel.messageText = String(localized: "OI 已是最新版本")
+            panel.informativeText = String(localized: "当前版本 \(current.description) 是最新版本。")
+            panel.addButton(withTitle: String(localized: "好"))
         case .failed(let reason):
             panel.alertStyle = .warning
-            panel.messageText = "检查更新失败"
+            panel.messageText = String(localized: "检查更新失败")
             panel.informativeText = reason
-            panel.addButton(withTitle: "好")
+            panel.addButton(withTitle: String(localized: "好"))
         }
         NSApp.activate(ignoringOtherApps: true)
         let response = panel.runModal()

@@ -67,7 +67,7 @@ final class SettingsWindowController {
         // 可最小化、拉大与全屏（同 Raycast）；拉大时侧边栏宽度不变，右侧设置页随之加宽。
         window.collectionBehavior.insert(.fullScreenPrimary)
         // 设置页显示后，标题随当前分类变化，显示在右侧顶部（见 SettingsView 的 navigationTitle），同系统设置。
-        window.title = "OI 设置"
+        window.title = String(localized: "OI 设置")
         // 侧边栏延伸到标题栏下方，红绿灯叠在侧边栏上（同系统设置）。
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false

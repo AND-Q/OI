@@ -22,7 +22,7 @@ struct CheckForUpdates {
     /// 查询最新发布的版本并与当前版本比较；查询失败或版本号无法识别时抛出检查更新失败。
     func execute() async throws -> UpdateCheckResult {
         guard let current = AppVersion(currentVersion) else {
-            throw ApplicationError.updateCheckFailed(reason: "无法识别当前版本号「\(currentVersion)」。")
+            throw ApplicationError.updateCheckFailed(reason: String(localized: "无法识别当前版本号「\(currentVersion)」。"))
         }
         let release: LatestRelease
         do {
@@ -33,7 +33,7 @@ struct CheckForUpdates {
             )
         }
         guard let latest = AppVersion(release.tagName) else {
-            throw ApplicationError.updateCheckFailed(reason: "无法识别最新版本的版本号「\(release.tagName)」。")
+            throw ApplicationError.updateCheckFailed(reason: String(localized: "无法识别最新版本的版本号「\(release.tagName)」。"))
         }
         if latest > current {
             return .updateAvailable(currentVersion: current, latestVersion: latest, release: release)

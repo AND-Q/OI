@@ -120,7 +120,7 @@ struct QuickAIAnswerView: View {
         .background(Color.primary.opacity(0.03))
     }
 
-    private func shortcutHint(_ key: String, _ title: String) -> some View {
+    private func shortcutHint(_ key: String, _ title: LocalizedStringKey) -> some View {
         HStack(spacing: 4) {
             Text(key)
                 .font(.system(size: 11, weight: .medium))

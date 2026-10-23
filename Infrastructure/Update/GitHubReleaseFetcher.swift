@@ -78,15 +78,15 @@ enum GitHubReleaseError: LocalizedError, Equatable, Sendable {
     var errorDescription: String? {
         switch self {
         case .unreachable:
-            "无法连接到 GitHub，请检查网络后重试。"
+            String(localized: "无法连接到 GitHub，请检查网络后重试。")
         case .notFound:
-            "在 GitHub 上没有找到已发布的版本。"
+            String(localized: "在 GitHub 上没有找到已发布的版本。")
         case .rateLimited:
-            "GitHub 暂时限制了访问次数，请稍后再试。"
+            String(localized: "GitHub 暂时限制了访问次数，请稍后再试。")
         case .httpStatus(let status):
-            "GitHub 返回错误（状态码 \(status)），请稍后再试。"
+            String(localized: "GitHub 返回错误（状态码 \(status)），请稍后再试。")
         case .invalidResponse:
-            "无法识别 GitHub 返回的版本信息。"
+            String(localized: "无法识别 GitHub 返回的版本信息。")
         }
     }
 }

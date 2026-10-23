@@ -148,7 +148,8 @@ final class UserDefaultsAppSettingsStoreTests: XCTestCase {
     ) {
         let suiteName = "OITests.settings.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        let store = UserDefaultsAppSettingsStore(defaults: defaults)
+        // 中文系统的默认翻译语言与 `AppSettings` 的默认相同，测试结果不随运行环境的系统语言变化。
+        let store = UserDefaultsAppSettingsStore(defaults: defaults, preferredLanguages: ["zh-Hans-CN"])
         return (store, defaults, { defaults.removePersistentDomain(forName: suiteName) })
     }
 }

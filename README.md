@@ -12,6 +12,8 @@
 [![最新版本](https://img.shields.io/github/v/release/AND-Q/OI?label=%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC)](https://github.com/AND-Q/OI/releases/latest)
 ![macOS 27.0+](https://img.shields.io/badge/macOS-27.0%2B-000000?logo=apple)
 
+[English](README.en.md) · 中文
+
 [下载](https://github.com/AND-Q/OI/releases/latest) · [使用指南](docs/OI%20使用指南.md) · [功能清单](docs/OI%20功能清单.md)
 
 </div>
@@ -34,6 +36,7 @@
 
 ### 其他
 
+- 简体中文与英文界面：跟随系统语言，也可在「设置… → 通用 → 界面语言」中指定。
 - 开机自启；呼出、翻译、截图翻译三个全局快捷键均可自定义。
 - Quick AI 与划词翻译可以使用不同的接口和模型，API Key 保存在钥匙串中。
 - 菜单栏「检查更新…」查询 GitHub 上的新版本并显示更新日志。
@@ -137,6 +140,8 @@ xcodebuild -project OI.xcodeproj -scheme OI -configuration Debug test -destinati
 ```
 
 Debug、Release 与测试 target（`OITests`）都开启了完整严格并发检查，Release 启用 Hardened Runtime。OI 不启用 App Sandbox：它需要扫描系统应用、注册全局快捷键并通过辅助功能读取其他应用的文字，沙盒无法满足这些能力。
+
+界面文字在代码中以中文书写，经 `Localizable.xcstrings` 提供英文与简体中文；新增或改动界面文字时，同时在目录中补上英文。
 
 ## 项目结构
 
