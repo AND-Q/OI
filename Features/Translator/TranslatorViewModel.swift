@@ -201,7 +201,7 @@ final class TranslatorViewModel: ObservableObject {
         translateCurrentSource()
     }
 
-    /// ⌘S 或点按喇叭：用原文语言的发音人朗读原文，朗读中再按则停止。识别中或原文为空时不响应。
+    /// ⌘⇧S 或点按喇叭：用原文语言的发音人朗读原文，朗读中再按则停止。识别中或原文为空时不响应。
     func toggleSpeech() {
         guard speechTask == nil else {
             stopSpeech()

@@ -789,7 +789,7 @@ final class TranslatorTests: XCTestCase {
 
     // MARK: - Speech
 
-    /// ⌘S 用原文语言的发音人朗读去掉首尾空白的原文，读完后复位。
+    /// ⌘⇧S 用原文语言的发音人朗读去掉首尾空白的原文，读完后复位。
     func testSpeechReadsSourceInDetectedLanguage() async throws {
         let speaker = RecordingTextSpeaker()
         let viewModel = makeTranslatorViewModel(

@@ -248,9 +248,14 @@ final class TranslatorPanelController {
             performReturn(in: bubble)
             return nil
         default:
-            guard modifiers == .command, let key = event.charactersIgnoringModifiers?.lowercased() else {
-                return event
+            guard let key = event.charactersIgnoringModifiers?.lowercased() else { return event }
+            if modifiers == [.command, .shift], key == "s" {
+                // 朗读原文，朗读中再按则停止；没有原文时什么也不做。不用 ⌘S：气泡弹出时原应用看起来仍在前台，
+                // 习惯按 ⌘S 保存的人会突然听到朗读。
+                bubble.viewModel.toggleSpeech()
+                return nil
             }
+            guard modifiers == .command else { return event }
             return handleCommandKey(key, event: event, in: bubble)
         }
     }
@@ -284,7 +289,7 @@ final class TranslatorPanelController {
         }
     }
 
-    /// OI 没有可见的主菜单、气泡出现时也不激活 OI，编辑快捷键在这里直接分派给第一响应者，⌘W 在这里关闭气泡，⌘S 在这里朗读原文。
+    /// OI 没有可见的主菜单、气泡出现时也不激活 OI，编辑快捷键在这里直接分派给第一响应者，⌘W 在这里关闭气泡。
     private func handleCommandKey(_ key: String, event: NSEvent, in bubble: TranslatorBubble) -> NSEvent? {
         let panel = bubble.panel
         let viewModel = bubble.viewModel
@@ -292,10 +297,6 @@ final class TranslatorPanelController {
         case "w":
             // 同左上角的关闭按钮；不处理时会交给主菜单的「关闭」，无边框的气泡关不掉，只会提示音。
             close(bubble, reason: .closeShortcut)
-            return nil
-        case "s":
-            // 朗读原文，朗读中再按则停止；没有原文时什么也不做。
-            viewModel.toggleSpeech()
             return nil
         case "c":
             // 选中了部分原文或译文时复制选中的部分；都没有选中时复制整段译文并保留气泡。

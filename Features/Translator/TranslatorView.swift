@@ -424,7 +424,7 @@ private struct TranslatorSpeakButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(isSpeaking ? "停止朗读（⌘S）" : "朗读原文（⌘S）")
+        .help(isSpeaking ? "停止朗读（⌘⇧S）" : "朗读原文（⌘⇧S）")
     }
 }
 
