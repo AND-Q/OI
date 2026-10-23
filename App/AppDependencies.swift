@@ -66,6 +66,7 @@ struct AppDependencies {
         )
         let wordSelector = DoubleClickWordSelector(textCapturer: textCapturer)
         let screenTextRecognizer = VisionScreenTextRecognizer()
+        let textSpeaker = SystemTextSpeaker()
 
         return AppDependencies(
             launcherViewModel: launcherViewModel,
@@ -94,7 +95,8 @@ struct AppDependencies {
                         wordSelector: wordSelector,
                         screenTextRecognizer: screenTextRecognizer,
                         environment: translatorEnvironment,
-                        settingsStore: settingsStore
+                        settingsStore: settingsStore,
+                        speaker: textSpeaker
                     )
                 },
                 shortcutService: CarbonGlobalShortcutService(hotKeyIdentifier: 2),

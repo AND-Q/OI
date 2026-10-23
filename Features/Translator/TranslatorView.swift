@@ -11,7 +11,7 @@ enum TranslatorLayout {
     static let footerHeight: CGFloat = 30
 }
 
-/// 划词翻译气泡：语言方向与目标语言切换、原文（点按可修改）、流式译文与快捷键提示。
+/// 划词翻译气泡：语言方向与目标语言切换、原文朗读、原文（点按可修改）、流式译文与快捷键提示。
 /// 左上角为关闭按钮，右上角为图钉（固定在屏幕上）；按住顶部一行或底部的提示栏可拖动气泡。
 @MainActor
 struct TranslatorView<CloseButton: View>: View {
@@ -30,6 +30,7 @@ struct TranslatorView<CloseButton: View>: View {
                     session: session,
                     notice: viewModel.notice,
                     isPinned: viewModel.isPinned,
+                    isSpeaking: viewModel.isSpeaking,
                     viewModel: viewModel,
                     closeButton: closeButton,
                     onPin: onPin
@@ -55,6 +56,7 @@ private struct TranslatorSessionView<CloseButton: View>: View {
     let session: TranslatorSession
     let notice: TranslatorNotice?
     let isPinned: Bool
+    let isSpeaking: Bool
     let viewModel: TranslatorViewModel
     let closeButton: CloseButton
     let onPin: () -> Void
@@ -90,6 +92,11 @@ private struct TranslatorSessionView<CloseButton: View>: View {
             closeButton
                 .padding(.trailing, 4)
             Text(session.sourceLanguageName ?? "自动识别")
+            if session.speechText != nil {
+                TranslatorSpeakButton(isSpeaking: isSpeaking) {
+                    viewModel.toggleSpeech()
+                }
+            }
             Image(systemName: "arrow.right")
                 .font(.system(size: 9, weight: .semibold))
             Menu {
@@ -399,6 +406,25 @@ private struct TranslatorSourceTag: View {
             .padding(.vertical, 2)
             .background(Color.primary.opacity(0.07), in: Capsule())
             .padding(.trailing, 2)
+    }
+}
+
+/// 原文语言旁的喇叭：点按用原文语言的发音人朗读原文，朗读中声波跳动，再点按停止。
+private struct TranslatorSpeakButton: View {
+    let isSpeaking: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: isSpeaking ? "speaker.wave.2.fill" : "speaker.wave.2")
+                .font(.system(size: 11))
+                .foregroundStyle(isSpeaking ? Color.accentColor : Color.secondary)
+                .symbolEffect(.variableColor.iterative, isActive: isSpeaking)
+                .frame(width: 16, height: 16)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(isSpeaking ? "停止朗读（⌘S）" : "朗读原文（⌘S）")
     }
 }
 

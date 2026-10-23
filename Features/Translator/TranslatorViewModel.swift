@@ -6,10 +6,19 @@ final class TranslatorViewModel: ObservableObject {
     /// 流式增量合并上屏的间隔：避免每个 token 都触发一次重新排版。
     static let flushInterval: Duration = .milliseconds(50)
 
-    @Published private(set) var session: TranslatorSession?
+    @Published private(set) var session: TranslatorSession? {
+        // 换了一段原文（重新取词、截图或气泡隐藏）即停止朗读上一段。
+        didSet {
+            if session?.id != oldValue?.id {
+                stopSpeech()
+            }
+        }
+    }
     @Published private(set) var notice: TranslatorNotice?
     /// 气泡已固定在屏幕上（由面板在点按图钉时设置）：界面显示实心图钉。固定后不能取消，只能关闭。
     @Published var isPinned = false
+    /// 正在朗读原文：界面显示为停止朗读。
+    @Published private(set) var isSpeaking = false
 
     private let translateText: TranslateText
     private let textCapturer: any TextCapturing
@@ -17,10 +26,12 @@ final class TranslatorViewModel: ObservableObject {
     private let screenTextRecognizer: any ScreenTextRecognizing
     private let environment: any TranslatorEnvironmentHandling
     private let settingsStore: any AppSettingsStoring
+    private let speaker: any TextSpeaking
 
     private var translationTask: Task<Void, Never>?
     /// 截图翻译中识别选区文字的任务。
     private var recognitionTask: Task<Void, Never>?
+    private var speechTask: Task<Void, Never>?
     private lazy var translationBuffer = StreamingTextBuffer(interval: TranslatorViewModel.flushInterval) { [weak self] text in
         self?.session?.translation += text
         self?.session?.isCopied = false
@@ -34,7 +45,8 @@ final class TranslatorViewModel: ObservableObject {
         wordSelector: any WordSelecting,
         screenTextRecognizer: any ScreenTextRecognizing,
         environment: any TranslatorEnvironmentHandling,
-        settingsStore: any AppSettingsStoring
+        settingsStore: any AppSettingsStoring,
+        speaker: any TextSpeaking
     ) {
         self.translateText = translateText
         self.textCapturer = textCapturer
@@ -42,11 +54,13 @@ final class TranslatorViewModel: ObservableObject {
         self.screenTextRecognizer = screenTextRecognizer
         self.environment = environment
         self.settingsStore = settingsStore
+        self.speaker = speaker
     }
 
     deinit {
         translationTask?.cancel()
         recognitionTask?.cancel()
+        speechTask?.cancel()
     }
 
     /// 复制与回车使用的译文；尚无可见译文时为 nil。
@@ -187,6 +201,25 @@ final class TranslatorViewModel: ObservableObject {
         translateCurrentSource()
     }
 
+    /// ⌘S 或点按喇叭：用原文语言的发音人朗读原文，朗读中再按则停止。识别中或原文为空时不响应。
+    func toggleSpeech() {
+        guard speechTask == nil else {
+            stopSpeech()
+            return
+        }
+        guard let session, let text = session.speechText else { return }
+        let speaker = self.speaker
+        let languageCode = session.sourceLanguageCode
+        isSpeaking = true
+        speechTask = Task { [weak self] in
+            await speaker.speak(text, languageCode: languageCode)
+            // 停止朗读时已复位；读完或被其他气泡的朗读取代时在这里复位。
+            guard let self, !Task.isCancelled else { return }
+            self.speechTask = nil
+            self.isSpeaking = false
+        }
+    }
+
     /// 中断进行中的翻译，保留已到达的译文，避免气泡淡出途中内容变化。
     func stopTranslation() {
         guard translationTask != nil else { return }
@@ -257,6 +290,12 @@ final class TranslatorViewModel: ObservableObject {
     private func cancelRecognition() {
         recognitionTask?.cancel()
         recognitionTask = nil
+    }
+
+    private func stopSpeech() {
+        speechTask?.cancel()
+        speechTask = nil
+        isSpeaking = false
     }
 
     private func stream(_ request: TranslationRequest) {

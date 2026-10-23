@@ -126,6 +126,8 @@
 		A10000010000006F /* GitHubReleaseFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000006F /* GitHubReleaseFetcher.swift */; };
 		A100000100000070 /* QuickAIMarkdownBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000070 /* QuickAIMarkdownBlockView.swift */; };
 		A100000100000071 /* UpdateCheckController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000071 /* UpdateCheckController.swift */; };
+		A100000100000072 /* TextSpeaking.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000072 /* TextSpeaking.swift */; };
+		A100000100000073 /* SystemTextSpeaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000073 /* SystemTextSpeaker.swift */; };
 		B10000010000001E /* UpdateCheckTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001F /* UpdateCheckTests.swift */; };
 		B10000010000001D /* TranslatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001E /* TranslatorTests.swift */; };
 /* End PBXBuildFile section */
@@ -263,6 +265,8 @@
 		A20000010000006F /* GitHubReleaseFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubReleaseFetcher.swift; sourceTree = "<group>"; };
 		A200000100000070 /* QuickAIMarkdownBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAIMarkdownBlockView.swift; sourceTree = "<group>"; };
 		A200000100000071 /* UpdateCheckController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateCheckController.swift; sourceTree = "<group>"; };
+		A200000100000072 /* TextSpeaking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextSpeaking.swift; sourceTree = "<group>"; };
+		A200000100000073 /* SystemTextSpeaker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemTextSpeaker.swift; sourceTree = "<group>"; };
 		B20000010000001F /* UpdateCheckTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateCheckTests.swift; sourceTree = "<group>"; };
 		B20000010000001E /* TranslatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -439,6 +443,7 @@
 				A200000100000065 /* UserNotifying.swift */,
 				A200000100000067 /* ScreenTextRecognizing.swift */,
 				A20000010000006D /* LatestReleaseFetching.swift */,
+				A200000100000072 /* TextSpeaking.swift */,
 			);
 			path = Ports;
 			sourceTree = "<group>";
@@ -638,6 +643,7 @@
 				A200000100000059 /* NaturalLanguageDetector.swift */,
 				A20000010000005F /* DoubleClickWordSelector.swift */,
 				A200000100000068 /* VisionScreenTextRecognizer.swift */,
+				A200000100000073 /* SystemTextSpeaker.swift */,
 			);
 			path = Translator;
 			sourceTree = "<group>";
@@ -883,6 +889,8 @@
 				A10000010000006F /* GitHubReleaseFetcher.swift in Sources */,
 				A100000100000070 /* QuickAIMarkdownBlockView.swift in Sources */,
 				A100000100000071 /* UpdateCheckController.swift in Sources */,
+				A100000100000072 /* TextSpeaking.swift in Sources */,
+				A100000100000073 /* SystemTextSpeaker.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

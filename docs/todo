@@ -318,6 +318,22 @@
 - **涉及文件**：
   - [Application/Ports/ScreenTextRecognizing.swift](Application/Ports/ScreenTextRecognizing.swift)、[Infrastructure/Translator/VisionScreenTextRecognizer.swift](Infrastructure/Translator/VisionScreenTextRecognizer.swift)、[Features/Translator/TranslatorState.swift](Features/Translator/TranslatorState.swift)、[Features/Translator/TranslatorView.swift](Features/Translator/TranslatorView.swift)、[Features/Translator/TranslatorViewModel.swift](Features/Translator/TranslatorViewModel.swift)、[UI/Translator/ScreenSelectionOverlay.swift](UI/Translator/ScreenSelectionOverlay.swift)、[UI/Translator/TranslatorPanelController.swift](UI/Translator/TranslatorPanelController.swift)、[UI/Settings/SettingsView.swift](UI/Settings/SettingsView.swift)、[OITests/TranslatorTests.swift](OITests/TranslatorTests.swift)
 
+## [x] 19. 单词原生发音朗读（Text to Speech）
+
+- **需求描述**：
+  - 划词查单词或短句时，用户常常需要听发音，满足外语学习与发音确认需求。
+- **需要做到**：
+  - 接入 macOS 原生高质量语音合成器（`AVSpeechSynthesizer` / `NSSpeechSynthesizer`），自动匹配源语言发音人；
+  - 翻译气泡内提供发音图标或快捷键（如 `Cmd+S`），无需调用任何外部网络 API 即可离线发音。
+- **实现说明**：
+  - 入口：气泡顶部原文语言旁新增喇叭按钮，`⌘S` 同点按喇叭（[TranslatorPanelController](UI/Translator/TranslatorPanelController.swift) 的按键处理，固定的气泡同样可用）；朗读去掉首尾空白的原文，朗读中喇叭变为实心并以 `variableColor` 动效跳动，再按一次停止；截图翻译识别期间与只有提示的气泡没有原文，不显示喇叭、`⌘S` 不响应；
+  - 状态：[TranslatorViewModel](Features/Translator/TranslatorViewModel.swift) 新增 `isSpeaking` 与 `toggleSpeech()`，朗读在任务中进行，读完复位；换了原文（重新取词、截图、气泡隐藏）即停止朗读上一段；修改原文后朗读修改后的原文；
+  - 发音：新增 [TextSpeaking](Application/Ports/TextSpeaking.swift) 端口与 [SystemTextSpeaker](Infrastructure/Translator/SystemTextSpeaker.swift)，用 `AVSpeechSynthesizer` 在本机合成，不联网（`NSSpeechSynthesizer` 已弃用，不采用）；所有气泡共用一个实例，同一时间只朗读一段，在另一个气泡中开始朗读即停止前一个；
+  - 发音人：按气泡识别出的原文语言选择，优先该语言最常用地区的（英语为美国、简体中文为中国大陆、繁体中文为台湾，不用香港的粤语发音人），没有时取同一语言其他地区的；同一地区内音质最好的优先（高级、增强、默认依次），不用趣味声音与个人声音；语言无法识别或本机没有该语言的发音人时由系统默认的发音人朗读；
+  - 测试：按原文语言朗读去掉首尾空白的原文、读完复位、再按停止、重新取词与气泡隐藏时停止、没有原文时不朗读、发音人地区的选择。
+- **涉及文件**：
+  - [Application/Ports/TextSpeaking.swift](Application/Ports/TextSpeaking.swift)、[Infrastructure/Translator/SystemTextSpeaker.swift](Infrastructure/Translator/SystemTextSpeaker.swift)、[Features/Translator/TranslatorState.swift](Features/Translator/TranslatorState.swift)、[Features/Translator/TranslatorViewModel.swift](Features/Translator/TranslatorViewModel.swift)、[Features/Translator/TranslatorView.swift](Features/Translator/TranslatorView.swift)、[UI/Translator/TranslatorPanelController.swift](UI/Translator/TranslatorPanelController.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[OITests/TranslatorTests.swift](OITests/TranslatorTests.swift)
+
 ## [ ] 系统设置项直达
 
 - **需求描述**：
@@ -410,14 +426,6 @@
   - 窗口与界面元素检测：悬停时自动框出窗口或控件，单击即选中；
   - 调整选框：拖动边角改大小、拖动整体移动、方向键与 `WASD` 逐像素微调，以及放大镜与取色；
   - 截图本身的复制、保存、贴图与标注不做，继续使用 Snipaste。
-
-## [ ] 单词原生发音朗读（Text to Speech）
-
-- **需求描述**：
-  - 划词查单词或短句时，用户常常需要听发音，满足外语学习与发音确认需求。
-- **需要做到**：
-  - 接入 macOS 原生高质量语音合成器（`AVSpeechSynthesizer` / `NSSpeechSynthesizer`），自动匹配源语言发音人；
-  - 翻译气泡内提供发音图标或快捷键（如 `Cmd+S`），无需调用任何外部网络 API 即可离线发音。
 
 ## 候选想法（未排期）
 

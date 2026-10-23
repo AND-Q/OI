@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import Foundation
 import XCTest
 
@@ -786,6 +787,82 @@ final class TranslatorTests: XCTestCase {
         XCTAssertEqual(TranslatorPlacement.globalRect(fromAppKit: appKit, primaryScreenHeight: 900), global)
     }
 
+    // MARK: - Speech
+
+    /// ⌘S 用原文语言的发音人朗读去掉首尾空白的原文，读完后复位。
+    func testSpeechReadsSourceInDetectedLanguage() async throws {
+        let speaker = RecordingTextSpeaker()
+        let viewModel = makeTranslatorViewModel(
+            capturer: StubTextCapturer(selection: CapturedText(text: "  Hello  ", source: .selection, screenRect: nil)),
+            speaker: speaker
+        )
+        _ = await viewModel.captureFromShortcut()
+
+        viewModel.toggleSpeech()
+        XCTAssertTrue(viewModel.isSpeaking)
+        try await waitUntil { speaker.requests.count == 1 }
+        XCTAssertEqual(speaker.requests, [RecordingTextSpeaker.Request(text: "Hello", languageCode: "en")])
+
+        speaker.finishSpeaking()
+        try await waitUntil { !viewModel.isSpeaking }
+        XCTAssertEqual(speaker.cancelledCount, 0)
+    }
+
+    /// 朗读中再按一次即停止；重新取词或气泡隐藏时也停止朗读上一段。
+    func testSpeechStopsWhenToggledAgainOrSessionChanges() async throws {
+        let speaker = RecordingTextSpeaker()
+        let viewModel = makeTranslatorViewModel(
+            capturer: StubTextCapturer(selection: CapturedText(text: "Hello", source: .selection, screenRect: nil)),
+            speaker: speaker
+        )
+        _ = await viewModel.captureFromShortcut()
+
+        viewModel.toggleSpeech()
+        try await waitUntil { speaker.requests.count == 1 }
+        viewModel.toggleSpeech()
+        XCTAssertFalse(viewModel.isSpeaking)
+        try await waitUntil { speaker.cancelledCount == 1 }
+
+        viewModel.toggleSpeech()
+        try await waitUntil { speaker.requests.count == 2 }
+        _ = await viewModel.captureFromShortcut()
+        XCTAssertFalse(viewModel.isSpeaking, "重新取词即停止朗读上一段")
+        try await waitUntil { speaker.cancelledCount == 2 }
+
+        viewModel.toggleSpeech()
+        try await waitUntil { speaker.requests.count == 3 }
+        viewModel.reset()
+        XCTAssertFalse(viewModel.isSpeaking)
+        try await waitUntil { speaker.cancelledCount == 3 }
+    }
+
+    /// 没有原文时不朗读：只有提示，或截图翻译还在识别文字。
+    func testSpeechIgnoredWithoutSourceText() async {
+        let speaker = RecordingTextSpeaker()
+        let viewModel = makeTranslatorViewModel(speaker: speaker)
+
+        _ = await viewModel.captureFromShortcut()
+        viewModel.toggleSpeech()
+        XCTAssertEqual(viewModel.notice, .nothingToTranslate)
+        XCTAssertFalse(viewModel.isSpeaking)
+
+        _ = viewModel.translateScreenRegion(CGRect(x: 0, y: 0, width: 200, height: 40), in: Self.snapshot)
+        viewModel.toggleSpeech()
+        XCTAssertEqual(viewModel.session?.state, .recognizing)
+        XCTAssertFalse(viewModel.isSpeaking)
+        XCTAssertTrue(speaker.requests.isEmpty)
+    }
+
+    /// 发音人优先该语言最常用的地区：繁体中文用台湾的发音人，不用香港的粤语发音人。本机没装的语言不检查。
+    func testSpeakerPicksVoiceOfSourceLanguage() {
+        XCTAssertNil(SystemTextSpeaker.voice(for: nil))
+        let installed = Set(AVSpeechSynthesisVoice.speechVoices().map(\.language))
+        let expectations = ["en": "en-US", "zh-Hans": "zh-CN", "zh-Hant": "zh-TW", "ja": "ja-JP"]
+        for (code, language) in expectations where installed.contains(language) {
+            XCTAssertEqual(SystemTextSpeaker.voice(for: code)?.language, language, code)
+        }
+    }
+
     // MARK: - Placement
 
     func testPlacementPrefersBelowAnchorAndGrowsDownward() {
@@ -1124,7 +1201,8 @@ final class TranslatorTests: XCTestCase {
         answerer: any QuickAIAnswering = RecordingAnswerer(deltas: ["你好"]),
         detector: StubLanguageDetector = StubLanguageDetector(code: "en"),
         environment: MemoryTranslatorEnvironment? = nil,
-        settings: AppSettings = TranslatorTests.configuredSettings
+        settings: AppSettings = TranslatorTests.configuredSettings,
+        speaker: RecordingTextSpeaker = RecordingTextSpeaker()
     ) -> TranslatorViewModel {
         let settingsStore = MemoryAppSettingsStore(initial: settings)
         return TranslatorViewModel(
@@ -1138,7 +1216,8 @@ final class TranslatorTests: XCTestCase {
             wordSelector: wordSelector,
             screenTextRecognizer: screenRecognizer,
             environment: environment ?? MemoryTranslatorEnvironment(isAccessibilityTrusted: true),
-            settingsStore: settingsStore
+            settingsStore: settingsStore,
+            speaker: speaker
         )
     }
 
@@ -1317,6 +1396,39 @@ private struct RecordingAnswerer: QuickAIAnswering {
             }
             continuation.finish(throwing: error)
         }
+    }
+}
+
+/// Records what it was asked to speak; each speech lasts until `finishSpeaking()` or until its task is cancelled.
+@MainActor
+private final class RecordingTextSpeaker: TextSpeaking {
+    struct Request: Equatable {
+        let text: String
+        let languageCode: String?
+    }
+
+    private(set) var requests: [Request] = []
+    private(set) var cancelledCount = 0
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    func speak(_ text: String, languageCode: String?) async {
+        requests.append(Request(text: text, languageCode: languageCode))
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation = $0 }
+        } onCancel: {
+            Task { @MainActor in self.cancel() }
+        }
+    }
+
+    func finishSpeaking() {
+        continuation?.resume()
+        continuation = nil
+    }
+
+    private func cancel() {
+        guard continuation != nil else { return }
+        cancelledCount += 1
+        finishSpeaking()
     }
 }
 

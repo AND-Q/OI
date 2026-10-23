@@ -55,6 +55,12 @@ struct TranslatorSession: Equatable, Sendable {
         }
     }
 
+    /// 朗读的原文：去掉首尾空白；识别中或原文为空时为 nil，不能朗读。
+    var speechText: String? {
+        let text = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty ? nil : text
+    }
+
     /// 原文语言的展示名：支持的语言使用统一译名，其余交给系统的本地化语言名；无法识别时为 nil。
     var sourceLanguageName: String? {
         guard let sourceLanguageCode else { return nil }
