@@ -334,6 +334,21 @@
 - **涉及文件**：
   - [Application/Ports/TextSpeaking.swift](Application/Ports/TextSpeaking.swift)、[Infrastructure/Translator/SystemTextSpeaker.swift](Infrastructure/Translator/SystemTextSpeaker.swift)、[Features/Translator/TranslatorState.swift](Features/Translator/TranslatorState.swift)、[Features/Translator/TranslatorViewModel.swift](Features/Translator/TranslatorViewModel.swift)、[Features/Translator/TranslatorView.swift](Features/Translator/TranslatorView.swift)、[UI/Translator/TranslatorPanelController.swift](UI/Translator/TranslatorPanelController.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[OITests/TranslatorTests.swift](OITests/TranslatorTests.swift)
 
+## [x] 20. 路径直达
+
+- **需求描述**：
+  - 输入文件路径直接打开对应的文件或文件夹。
+- **需要做到**：
+  - 输入以 `/` 或 `~` 开头且实际存在的路径时置顶显示该路径（包括隐藏文件与 `~/Library` 下的路径）；
+  - 文件夹 `Enter` 在 Finder 中打开，文件用默认 App 打开；`Cmd+T`、`Cmd+Y`、`Cmd+K` 等结果操作与文件结果一致；
+  - 路径不存在时不显示该行；输入路径时不显示无关的文件搜索结果。
+- **实现说明**：
+  - 查找：[FileOpening](Application/Ports/FileOpening.swift) 端口新增 `item(atPath:)`，经 [OpenFile](Application/UseCases/OpenFile.swift) 用例转发；[WorkspaceFileOpener](Infrastructure/Launch/WorkspaceFileOpener.swift) 把开头的 `~`（含 `~用户名`）展开后直接查看文件系统（跟随符号链接），不经 Spotlight 索引，所以隐藏文件、`~/Library` 与家目录之外的路径都能取到；不存在或展开后不是绝对路径时为 nil；名称用 Finder 的显示名；文件夹按文件夹处理，`.app` 等文件包按文件处理（`Enter` 与在 Finder 中双击一样，App 即启动）；
+  - 结果：[LauncherViewModel](Features/Launcher/LauncherViewModel.swift) 新增 `pathResult`，输入去掉首尾空白后以 `/` 或 `~` 开头时每次输入同步查找一次，存在时以普通文件结果（`SearchResult.file`）排在网址直达之后、快速查询之前，不加分组标题，`Enter`、`⌘F`、`⌘T`、`⌘Y`、`⌘K` 与文件结果完全一致；以 `/` 或 `~` 开头的输入不做文件搜索，路径不存在时显示「没有找到匹配的结果」；[LauncherView](UI/Panel/LauncherView.swift) 的加载中与加载失败页在有路径行时不显示；[LauncherResultsList](UI/Panel/LauncherResultsList.swift) 中根目录（输入 `/` 时）不显示所在目录，避免显示为 `/..`；
+  - 测试：路径存在时置顶且不做文件搜索、路径不存在时不显示且不列出文件、非路径输入照常搜索文件；`WorkspaceFileOpener` 取隐藏文件、带结尾斜杠的文件夹与 `~`，不存在的路径与不存在的用户为 nil。
+- **涉及文件**：
+  - [Application/Ports/FileOpening.swift](Application/Ports/FileOpening.swift)、[Application/UseCases/OpenFile.swift](Application/UseCases/OpenFile.swift)、[Infrastructure/Launch/WorkspaceFileOpener.swift](Infrastructure/Launch/WorkspaceFileOpener.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[UI/Panel/LauncherView.swift](UI/Panel/LauncherView.swift)、[UI/Panel/LauncherResultsList.swift](UI/Panel/LauncherResultsList.swift)、[OITests/FileSearchTests.swift](OITests/FileSearchTests.swift)
+
 ## [ ] 系统设置项直达
 
 - **需求描述**：
@@ -372,15 +387,6 @@
   - 预置百度、Google、GitHub、B 站等常用链接，可在设置中新增、编辑、删除；
   - [x] 默认搜索引擎可选（Bing / Google / 百度 / DuckDuckGo），`Cmd+Enter` 按所选引擎搜索；
   - 没有匹配结果时显示「用 <默认引擎> 搜索 xxx」与「问 Quick AI」两行，`Enter` 执行（未配置 Quick AI 时不显示后者）。
-
-## [ ] 路径直达
-
-- **需求描述**：
-  - 输入文件路径直接打开对应的文件或文件夹。
-- **需要做到**：
-  - 输入以 `/` 或 `~` 开头且实际存在的路径时置顶显示该路径（包括隐藏文件与 `~/Library` 下的路径）；
-  - 文件夹 `Enter` 在 Finder 中打开，文件用默认 App 打开；`Cmd+T`、`Cmd+Y`、`Cmd+K` 等结果操作与文件结果一致；
-  - 路径不存在时不显示该行；输入路径时不显示无关的文件搜索结果。
 
 ## [ ] App 专属全局快捷键
 

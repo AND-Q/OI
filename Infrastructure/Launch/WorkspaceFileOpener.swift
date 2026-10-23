@@ -72,6 +72,21 @@ final class WorkspaceFileOpener: FileOpening {
         }
     }
 
+    /// 按路径直接查看文件系统，路径中的符号链接照常跟随。文件夹按文件夹处理（Enter 在 Finder 中打开），
+    /// App 等文件包按文件处理（Enter 与在 Finder 中双击一样，App 即启动）。展开后不是绝对路径（如 `~不存在的用户`）时为 nil。
+    func item(atPath path: String) -> FileDescriptor? {
+        let expandedPath = (path as NSString).expandingTildeInPath
+        var isDirectory: ObjCBool = false
+        guard expandedPath.hasPrefix("/"),
+              FileManager.default.fileExists(atPath: expandedPath, isDirectory: &isDirectory) else { return nil }
+        let isFolder = isDirectory.boolValue && !NSWorkspace.shared.isFilePackage(atPath: expandedPath)
+        return FileDescriptor(
+            name: FileManager.default.displayName(atPath: expandedPath),
+            url: URL(fileURLWithPath: expandedPath, isDirectory: isDirectory.boolValue),
+            isDirectory: isFolder
+        )
+    }
+
     func revealInFinder(url: URL) {
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }

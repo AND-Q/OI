@@ -515,16 +515,91 @@ final class FileSearchTests: XCTestCase {
         XCTAssertEqual(viewModel.fileResults.map(\.name), ["anything.txt"])
     }
 
+    // MARK: - Path
+
+    /// 输入存在的路径时置顶显示该条目，不做文件搜索；首尾空白去掉后连同 `~` 原样按路径查找。
+    func testViewModelPinsExistingPathAndSkipsFileSearch() async {
+        let folder = FileDescriptor(
+            name: "Caches",
+            url: URL(fileURLWithPath: "/Users/demo/Library/Caches"),
+            isDirectory: true
+        )
+        let opener = StubFileOpener()
+        opener.items = ["~/Library/Caches": folder]
+        let searcher = StubFileSearcher(results: [file("Caches.txt")])
+        let viewModel = makeViewModel(apps: [], searcher: searcher, opener: opener)
+        await viewModel.loadApps()?.value
+
+        viewModel.query = " ~/Library/Caches "
+        await viewModel.waitForFileSearch()
+
+        XCTAssertEqual(opener.lookedUpPaths.last, "~/Library/Caches")
+        XCTAssertEqual(viewModel.results, [.file(folder)])
+        XCTAssertEqual(viewModel.rows, [.result(.file(folder))])
+        XCTAssertEqual(viewModel.selectedResult, .file(folder))
+        XCTAssertTrue(searcher.queries.isEmpty, "输入路径时不做文件搜索")
+    }
+
+    /// 路径不存在时不显示路径行，也不列出名称无关的文件；不是路径的输入不按路径查找，照常搜索文件。
+    func testViewModelHidesMissingPathAndSearchesFilesForOtherQueries() async {
+        let opener = StubFileOpener()
+        let searcher = StubFileSearcher(results: [file("notes.txt")])
+        let viewModel = makeViewModel(apps: [], searcher: searcher, opener: opener)
+        await viewModel.loadApps()?.value
+
+        viewModel.query = "/Users/demo/missing"
+        await viewModel.waitForFileSearch()
+
+        XCTAssertNil(viewModel.pathResult)
+        XCTAssertTrue(viewModel.results.isEmpty)
+        XCTAssertTrue(searcher.queries.isEmpty)
+
+        viewModel.query = "notes"
+        await viewModel.waitForFileSearch()
+
+        XCTAssertNil(viewModel.pathResult)
+        XCTAssertEqual(opener.lookedUpPaths, ["/Users/demo/missing"])
+        XCTAssertEqual(searcher.queries, ["notes"])
+        XCTAssertEqual(viewModel.results, [.file(file("notes.txt"))])
+    }
+
+    /// 按路径直接查看文件系统：隐藏文件、带结尾斜杠的文件夹与 `~` 都能取到，不存在的路径为 nil。
+    func testWorkspaceOpenerFindsItemsByPath() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let hidden = root.appendingPathComponent(".env")
+        try Data().write(to: hidden)
+        let opener = WorkspaceFileOpener()
+
+        let hiddenItem = try XCTUnwrap(opener.item(atPath: hidden.path))
+        XCTAssertEqual(hiddenItem.name, ".env")
+        XCTAssertEqual(hiddenItem.url, hidden.standardizedFileURL)
+        XCTAssertFalse(hiddenItem.isDirectory)
+
+        let folder = try XCTUnwrap(opener.item(atPath: root.path + "/"))
+        XCTAssertEqual(folder.url.path, root.standardizedFileURL.path)
+        XCTAssertTrue(folder.isDirectory)
+
+        let home = try XCTUnwrap(opener.item(atPath: "~"))
+        XCTAssertEqual(home.url.path, FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path)
+        XCTAssertTrue(home.isDirectory)
+
+        XCTAssertNil(opener.item(atPath: root.appendingPathComponent("missing").path))
+        XCTAssertNil(opener.item(atPath: "~no-such-user-\(UUID().uuidString)"), "展开后不是绝对路径")
+    }
+
     private func makeViewModel(
         apps: [AppDescriptor],
         searcher: StubFileSearcher,
+        opener: StubFileOpener = StubFileOpener(),
         settingsStore: any AppSettingsStoring = MemoryAppSettingsStore()
     ) -> LauncherViewModel {
         LauncherViewModel(
             discoverApplications: DiscoverApplications(catalog: StubAppCatalog(descriptors: apps)),
             launchApplication: LaunchApplication(launcher: StubApplicationLauncher()),
             searchFiles: SearchFiles(searcher: searcher, limit: 10),
-            openFile: OpenFile(opener: StubFileOpener()),
+            openFile: OpenFile(opener: opener),
             settingsStore: settingsStore,
             fileSearchDebounce: .zero
         )
@@ -572,6 +647,9 @@ private final class StubFileOpener: FileOpening {
     private(set) var terminalURLs: [URL] = []
     private(set) var openedWithApplications: [(file: FileDescriptor, applicationURL: URL)] = []
     var applications: [OpenWithApplication] = []
+    /// Items found by `item(atPath:)`, keyed by the path as typed.
+    var items: [String: FileDescriptor] = [:]
+    private(set) var lookedUpPaths: [String] = []
 
     func open(_ file: FileDescriptor) async throws {
         if let error { throw error }
@@ -593,6 +671,11 @@ private final class StubFileOpener: FileOpening {
 
     func openInTerminal(url: URL) {
         terminalURLs.append(url)
+    }
+
+    func item(atPath path: String) -> FileDescriptor? {
+        lookedUpPaths.append(path)
+        return items[path]
     }
 }
 

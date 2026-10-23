@@ -38,6 +38,10 @@ struct OpenFile {
         opener.applications(toOpen: file)
     }
 
+    func item(atPath path: String) -> FileDescriptor? {
+        opener.item(atPath: path)
+    }
+
     func reveal(url: URL) {
         opener.revealInFinder(url: url)
     }

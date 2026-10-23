@@ -9,6 +9,9 @@ protocol FileOpening {
     /// 「用其他 App 打开…」中列出的 App：系统指定的默认 App 在前，其余按名称排序。
     func applications(toOpen file: FileDescriptor) -> [OpenWithApplication]
     func open(_ file: FileDescriptor, withApplicationAt applicationURL: URL) async throws
+    /// 路径直达：`path` 处实际存在的文件或文件夹，开头的 `~` 展开为用户目录；不存在时为 nil。
+    /// 不经文件索引，隐藏文件与 `~/Library` 下的条目同样可以取到。
+    func item(atPath path: String) -> FileDescriptor?
 }
 
 /// 「用其他 App 打开…」菜单中的一个 App。

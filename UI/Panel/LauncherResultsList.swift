@@ -197,6 +197,8 @@ struct LauncherResultsList: NSViewRepresentable {
         static func subtitle(for result: SearchResult) -> String? {
             switch result {
             case .file(let file):
+                // 根目录（路径直达输入 `/` 时）没有上级目录，否则会显示为 `/..`。
+                guard file.url.path != "/" else { return nil }
                 return (file.url.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath
             case .quickQuery(let quickQuery):
                 return quickQuery.subtitle

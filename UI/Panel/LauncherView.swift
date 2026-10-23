@@ -153,6 +153,7 @@ struct LauncherView: View {
         Group {
             if viewModel.quickQueryResult == nil,
                viewModel.webURLResult == nil,
+               viewModel.pathResult == nil,
                let errorMessage = viewModel.errorMessage,
                viewModel.apps.isEmpty {
                 VStack(spacing: 10) {
@@ -170,6 +171,7 @@ struct LauncherView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if viewModel.quickQueryResult == nil,
                       viewModel.webURLResult == nil,
+                      viewModel.pathResult == nil,
                       viewModel.isLoading,
                       viewModel.apps.isEmpty {
                 VStack(spacing: 10) {

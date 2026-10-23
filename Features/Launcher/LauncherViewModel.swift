@@ -30,6 +30,8 @@ final class LauncherViewModel: ObservableObject {
     }
     @Published private(set) var quickQueryResult: QuickQueryResult?
     @Published private(set) var webURLResult: URL?
+    /// 路径直达：输入以 `/` 或 `~` 开头且实际存在的路径时置顶显示的文件或文件夹。
+    @Published private(set) var pathResult: FileDescriptor?
     @Published private(set) var selectedIndex = 0
     @Published private(set) var isActionSheetVisible = false
     @Published private(set) var selectedActionIndex = 0
@@ -116,9 +118,10 @@ final class LauncherViewModel: ObservableObject {
         quickAITask?.cancel()
     }
 
-    /// Web URLs first (直达), then quick queries, applications and files.
+    /// Web URLs and typed paths first (直达), then quick queries, applications and files.
     var results: [SearchResult] {
         (webURLResult.map { [.webURL($0)] } ?? [])
+            + (pathResult.map { [.file($0)] } ?? [])
             + (quickQueryResult.map { [.quickQuery($0)] } ?? [])
             + filteredApps.map(SearchResult.application)
             + fileResults.map(SearchResult.file)
@@ -127,6 +130,7 @@ final class LauncherViewModel: ObservableObject {
     /// Display rows: the file section gets a header, the application section does not.
     var rows: [LauncherRow] {
         var rows = webURLResult.map { [LauncherRow.result(.webURL($0))] } ?? []
+        rows += pathResult.map { [LauncherRow.result(.file($0))] } ?? []
         rows += quickQueryResult.map { [LauncherRow.result(.quickQuery($0))] } ?? []
         rows += filteredApps.map { LauncherRow.result(.application($0)) }
         if !fileResults.isEmpty {
@@ -149,7 +153,8 @@ final class LauncherViewModel: ObservableObject {
 
     /// Index of the selected result within `rows` (accounts for the file section header).
     var selectedRowIndex: Int {
-        let frontCount = (webURLResult == nil ? 0 : 1) + (quickQueryResult == nil ? 0 : 1)
+        let frontCount = (webURLResult == nil ? 0 : 1) + (pathResult == nil ? 0 : 1)
+            + (quickQueryResult == nil ? 0 : 1)
         return selectedIndex < frontCount + filteredApps.count
             ? selectedIndex
             : selectedIndex + 1
@@ -175,7 +180,7 @@ final class LauncherViewModel: ObservableObject {
         if quickAISession != nil {
             return .quickAI
         }
-        if quickQueryResult == nil && webURLResult == nil && (
+        if quickQueryResult == nil && webURLResult == nil && pathResult == nil && (
             (errorMessage != nil && apps.isEmpty)
                 || (isLoading && apps.isEmpty)
                 || (filteredApps.isEmpty && fileResults.isEmpty)
@@ -567,6 +572,7 @@ final class LauncherViewModel: ObservableObject {
         }
         quickQueryResult = QuickQueryResolver.resolve(query)
         webURLResult = WebURLResolver.recognize(query)
+        pathResult = isPathQuery ? openFile?.item(atPath: normalizedQuery) : nil
         scheduleFileSearch()
         updateFilteredApps()
         requestListReset()
@@ -574,6 +580,11 @@ final class LauncherViewModel: ObservableObject {
 
     private var normalizedQuery: String {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// 以 `/` 或 `~` 开头的输入按路径处理：只做路径直达，不做文件搜索，以免列出名称无关的文件。
+    private var isPathQuery: Bool {
+        normalizedQuery.hasPrefix("/") || normalizedQuery.hasPrefix("~")
     }
 
     private var shouldRefreshAutomatically: Bool {
@@ -639,6 +650,7 @@ final class LauncherViewModel: ObservableObject {
         let normalizedQuery = self.normalizedQuery
         guard let searchFiles,
               settingsStore.load().isFileSearchEnabled,
+              !isPathQuery,
               normalizedQuery.count >= fileSearchMinimumQueryLength else {
             if !fileResults.isEmpty { fileResults = [] }
             fileSearchState = .idle
