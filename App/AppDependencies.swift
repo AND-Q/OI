@@ -76,7 +76,8 @@ struct AppDependencies {
                 loginItemController: SMAppServiceLoginItemController(),
                 quickAIKeyStore: quickAIKeyStore,
                 translatorKeyStore: translatorKeyStore,
-                translatorEnvironment: translatorEnvironment
+                translatorEnvironment: translatorEnvironment,
+                listAIModels: ListAIModels(lister: aiClient)
             ),
             settingsStore: settingsStore,
             iconProvider: WorkspaceIconProvider(),

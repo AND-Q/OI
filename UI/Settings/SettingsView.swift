@@ -169,13 +169,15 @@ struct SettingsView: View {
                 .onChange(of: isAPIKeyFocused) { _, isFocused in
                     if !isFocused { viewModel.commitQuickAIAPIKey() }
                 }
+            AIEndpointCheckRows(viewModel: viewModel, target: .quickAI)
         } footer: {
             Text(
                 """
                 在启动器中按 Tab 进入 Quick AI，输入问题后按回车提问。兼容 OpenAI Chat Completions 接口，\
                 也可填写 Ollama 等本地服务（如 http://localhost:11434/v1）。提问内容会发送到所填地址，API Key 保存在钥匙串中。\
                 思考强度对应接口的 reasoning_effort 参数，常见取值为 low、medium、high，各服务支持的取值不同；\
-                留空则不发送，不支持该参数的服务可能报错。
+                留空则不发送，不支持该参数的服务可能报错。\
+                「获取模型」与「测试连接」用当前填写的地址与 API Key 读取服务的模型列表，不发送提问。
                 """
             )
         }
@@ -265,6 +267,7 @@ struct SettingsView: View {
                 .onChange(of: isTranslationAPIKeyFocused) { _, isFocused in
                     if !isFocused { viewModel.commitTranslationAPIKey() }
                 }
+            AIEndpointCheckRows(viewModel: viewModel, target: .translation)
         } header: {
             Text("翻译接口")
         } footer: {
@@ -404,6 +407,110 @@ struct SettingsView: View {
                 .font(.footnote)
                 .foregroundStyle(.red)
         }
+    }
+}
+
+/// AI 接口的「获取模型」与「测试连接」：一行右对齐的按钮，有结果时其下再显示一行状态。
+/// 两者都用当前填写的地址与 API Key 读取服务的模型列表；「获取模型」成功后弹出列表供选择。
+private struct AIEndpointCheckRows: View {
+    @ObservedObject var viewModel: SettingsViewModel
+    let target: SettingsViewModel.AIEndpointTarget
+    @State private var isModelPickerPresented = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Spacer()
+            Button("获取模型") {
+                Task {
+                    _ = await viewModel.checkAIEndpoint(target)?.value
+                    isModelPickerPresented = !viewModel.availableModels(for: target).isEmpty
+                }
+            }
+            .popover(isPresented: $isModelPickerPresented, arrowEdge: .bottom) {
+                AIModelPicker(models: viewModel.availableModels(for: target)) { model in
+                    viewModel.selectModel(model, for: target)
+                    isModelPickerPresented = false
+                }
+            }
+            Button("测试连接") {
+                viewModel.checkAIEndpoint(target)
+            }
+        }
+        .disabled(viewModel.aiEndpointStatus(for: target) == .checking)
+        if let status = viewModel.aiEndpointStatus(for: target) {
+            statusRow(status)
+        }
+    }
+
+    @ViewBuilder
+    private func statusRow(_ status: SettingsViewModel.AIEndpointStatus) -> some View {
+        switch status {
+        case .checking:
+            HStack(spacing: 6) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("正在连接…")
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        case .connected(let modelCount):
+            Label("连接成功，共 \(modelCount) 个可用模型", systemImage: "checkmark.circle.fill")
+                .font(.footnote)
+                .foregroundStyle(.green)
+        case .modelNotListed(let model):
+            Label("连接成功，但服务的模型列表中没有「\(model)」，请检查模型名", systemImage: "exclamationmark.triangle.fill")
+                .font(.footnote)
+                .foregroundStyle(.orange)
+        case .noModels:
+            Label("连接成功，但服务没有返回可用的模型", systemImage: "exclamationmark.triangle.fill")
+                .font(.footnote)
+                .foregroundStyle(.orange)
+        case .failed(let reason):
+            Label("连接失败：\(reason)", systemImage: "xmark.circle.fill")
+                .font(.footnote)
+                .foregroundStyle(.red)
+        }
+    }
+}
+
+/// 「获取模型」弹出的模型列表：可按名称筛选，点按即填入模型名。
+private struct AIModelPicker: View {
+    let models: [String]
+    let onSelect: (String) -> Void
+    @State private var filter = ""
+
+    private var filteredModels: [String] {
+        let query = filter.trimmingCharacters(in: .whitespacesAndNewlines)
+        return query.isEmpty ? models : models.filter { $0.localizedCaseInsensitiveContains(query) }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TextField("筛选模型", text: $filter)
+                .textFieldStyle(.roundedBorder)
+            List(filteredModels, id: \.self) { model in
+                Button {
+                    onSelect(model)
+                } label: {
+                    Text(model)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            .listStyle(.plain)
+            // 高度按全部模型的数量定，筛选时弹出框不跟着伸缩；模型很多时在列表内滚动。
+            .frame(height: min(CGFloat(max(models.count, 3)) * 28, 280))
+            .overlay {
+                if filteredModels.isEmpty {
+                    Text("没有匹配的模型")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(12)
+        .frame(width: 300)
     }
 }
 

@@ -142,6 +142,9 @@
 		B100000100000024 /* ScreenTranslationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000025 /* ScreenTranslationTests.swift */; };
 		B100000100000025 /* TranslatorPlacementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000026 /* TranslatorPlacementTests.swift */; };
 		B100000100000026 /* TranslatorSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000027 /* TranslatorSettingsTests.swift */; };
+		A100000100000079 /* AIModelListing.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000079 /* AIModelListing.swift */; };
+		A10000010000007A /* ListAIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000007A /* ListAIModels.swift */; };
+		B100000100000027 /* AIEndpointCheckTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200000100000028 /* AIEndpointCheckTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -293,6 +296,9 @@
 		B200000100000025 /* ScreenTranslationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenTranslationTests.swift; sourceTree = "<group>"; };
 		B200000100000026 /* TranslatorPlacementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorPlacementTests.swift; sourceTree = "<group>"; };
 		B200000100000027 /* TranslatorSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorSettingsTests.swift; sourceTree = "<group>"; };
+		A200000100000079 /* AIModelListing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIModelListing.swift; sourceTree = "<group>"; };
+		A20000010000007A /* ListAIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListAIModels.swift; sourceTree = "<group>"; };
+		B200000100000028 /* AIEndpointCheckTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIEndpointCheckTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -426,6 +432,7 @@
 				B200000100000025 /* ScreenTranslationTests.swift */,
 				B200000100000026 /* TranslatorPlacementTests.swift */,
 				B200000100000027 /* TranslatorSettingsTests.swift */,
+				B200000100000028 /* AIEndpointCheckTests.swift */,
 			);
 			path = OITests;
 			sourceTree = "<group>";
@@ -477,6 +484,7 @@
 				A20000010000006D /* LatestReleaseFetching.swift */,
 				A200000100000072 /* TextSpeaking.swift */,
 				A200000100000074 /* LocalIPAddressProviding.swift */,
+				A200000100000079 /* AIModelListing.swift */,
 			);
 			path = Ports;
 			sourceTree = "<group>";
@@ -587,6 +595,7 @@
 				A200000100000055 /* TranslateText.swift */,
 				A200000100000062 /* AIStreaming.swift */,
 				A20000010000006E /* CheckForUpdates.swift */,
+				A20000010000007A /* ListAIModels.swift */,
 			);
 			path = UseCases;
 			sourceTree = "<group>";
@@ -940,6 +949,8 @@
 				A100000100000076 /* NetworkInterfaceIPAddressProvider.swift in Sources */,
 				A100000100000077 /* StreamingRequest.swift in Sources */,
 				A100000100000078 /* LauncherErrorMessage.swift in Sources */,
+				A100000100000079 /* AIModelListing.swift in Sources */,
+				A10000010000007A /* ListAIModels.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -976,6 +987,7 @@
 				B100000100000024 /* ScreenTranslationTests.swift in Sources */,
 				B100000100000025 /* TranslatorPlacementTests.swift in Sources */,
 				B100000100000026 /* TranslatorSettingsTests.swift in Sources */,
+				B100000100000027 /* AIEndpointCheckTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -12,21 +12,25 @@ struct AIEndpointConfiguration: Sendable, Equatable {
     /// 接口地址须为带主机名的 http(s) 绝对地址、模型名非空，否则视为未配置；
     /// 未写协议头时自动补全（见 `addingDefaultScheme`）；空白 API Key 与思考强度按未提供处理。
     init?(baseURLString: String, model: String, apiKey: String?, reasoningEffort: String? = nil) {
-        let trimmedURL = Self.addingDefaultScheme(
-            to: baseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
-        )
         let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let url = URL(string: trimmedURL),
-              let scheme = url.scheme?.lowercased(),
-              scheme == "http" || scheme == "https",
-              url.host() != nil,
-              !trimmedModel.isEmpty else { return nil }
+        guard let url = Self.baseURL(from: baseURLString), !trimmedModel.isEmpty else { return nil }
         let trimmedKey = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         self.baseURL = url
         self.model = trimmedModel
         self.apiKey = trimmedKey.isEmpty ? nil : trimmedKey
         let trimmedEffort = reasoningEffort?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         self.reasoningEffort = trimmedEffort.isEmpty ? nil : trimmedEffort
+    }
+
+    /// 填写的接口地址：去掉首尾空白，未写协议头时自动补全；须为带主机名的 http(s) 绝对地址，否则为 nil。
+    /// 问答请求与设置面板的「获取模型」「测试连接」共用这一校验。
+    static func baseURL(from string: String) -> URL? {
+        let trimmed = addingDefaultScheme(to: string.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard let url = URL(string: trimmed),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              url.host() != nil else { return nil }
+        return url
     }
 
     /// 漏写协议头时补全：本机与局域网地址（多为 Ollama 等本地服务）补 `http://`，其余补 `https://`。

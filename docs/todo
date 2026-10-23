@@ -363,6 +363,25 @@
 - **涉及文件**：
   - [Domain/Models/WebSearchEngine.swift](Domain/Models/WebSearchEngine.swift)、[Application/Ports/AppSettingsStoring.swift](Application/Ports/AppSettingsStoring.swift)、[Infrastructure/Settings/UserDefaultsAppSettingsStore.swift](Infrastructure/Settings/UserDefaultsAppSettingsStore.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Features/Launcher/WebURLResolver.swift](Features/Launcher/WebURLResolver.swift)、[UI/Settings/SettingsView.swift](UI/Settings/SettingsView.swift)、[OITests/WebURLResolverTests.swift](OITests/WebURLResolverTests.swift)、[OITests/LauncherViewModelTests.swift](OITests/LauncherViewModelTests.swift)、[OITests/UserDefaultsAppSettingsStoreTests.swift](OITests/UserDefaultsAppSettingsStoreTests.swift)
 
+## [x] 22. 获取模型列表与测试连接
+
+- **需求描述**：
+  - 填写 Quick AI 与划词翻译的接口后，要等真正提问或翻译时才知道地址、API Key 或模型名有没有写错；模型名也只能手工输入。
+- **需要做到**：
+  - Quick AI 与划词翻译的接口设置各提供「获取模型」与「测试连接」：「获取模型」读出服务提供的模型列表，点选即填入模型名；「测试连接」立即告诉用户地址与 Key 是否正确；
+  - 用设置面板上当前的输入检查，API Key 不必先保存；本机 Ollama 等无需 Key 的服务同样适用；
+  - 失败时给出该检查什么：Key 无效、地址不对、连不上服务；填写的模型不在服务的列表中时提示检查模型名；
+  - 只读取模型列表，不发送提问或原文，不消耗对话请求。
+- **实现说明**：
+  - 端口与用例：新增 [AIModelListing](Application/Ports/AIModelListing.swift) 端口与 [ListAIModels](Application/UseCases/ListAIModels.swift) 用例；接口地址的校验（补全协议头、须为带主机名的 http(s) 地址）从 [AIEndpointConfiguration](Application/Ports/AIAnswering.swift) 的构造中抽出为 `baseURL(from:)`，问答请求与检查共用；地址无效时不发请求、直接报未配置，空白 API Key 按未提供处理，其余失败统一换成带原因的 `aiRequestFailed`；
+  - 查询：[OpenAICompatibleAIClient](Infrastructure/AI/OpenAICompatibleAIClient.swift) 实现 `GET {接口地址}/models`（填的是完整的 chat/completions 地址时先去掉这两段），超时 15 秒、不读本地缓存；按 OpenAI 与 Ollama 相同的 `{"data":[{"id":…}]}` 解析，模型 ID 去重并按名称排序；`AIModelListError` 按状态码给出原因：401/403 为 API Key 无效或没有权限，404 为地址不对或服务不支持查询模型列表，其余状态码附带服务返回的原因，网络错误为无法连接；
+  - 设置：[SettingsViewModel](Features/Settings/SettingsViewModel.swift) 以 `AIEndpointTarget`（Quick AI、划词翻译）区分两组接口，`checkAIEndpoint(_:)` 在后台查询，新的检查取代进行中的，过期结果按 generation 丢弃；改动接口地址或 API Key 输入即清除旧的结果；结果状态（检查中、连接成功与模型数、模型不在列表中、没有模型、失败原因）随当前填写的模型名实时核对，从列表中选择模型后提示随之更新；
+  - 界面：[SettingsView](UI/Settings/SettingsView.swift) 在两组接口的 API Key 下方加一行右对齐的「获取模型」「测试连接」，有结果时其下显示一行状态（绿色成功、橙色提醒、红色失败）；「获取模型」成功后弹出可按名称筛选的模型列表，点选即填入；设置搜索可以搜到这两项（[SettingsCategory](Features/Settings/SettingsCategory.swift)）；
+  - 隐私说明：[README](README.md)、[使用指南](docs/OI%20使用指南.md) 补充这两个按钮会向所填地址读取模型列表，只带 API Key、不发送提问或原文；
+  - 测试：接口地址校验、模型列表地址与解析（去重、排序、Ollama 格式）、各状态码的失败原因、用例的地址校验与 Key 处理、设置面板的检查结果（用未保存的 Key、模型不在列表中与选择后更新、空列表、失败原因、改动输入清除结果、过期结果丢弃、地址无效不发请求）。
+- **涉及文件**：
+  - [Application/Ports/AIModelListing.swift](Application/Ports/AIModelListing.swift)、[Application/Ports/AIAnswering.swift](Application/Ports/AIAnswering.swift)、[Application/UseCases/ListAIModels.swift](Application/UseCases/ListAIModels.swift)、[Infrastructure/AI/OpenAICompatibleAIClient.swift](Infrastructure/AI/OpenAICompatibleAIClient.swift)、[Features/Settings/SettingsViewModel.swift](Features/Settings/SettingsViewModel.swift)、[Features/Settings/SettingsCategory.swift](Features/Settings/SettingsCategory.swift)、[UI/Settings/SettingsView.swift](UI/Settings/SettingsView.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[OITests/AIEndpointCheckTests.swift](OITests/AIEndpointCheckTests.swift)
+
 ## [ ] 系统设置项直达
 
 - **需求描述**：

@@ -26,6 +26,11 @@ final class SettingsViewModel: ObservableObject {
             if settings.isForceTouchTranslationEnabled != oldValue.isForceTouchTranslationEnabled {
                 forceTouchTranslationActivator?(settings.isForceTouchTranslationEnabled)
             }
+            // 改了接口地址，之前的连接结果与模型列表就不再对应当前的地址。
+            for target in AIEndpointTarget.allCases
+            where settings[keyPath: target.baseURL] != oldValue[keyPath: target.baseURL] {
+                resetAIEndpointCheck(target)
+            }
         }
     }
     /// 开机自启动的开关状态来自系统登录项，而非持久化存储。
@@ -70,21 +75,28 @@ final class SettingsViewModel: ObservableObject {
     private let quickAIKeyStore: any APIKeyStoring
     private let translatorKeyStore: any APIKeyStoring
     private let translatorEnvironment: any TranslatorEnvironmentHandling
+    private let listAIModels: ListAIModels?
     private var savedQuickAIAPIKey = ""
     private var savedTranslationAPIKey = ""
+    /// 「测试连接」与「获取模型」的结果；未检查或输入已改动时没有条目。
+    @Published private var aiEndpointChecks: [AIEndpointTarget: AIEndpointCheck] = [:]
+    private var aiEndpointCheckTasks: [AIEndpointTarget: Task<Void, Never>] = [:]
+    private var aiEndpointCheckGenerations: [AIEndpointTarget: Int] = [:]
 
     init(
         settingsStore: any AppSettingsStoring,
         loginItemController: any LoginItemControlling,
         quickAIKeyStore: any APIKeyStoring = MemoryAPIKeyStore(),
         translatorKeyStore: any APIKeyStoring = MemoryAPIKeyStore(),
-        translatorEnvironment: any TranslatorEnvironmentHandling = MemoryTranslatorEnvironment()
+        translatorEnvironment: any TranslatorEnvironmentHandling = MemoryTranslatorEnvironment(),
+        listAIModels: ListAIModels? = nil
     ) {
         self.settingsStore = settingsStore
         self.loginItemController = loginItemController
         self.quickAIKeyStore = quickAIKeyStore
         self.translatorKeyStore = translatorKeyStore
         self.translatorEnvironment = translatorEnvironment
+        self.listAIModels = listAIModels
         self.settings = settingsStore.load()
         let status = loginItemController.status
         self.isLaunchAtLoginEnabled = status != .notRegistered
@@ -174,7 +186,9 @@ final class SettingsViewModel: ObservableObject {
 
     /// 输入过程只更新界面，不逐字写钥匙串；由 `commitQuickAIAPIKey()` 统一保存。
     func setQuickAIAPIKey(_ apiKey: String) {
+        guard apiKey != quickAIAPIKey else { return }
         quickAIAPIKey = apiKey
+        resetAIEndpointCheck(.quickAI)
     }
 
     /// 回车、离开输入框或关闭设置窗口时保存；与已保存的值相同则不写入。
@@ -190,7 +204,9 @@ final class SettingsViewModel: ObservableObject {
 
     /// 划词翻译 API Key 的输入，保存时机同 Quick AI，见 `commitTranslationAPIKey()`。
     func setTranslationAPIKey(_ apiKey: String) {
+        guard apiKey != translationAPIKey else { return }
         translationAPIKey = apiKey
+        resetAIEndpointCheck(.translation)
     }
 
     func commitTranslationAPIKey() {
@@ -211,6 +227,97 @@ final class SettingsViewModel: ObservableObject {
         } else if launchAtLoginNotice == .approvalPending {
             launchAtLoginNotice = nil
         }
+    }
+
+    /// 设置面板中的两组 AI 接口：Quick AI 与划词翻译各自填写地址、模型与 API Key。
+    enum AIEndpointTarget: CaseIterable {
+        case quickAI
+        case translation
+
+        var baseURL: KeyPath<AppSettings, String> {
+            switch self {
+            case .quickAI: \.quickAIBaseURL
+            case .translation: \.translationBaseURL
+            }
+        }
+
+        var model: WritableKeyPath<AppSettings, String> {
+            switch self {
+            case .quickAI: \.quickAIModel
+            case .translation: \.translationModel
+            }
+        }
+    }
+
+    /// 「测试连接」的结果，供设置面板显示。
+    enum AIEndpointStatus: Equatable {
+        case checking
+        /// 连接成功，填写的模型在列表中（或尚未填写模型）。
+        case connected(modelCount: Int)
+        /// 连接成功，但填写的模型不在服务返回的列表中，多半是模型名写错了。
+        case modelNotListed(String)
+        /// 连接成功，但服务没有返回任何模型。
+        case noModels
+        case failed(String)
+    }
+
+    private enum AIEndpointCheck: Equatable {
+        case checking
+        case succeeded([String])
+        case failed(String)
+    }
+
+    /// 「测试连接」与「获取模型」：用面板上当前填写的接口地址与 API Key（可能尚未保存）查询服务提供的模型。
+    /// 新的检查取代进行中的检查；返回在后台进行的查询任务，没有可用的查询服务时为 nil。
+    @discardableResult
+    func checkAIEndpoint(_ target: AIEndpointTarget) -> Task<Void, Never>? {
+        guard let listAIModels else { return nil }
+        resetAIEndpointCheck(target)
+        let generation = aiEndpointCheckGenerations[target, default: 0]
+        let baseURLString = settings[keyPath: target.baseURL]
+        let apiKey = apiKeyInput(for: target)
+        aiEndpointChecks[target] = .checking
+        let task = Task { [weak self] in
+            let check: AIEndpointCheck
+            do {
+                let models = try await listAIModels.execute(baseURLString: baseURLString, apiKey: apiKey)
+                check = .succeeded(models)
+            } catch {
+                check = .failed(SettingsViewModel.checkFailureMessage(for: error))
+            }
+            guard let self, self.aiEndpointCheckGenerations[target, default: 0] == generation else { return }
+            self.aiEndpointChecks[target] = check
+            self.aiEndpointCheckTasks[target] = nil
+        }
+        aiEndpointCheckTasks[target] = task
+        return task
+    }
+
+    /// 最近一次检查的结果；未检查或接口地址、API Key 改动后为 nil。模型名随时按当前填写的内容核对。
+    func aiEndpointStatus(for target: AIEndpointTarget) -> AIEndpointStatus? {
+        switch aiEndpointChecks[target] {
+        case nil:
+            return nil
+        case .checking:
+            return .checking
+        case .failed(let reason):
+            return .failed(reason)
+        case .succeeded(let models):
+            guard !models.isEmpty else { return .noModels }
+            let model = settings[keyPath: target.model].trimmingCharacters(in: .whitespacesAndNewlines)
+            return model.isEmpty || models.contains(model) ? .connected(modelCount: models.count) : .modelNotListed(model)
+        }
+    }
+
+    /// 最近一次检查取到的模型，供「获取模型」列出选择；没有时为空。
+    func availableModels(for target: AIEndpointTarget) -> [String] {
+        guard case .succeeded(let models)? = aiEndpointChecks[target] else { return [] }
+        return models
+    }
+
+    /// 在「获取模型」列出的模型中选择一个，填入模型名。
+    func selectModel(_ model: String, for target: AIEndpointTarget) {
+        settings[keyPath: target.model] = model
     }
 
     /// 三个全局快捷键：各自有设置值、提示与激活闭包，组合互不相同。App 层启动时按此逐个注册。
@@ -311,5 +418,31 @@ final class SettingsViewModel: ObservableObject {
     /// 展示给用户的失败原因：优先取本地化描述。
     private static func reason(of error: Error) -> String {
         (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+    }
+
+    /// 面板上当前输入的 API Key，可能尚未保存到钥匙串。
+    private func apiKeyInput(for target: AIEndpointTarget) -> String {
+        switch target {
+        case .quickAI: quickAIAPIKey
+        case .translation: translationAPIKey
+        }
+    }
+
+    /// 清除检查结果并丢弃进行中的检查。
+    private func resetAIEndpointCheck(_ target: AIEndpointTarget) {
+        aiEndpointCheckTasks[target]?.cancel()
+        aiEndpointCheckTasks[target] = nil
+        aiEndpointCheckGenerations[target, default: 0] += 1
+        if aiEndpointChecks[target] != nil {
+            aiEndpointChecks[target] = nil
+        }
+    }
+
+    private static func checkFailureMessage(for error: Error) -> String {
+        switch error as? ApplicationError {
+        case .aiNotConfigured?: "请先填写有效的接口地址"
+        case .aiRequestFailed(let reason)?: reason
+        default: "连接失败，请重试"
+        }
     }
 }

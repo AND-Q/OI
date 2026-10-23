@@ -1,11 +1,13 @@
 import Foundation
 
-/// 基于 OpenAI Chat Completions 流式接口（SSE）的问答实现，
+/// 基于 OpenAI Chat Completions 流式接口（SSE）的问答实现，以及查询可用模型（`GET /models`），
 /// 兼容 OpenAI、Ollama（`/v1`）及各类兼容网关。
-struct OpenAICompatibleAIClient: AIAnswering {
+struct OpenAICompatibleAIClient: AIAnswering, AIModelListing {
     /// 两次收到数据之间最长的等待（不是整次回答的总时长）：本机大模型首次加载可能一分钟以上
     /// 才开始输出，放宽到 3 分钟；等不及时按 Esc 中断。
     static let idleTimeout: TimeInterval = 180
+    /// 查询模型列表的超时：只是读一份列表，等太久说明地址或网络有问题。
+    static let modelListTimeout: TimeInterval = 15
 
     private let session: URLSession
 
@@ -58,6 +60,50 @@ struct OpenAICompatibleAIClient: AIAnswering {
             }
             // 消费方取消（Esc、面板隐藏）时立即中断网络请求。
             continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    func models(baseURL: URL, apiKey: String?) async throws -> [String] {
+        var request = URLRequest(url: Self.modelsURL(for: baseURL))
+        request.timeoutInterval = Self.modelListTimeout
+        // 用户刚在服务端开通或下载了模型时要拿到最新的列表。
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        if let apiKey {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
+        let result: (Data, URLResponse)
+        do {
+            result = try await session.data(for: request)
+        } catch let error as URLError where error.code != .cancelled {
+            throw AIModelListError.unreachable(error.localizedDescription)
+        }
+        let (data, response) = result
+        return try Self.modelIDs(from: data, status: (response as? HTTPURLResponse)?.statusCode ?? 0)
+    }
+
+    /// 模型列表地址：接口地址后接 `models`；填的是完整的 chat/completions 地址时先去掉这两段。
+    static func modelsURL(for baseURL: URL) -> URL {
+        let trimmedPath = baseURL.path().trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard trimmedPath.hasSuffix("chat/completions") else {
+            return baseURL.appending(path: "models")
+        }
+        return baseURL.deletingLastPathComponent().deletingLastPathComponent().appending(path: "models")
+    }
+
+    /// 按状态码解析模型列表（`{"data":[{"id":…}]}`，OpenAI 与 Ollama 相同），模型 ID 去重并按名称排序。
+    static func modelIDs(from data: Data, status: Int) throws -> [String] {
+        switch status {
+        case 200..<300:
+            guard let payload = try? JSONDecoder().decode(ModelListPayload.self, from: data) else {
+                throw AIModelListError.invalidResponse
+            }
+            return Set(payload.data.map(\.id)).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+        case 401, 403:
+            throw AIModelListError.unauthorized(status)
+        case 404:
+            throw AIModelListError.notFound
+        default:
+            throw AIModelListError.httpStatus(status, errorMessage(from: data))
         }
     }
 
@@ -147,6 +193,40 @@ enum AIClientError: LocalizedError, Equatable {
             message
         }
     }
+}
+
+/// 查询模型列表失败的原因，提示用户该检查地址、Key 还是网络。
+enum AIModelListError: LocalizedError, Equatable {
+    case unreachable(String)
+    case unauthorized(Int)
+    case notFound
+    case httpStatus(Int, String?)
+    case invalidResponse
+
+    var errorDescription: String? {
+        switch self {
+        case .unreachable(let reason):
+            "无法连接到接口地址：\(reason)"
+        case .unauthorized(let status):
+            "API Key 无效或没有权限（\(status)）"
+        case .notFound:
+            "接口地址不正确，或该服务不支持查询模型列表（404）"
+        case .httpStatus(let status, let message?):
+            "服务返回 \(status)：\(message)"
+        case .httpStatus(let status, nil):
+            "服务返回 \(status)"
+        case .invalidResponse:
+            "无法识别服务返回的模型列表"
+        }
+    }
+}
+
+private struct ModelListPayload: Decodable {
+    struct Model: Decodable {
+        let id: String
+    }
+
+    let data: [Model]
 }
 
 private struct RequestBody: Encodable {
