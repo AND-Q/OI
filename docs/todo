@@ -302,6 +302,22 @@
 - **涉及文件**：
   - [Application/Ports/FileOpening.swift](Application/Ports/FileOpening.swift)、[Application/UseCases/OpenFile.swift](Application/UseCases/OpenFile.swift)、[Infrastructure/Launch/WorkspaceFileOpener.swift](Infrastructure/Launch/WorkspaceFileOpener.swift)、[Features/Launcher/LauncherActionMenu.swift](Features/Launcher/LauncherActionMenu.swift)、[Features/Launcher/LauncherLayout.swift](Features/Launcher/LauncherLayout.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)、[UI/Panel/LauncherActionSheetView.swift](UI/Panel/LauncherActionSheetView.swift)、[UI/Panel/LauncherView.swift](UI/Panel/LauncherView.swift)、[OITests/FileSearchTests.swift](OITests/FileSearchTests.swift)、[OITests/LauncherActionMenuTests.swift](OITests/LauncherActionMenuTests.swift)
 
+## [x] 18. 截图翻译定格画面
+
+- **需求描述**：
+  - 截图翻译第一版（见 12）框选期间屏幕照常变化，视频字幕、悬停提示等可能在松开鼠标前就已消失或改变：按下快捷键时冻结屏幕，框选期间画面不再变化。
+- **需要做到**：
+  - 按下截图翻译快捷键即定格所有屏幕的画面，框选与识别都基于这一帧，期间视频播放、页面滚动都不影响选区；
+  - 重新框选时在同一帧上按新选区识别；要翻译之后的画面（如下一句字幕），退出后再按一次快捷键重新定格。
+- **实现说明**：
+  - 截屏：[ScreenTextRecognizing](Application/Ports/ScreenTextRecognizing.swift) 端口拆为 `captureScreens()` 与 `recognizeText(in:of:)`，新增 `ScreenSnapshot`（每块屏幕的显示器 ID、在全局显示坐标中的位置与整屏画面）；[VisionScreenTextRecognizer](Infrastructure/Translator/VisionScreenTextRecognizer.swift) 进入框选时用 `SCScreenshotManager` 按屏幕像素截取每块屏幕（`SCContentFilter` 排除 OI 自己的窗口，不含指针），松开后从选区所在屏幕的画面中裁出选区再交给 Vision 识别；截图只在内存中，不保存也不上传；
+  - 流程：[TranslatorViewModel](Features/Translator/TranslatorViewModel.swift) 的 `beginScreenTranslation` 改为异步，返回 `ScreenTranslationStart`（[TranslatorState](Features/Translator/TranslatorState.swift)）：已获屏幕录制权限且截屏成功时带着定格画面进入框选，未授权或截屏失败时只弹出提示；截屏期间再次触发时以 generation 丢弃旧的结果；`translateScreenRegion(_:in:)` 识别定格画面中的选区；
+  - 框选：[ScreenSelectionOverlay](UI/Translator/ScreenSelectionOverlay.swift) 的 `begin(showing:)` 在每块屏幕的遮罩下铺上这块屏幕定格的画面（`ScreenSnapshotView` 以图层内容显示，拖动选框重绘遮罩时不必重绘整幅画面）；截屏之后才接入、没有画面的屏幕遮罩下仍是实时屏幕；定格画面中没有 OI 自己的气泡，之前固定的气泡在退出框选后重新出现；
+  - 文案：屏幕录制权限说明（气泡提示与设置窗口）与截图失败提示改为定格画面的说明，使用指南与功能清单同步更新；
+  - 测试：未获权限时只弹出提示、已获权限时定格画面进入框选、截屏失败时提示截图失败，识别与重新框选的用例改为基于定格画面。
+- **涉及文件**：
+  - [Application/Ports/ScreenTextRecognizing.swift](Application/Ports/ScreenTextRecognizing.swift)、[Infrastructure/Translator/VisionScreenTextRecognizer.swift](Infrastructure/Translator/VisionScreenTextRecognizer.swift)、[Features/Translator/TranslatorState.swift](Features/Translator/TranslatorState.swift)、[Features/Translator/TranslatorView.swift](Features/Translator/TranslatorView.swift)、[Features/Translator/TranslatorViewModel.swift](Features/Translator/TranslatorViewModel.swift)、[UI/Translator/ScreenSelectionOverlay.swift](UI/Translator/ScreenSelectionOverlay.swift)、[UI/Translator/TranslatorPanelController.swift](UI/Translator/TranslatorPanelController.swift)、[UI/Settings/SettingsView.swift](UI/Settings/SettingsView.swift)、[OITests/TranslatorTests.swift](OITests/TranslatorTests.swift)
+
 ## [ ] 系统设置项直达
 
 - **需求描述**：
@@ -386,12 +402,11 @@
   - 短期保留（如 8 小时），可一键清除；
   - 支持模糊搜索，`Enter` 复制所选内容。
 
-## [ ] 截图翻译增强（定格画面、窗口检测、调整选框）
+## [ ] 截图翻译增强（窗口检测、调整选框）
 
 - **需求描述**：
-  - 截图翻译第一版（见 12）只做了最基本的拖动框选，框选手感与 Snipaste 仍有差距，视第一版的使用效果再决定做哪些。
+  - 截图翻译第一版（见 12）只做了最基本的拖动框选，框选手感与 Snipaste 仍有差距，视第一版的使用效果再决定做哪些（定格画面已完成，见 18）。
 - **需要做到**：
-  - [x] 定格画面：按下快捷键时冻结屏幕，框选期间视频字幕、悬停提示等不再变化；
   - 窗口与界面元素检测：悬停时自动框出窗口或控件，单击即选中；
   - 调整选框：拖动边角改大小、拖动整体移动、方向键与 `WASD` 逐像素微调，以及放大镜与取色；
   - 截图本身的复制、保存、贴图与标注不做，继续使用 Snipaste。
