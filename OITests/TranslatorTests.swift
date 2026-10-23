@@ -236,10 +236,10 @@ final class TranslatorTests: XCTestCase {
     }
 
     func testCleanedTrimsWhitespaceAndCapsLength() {
-        XCTAssertNil(AccessibilityTextCapturer.cleaned(" \n "))
-        XCTAssertEqual(AccessibilityTextCapturer.cleaned("  hi \n"), "hi")
-        let long = String(repeating: "a", count: AccessibilityTextCapturer.maximumLength + 10)
-        XCTAssertEqual(AccessibilityTextCapturer.cleaned(long)?.count, AccessibilityTextCapturer.maximumLength)
+        XCTAssertNil(CapturedText.cleaned(" \n "))
+        XCTAssertEqual(CapturedText.cleaned("  hi \n"), "hi")
+        let long = String(repeating: "a", count: CapturedText.maximumLength + 10)
+        XCTAssertEqual(CapturedText.cleaned(long)?.count, CapturedText.maximumLength)
     }
 
     // MARK: - View model: capture

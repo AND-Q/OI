@@ -55,6 +55,7 @@ struct AppDependencies {
             usageStore: usageStore,
             settingsStore: settingsStore,
             notifier: UserNotificationCenterNotifier(),
+            ipAddressProvider: NetworkInterfaceIPAddressProvider(),
             aliases: configuration.applicationAliases,
             fileSearchMinimumQueryLength: configuration.fileSearchMinimumQueryLength
         )

@@ -1,8 +1,10 @@
-import Darwin
 import Foundation
 
-enum QuickQueryResolver {
-    static func resolve(_ query: String) -> QuickQueryResult? {
+/// 把输入解析为快速查询（计算、本机 IP）；本机 IP 经端口读取，不在本层访问网络接口。
+struct QuickQueryResolver {
+    let ipAddressProvider: any LocalIPAddressProviding
+
+    func resolve(_ query: String) -> QuickQueryResult? {
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let compactQuery = normalizedQuery
             .filter { !$0.isWhitespace }
@@ -12,7 +14,7 @@ enum QuickQueryResolver {
             "ip", "ip查询", "localip", "localipaddress", "myip", "myipaddress",
             "本机ip", "本机ip地址", "本机ip查询", "本地ip", "本地ip地址", "本地ip查询", "局域网ip"
         ].contains(compactQuery) {
-            return .localIPAddress(LocalIPAddress.currentIPv4Address())
+            return .localIPAddress(ipAddressProvider.currentIPv4Address())
         }
 
         guard let value = MathExpressionEvaluator.evaluate(normalizedQuery) else { return nil }
@@ -174,44 +176,5 @@ private enum MathExpressionEvaluator {
             guard let value = character?.asciiValue else { return false }
             return (48...57).contains(value)
         }
-    }
-}
-
-private enum LocalIPAddress {
-    static func currentIPv4Address() -> String? {
-        var interfaceList: UnsafeMutablePointer<ifaddrs>?
-        guard getifaddrs(&interfaceList) == 0, let firstInterface = interfaceList else { return nil }
-        defer { freeifaddrs(firstInterface) }
-
-        var candidates: [(priority: Int, address: String)] = []
-        var currentInterface: UnsafeMutablePointer<ifaddrs>? = firstInterface
-
-        while let interface = currentInterface {
-            let details = interface.pointee
-            currentInterface = details.ifa_next
-
-            guard let address = details.ifa_addr,
-                  address.pointee.sa_family == sa_family_t(AF_INET),
-                  details.ifa_flags & UInt32(IFF_UP) != 0,
-                  details.ifa_flags & UInt32(IFF_RUNNING) != 0,
-                  details.ifa_flags & UInt32(IFF_LOOPBACK) == 0 else { continue }
-
-            let name = String(cString: details.ifa_name)
-            guard !["utun", "awdl", "llw", "bridge", "gif", "stf", "lo"]
-                .contains(where: { name.hasPrefix($0) }) else { continue }
-
-            let socketAddress = UnsafeRawPointer(address)
-                .assumingMemoryBound(to: sockaddr_in.self)
-                .pointee
-            let octets = withUnsafeBytes(of: socketAddress.sin_addr.s_addr) { Array($0) }
-            guard octets.count == 4, octets[0] != 169 || octets[1] != 254 else { continue }
-            guard octets.contains(where: { $0 != 0 }) else { continue }
-
-            let addressString = octets.map(String.init).joined(separator: ".")
-            let priority = name == "en0" ? 0 : (name.hasPrefix("en") ? 1 : 2)
-            candidates.append((priority, addressString))
-        }
-
-        return candidates.min { $0.priority < $1.priority }?.address
     }
 }

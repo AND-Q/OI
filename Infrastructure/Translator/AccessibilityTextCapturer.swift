@@ -6,8 +6,6 @@ import os
 /// 原生文本控件走字符区间属性（`AXSelectedText`、`AXRangeForPosition` 等）；WebKit 与 Chromium
 /// 的网页内容不提供字符区间，改用文本标记（text marker）属性。安全输入框（密码）一律不读取。
 struct AccessibilityTextCapturer: TextCapturing {
-    /// 单次最多取用的字符数，避免全选长文档时把整篇内容发送出去。
-    static let maximumLength = 5000
     /// 对目标进程的辅助功能查询最多等待的秒数，目标应用卡顿时不至于长时间没有反应。
     private static let messagingTimeout: Float = 0.5
     /// 取单词时只读取点按位置两侧这么多字符，足以覆盖一个单词，长文档也不必整篇读取。
@@ -43,7 +41,7 @@ struct AccessibilityTextCapturer: TextCapturing {
         // nspasteboard.org 约定：密码管理器复制的敏感内容带此标记，不读取也就不会发送出去。
         let concealedType = NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
         if pasteboard.types?.contains(concealedType) == true { return nil }
-        guard let text = pasteboard.string(forType: .string), let cleaned = Self.cleaned(text) else {
+        guard let text = pasteboard.string(forType: .string), let cleaned = CapturedText.cleaned(text) else {
             return nil
         }
         return CapturedText(text: cleaned, source: .clipboard, screenRect: nil)
@@ -69,13 +67,6 @@ struct AccessibilityTextCapturer: TextCapturing {
         return match
     }
 
-    /// 去掉首尾空白并截断过长的内容；只剩空白时为 nil。
-    static func cleaned(_ text: String) -> String? {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        return String(trimmed.prefix(maximumLength))
-    }
-
     // MARK: - Selection
 
     @MainActor
@@ -97,7 +88,7 @@ struct AccessibilityTextCapturer: TextCapturing {
 
     private static func selectionUsingCharacterRange(in element: AXUIElement) -> CapturedText? {
         guard let text = attribute(element, kAXSelectedTextAttribute) as? String,
-              let cleaned = cleaned(text) else { return nil }
+              let cleaned = CapturedText.cleaned(text) else { return nil }
         let characterRangeBounds = range(attribute(element, kAXSelectedTextRangeAttribute))
             .flatMap { axValue(range: $0) }
             .flatMap { rect(attribute(element, kAXBoundsForRangeParameterizedAttribute, parameter: $0)) }
@@ -114,7 +105,7 @@ struct AccessibilityTextCapturer: TextCapturing {
             if let markerRange = attribute(current, "AXSelectedTextMarkerRange"),
                let text = attribute(current, "AXStringForTextMarkerRange", parameter: markerRange) as? String {
                 // 找到了提供选区的元素但选区为空：就是没有选中文字。
-                guard let cleaned = cleaned(text) else { return nil }
+                guard let cleaned = CapturedText.cleaned(text) else { return nil }
                 let bounds = rect(attribute(current, "AXBoundsForTextMarkerRange", parameter: markerRange))
                 return CapturedText(text: cleaned, source: .selection, screenRect: usable(bounds))
             }
@@ -301,7 +292,7 @@ struct AccessibilityTextCapturer: TextCapturing {
             )
             return .notOnText
         }
-        guard let cleaned = cleaned(word),
+        guard let cleaned = CapturedText.cleaned(word),
               cleaned.unicodeScalars.contains(where: CharacterSet.alphanumerics.contains) else { return .notOnText }
         logger.debug(
             "Captured word via \(method, privacy: .public): bounds \(Self.describe(bounds), privacy: .public), point \(Self.describe(point), privacy: .public)"

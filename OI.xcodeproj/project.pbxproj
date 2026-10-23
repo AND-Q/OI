@@ -130,6 +130,9 @@
 		A100000100000073 /* SystemTextSpeaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000073 /* SystemTextSpeaker.swift */; };
 		B10000010000001E /* UpdateCheckTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001F /* UpdateCheckTests.swift */; };
 		B10000010000001D /* TranslatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000010000001E /* TranslatorTests.swift */; };
+		A100000100000074 /* LocalIPAddressProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000074 /* LocalIPAddressProviding.swift */; };
+		A100000100000075 /* SearchResultPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000075 /* SearchResultPresentation.swift */; };
+		A100000100000076 /* NetworkInterfaceIPAddressProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000100000076 /* NetworkInterfaceIPAddressProvider.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -269,6 +272,9 @@
 		A200000100000073 /* SystemTextSpeaker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemTextSpeaker.swift; sourceTree = "<group>"; };
 		B20000010000001F /* UpdateCheckTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateCheckTests.swift; sourceTree = "<group>"; };
 		B20000010000001E /* TranslatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorTests.swift; sourceTree = "<group>"; };
+		A200000100000074 /* LocalIPAddressProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalIPAddressProviding.swift; sourceTree = "<group>"; };
+		A200000100000075 /* SearchResultPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultPresentation.swift; sourceTree = "<group>"; };
+		A200000100000076 /* NetworkInterfaceIPAddressProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkInterfaceIPAddressProvider.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -352,6 +358,7 @@
 				A400000100000020 /* Translator */,
 				A400000100000024 /* Notifications */,
 				A400000100000025 /* Update */,
+				A400000100000027 /* Network */,
 			);
 			path = Infrastructure;
 			sourceTree = "<group>";
@@ -444,6 +451,7 @@
 				A200000100000067 /* ScreenTextRecognizing.swift */,
 				A20000010000006D /* LatestReleaseFetching.swift */,
 				A200000100000072 /* TextSpeaking.swift */,
+				A200000100000074 /* LocalIPAddressProviding.swift */,
 			);
 			path = Ports;
 			sourceTree = "<group>";
@@ -458,6 +466,7 @@
 				A20000010000003D /* WebURLResolver.swift */,
 				A20000010000003F /* LauncherActionMenu.swift */,
 				A20000010000004F /* QuickAIAnswerView.swift */,
+				A200000100000075 /* SearchResultPresentation.swift */,
 			);
 			path = Launcher;
 			sourceTree = "<group>";
@@ -702,6 +711,14 @@
 			path = Update;
 			sourceTree = "<group>";
 		};
+		A400000100000027 /* Network */ = {
+			isa = PBXGroup;
+			children = (
+				A200000100000076 /* NetworkInterfaceIPAddressProvider.swift */,
+			);
+			path = Network;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -891,6 +908,9 @@
 				A100000100000071 /* UpdateCheckController.swift in Sources */,
 				A100000100000072 /* TextSpeaking.swift in Sources */,
 				A100000100000073 /* SystemTextSpeaker.swift in Sources */,
+				A100000100000074 /* LocalIPAddressProviding.swift in Sources */,
+				A100000100000075 /* SearchResultPresentation.swift in Sources */,
+				A100000100000076 /* NetworkInterfaceIPAddressProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

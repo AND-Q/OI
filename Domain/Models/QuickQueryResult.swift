@@ -19,25 +19,10 @@ enum QuickQueryResult: Hashable, Sendable {
         }
     }
 
-    var subtitle: String {
-        switch self {
-        case .calculation(let expression, _): return expression + " · 按回车复制"
-        case .localIPAddress(let address):
-            return address == nil ? "本机 IP · 当前不可用" : "本机 IP · 按回车复制"
-        }
-    }
-
     var copyValue: String? {
         switch self {
         case .calculation(_, let value): return value
         case .localIPAddress(let address): return address
-        }
-    }
-
-    var symbolName: String {
-        switch self {
-        case .calculation: return "function"
-        case .localIPAddress(let address): return address == nil ? "network.slash" : "network"
         }
     }
 }

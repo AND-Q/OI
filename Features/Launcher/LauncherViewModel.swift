@@ -62,6 +62,7 @@ final class LauncherViewModel: ObservableObject {
     private let usageStore: any AppUsageStoring
     private let settingsStore: any AppSettingsStoring
     private let notifier: any UserNotifying
+    private let quickQueryResolver: QuickQueryResolver
     private let aliases: [String: [String]]
     private let fileSearchMinimumQueryLength: Int
     private let fileSearchDebounce: Duration
@@ -94,6 +95,7 @@ final class LauncherViewModel: ObservableObject {
         usageStore: any AppUsageStoring = MemoryAppUsageStore(),
         settingsStore: any AppSettingsStoring = MemoryAppSettingsStore(),
         notifier: any UserNotifying = MemoryUserNotifier(),
+        ipAddressProvider: any LocalIPAddressProviding = MemoryLocalIPAddressProvider(),
         aliases: [String: [String]] = [:],
         fileSearchMinimumQueryLength: Int = 2,
         fileSearchDebounce: Duration = .milliseconds(120),
@@ -108,6 +110,7 @@ final class LauncherViewModel: ObservableObject {
         self.usageStore = usageStore
         self.settingsStore = settingsStore
         self.notifier = notifier
+        self.quickQueryResolver = QuickQueryResolver(ipAddressProvider: ipAddressProvider)
         self.aliases = aliases
         self.fileSearchMinimumQueryLength = fileSearchMinimumQueryLength
         self.fileSearchDebounce = fileSearchDebounce
@@ -573,7 +576,7 @@ final class LauncherViewModel: ObservableObject {
         if case .failed = launchState {
             launchState = .idle
         }
-        quickQueryResult = QuickQueryResolver.resolve(query)
+        quickQueryResult = quickQueryResolver.resolve(query)
         webURLResult = WebURLResolver.recognize(query)
         schedulePathLookup()
         scheduleFileSearch()

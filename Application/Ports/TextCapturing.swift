@@ -18,6 +18,16 @@ struct CapturedText: Equatable, Sendable {
     let text: String
     let source: Source
     let screenRect: CGRect?
+
+    /// 单次最多取用的字符数，避免全选长文档时把整篇内容发送出去。
+    static let maximumLength = 5000
+
+    /// 待翻译的文字：去掉首尾空白并截断过长的内容；只剩空白时为 nil。取词、剪贴板与截图识字共用。
+    static func cleaned(_ text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return String(trimmed.prefix(maximumLength))
+    }
 }
 
 /// 按坐标取词的结果。

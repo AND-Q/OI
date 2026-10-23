@@ -39,7 +39,7 @@ struct VisionScreenTextRecognizer: ScreenTextRecognizing {
         do {
             let image = try Self.image(in: rect, of: snapshot)
             let lines = try await Self.recognizeLines(in: image)
-            return AccessibilityTextCapturer.cleaned(Self.paragraphs(from: lines)) ?? ""
+            return CapturedText.cleaned(Self.paragraphs(from: lines)) ?? ""
         } catch {
             Self.logger.error("Screen text recognition failed: \(error.localizedDescription, privacy: .public)")
             throw error

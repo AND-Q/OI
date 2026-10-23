@@ -126,13 +126,13 @@ App -> UI -> Features / Application / Domain
   - [App/AppDependencies.swift](App/AppDependencies.swift) 中的 `AppDependencies.live(configuration:)` 是项目中**唯一**实例化具体基础设施适配器的入口。划词翻译与检查更新的依赖分别打包为 `TranslatorDependencies`、`UpdateDependencies`，测试注入依赖图时可省略。
   - [App/AppCoordinator.swift](App/AppCoordinator.swift) 协调应用生命周期、菜单栏、三个全局快捷键（呼出、翻译、截图翻译）、设置窗口与检查更新。
   - Feature 绝不直接创建具体基础设施。
-- [Domain/](Domain/)：业务核心实体（[Domain/Models/](Domain/Models/)）：`AppDescriptor`（应用）、`FileDescriptor`（文件与文件夹）、`SearchResult`（启动器的一行结果：应用、文件、快速查询或网址）、`QuickQueryResult`、`TranslationLanguage`、`WebSearchEngine`、`AppVersion`。严格限制为 Foundation-only 并符合 `Sendable` 协议，严禁引入 AppKit、SwiftUI、Carbon 等平台或表现层依赖。
+- [Domain/](Domain/)：业务核心实体（[Domain/Models/](Domain/Models/)）：`AppDescriptor`（应用）、`FileDescriptor`（文件与文件夹）、`SearchResult`（启动器的一行结果：应用、文件、快速查询或网址）、`QuickQueryResult`、`TranslationLanguage`、`WebSearchEngine`、`AppVersion`。严格限制为 Foundation-only 并符合 `Sendable` 协议，严禁引入 AppKit、SwiftUI、Carbon 等平台或表现层依赖；结果行的副标题、图标等展示内容放在 Features 层（`SearchResultPresentation`）。
 - [Application/](Application/)：业务流程契约与纯业务逻辑。
   - [Application/Ports/](Application/Ports/)：定义外部依赖协议契约，每个端口一个文件：
-    - 启动器：`AppCatalog`、`ApplicationLaunching`、`AppUsageStoring`、`FileSearching`、`FileOpening`（打开、在 Finder 中显示、在终端打开、用其他 App 打开、按路径取条目）、`URLOpening`、`GlobalShortcutHandling`；
+    - 启动器：`AppCatalog`、`ApplicationLaunching`、`AppUsageStoring`、`FileSearching`、`FileOpening`（打开、在 Finder 中显示、在终端打开、用其他 App 打开、按路径取条目）、`URLOpening`、`GlobalShortcutHandling`、`LocalIPAddressProviding`（本机 IP）；
     - Quick AI 与划词翻译：`AIAnswering`、`APIKeyStoring`、`TextCapturing`、`WordSelecting`、`ForceTouchMonitoring`、`LanguageDetecting`、`ScreenTextRecognizing`、`TextSpeaking`、`TranslatorEnvironmentHandling`（辅助功能与屏幕录制权限）；
     - 通用：`AppSettingsStoring`（`AppSettings` 设置模型也定义在这里）、`LoginItemControlling`、`UserNotifying`、`LatestReleaseFetching`。
-    - 部分端口文件同时提供内存实现（`MemoryAppUsageStore`、`MemoryAppSettingsStore`、`MemoryAPIKeyStore`、`MemoryUserNotifier`、`MemoryTranslatorEnvironment`），用作默认值与测试替身。
+    - 部分端口文件同时提供内存实现（`MemoryAppUsageStore`、`MemoryAppSettingsStore`、`MemoryAPIKeyStore`、`MemoryUserNotifier`、`MemoryTranslatorEnvironment`、`MemoryLocalIPAddressProvider`），用作默认值与测试替身。
   - [Application/UseCases/](Application/UseCases/)：用例流程：`DiscoverApplications`、`LaunchApplication`、`SearchFiles`（含文件结果的二次排序 `FileResultRanker`）、`OpenFile`、`OpenURL`、`AskQuickAI`、`TranslateText`、`CheckForUpdates`；[Application/UseCases/AIStreaming.swift](Application/UseCases/AIStreaming.swift) 是 Quick AI 与翻译共用的流式请求（两者的接口地址、模型与 API Key 各自填写）。
   - [Application/Search/](Application/Search/)：自建纯内存搜索引擎，包含分级匹配索引（[Application/Search/ApplicationSearchIndex.swift](Application/Search/ApplicationSearchIndex.swift)）、搜索文档模型（[Application/Search/ApplicationSearchDocument.swift](Application/Search/ApplicationSearchDocument.swift)）与文本分词/拼音/首字母归一化处理（`SearchTextNormalizer`）。
   - [Application/Errors/](Application/Errors/)：稳定的跨层错误模型（[Application/Errors/ApplicationError.swift](Application/Errors/ApplicationError.swift)），屏蔽平台底层异常细节。
@@ -148,6 +148,7 @@ App -> UI -> Features / Application / Domain
   - [Infrastructure/LoginItem/](Infrastructure/LoginItem/)：基于 `SMAppService` 的开机自启。
   - [Infrastructure/Notifications/](Infrastructure/Notifications/)：基于 `UNUserNotificationCenter` 的系统通知（后台打开失败等提示）。
   - [Infrastructure/Update/](Infrastructure/Update/)：经 GitHub Releases API 查询最新版本。
+  - [Infrastructure/Network/](Infrastructure/Network/)：经 `getifaddrs` 读取本机局域网 IPv4 地址（`NetworkInterfaceIPAddressProvider`）。
   - *约束：Infrastructure 不得依赖 Features 或 UI 层。*
 - [UI/](UI/)：AppKit 与 SwiftUI 桥接及窗口管理。
   - [UI/Panel/](UI/Panel/)：Spotlight 风格的启动器浮动面板。[UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift) 管理面板显示、按键与结果操作；另有玻璃表面（`LauncherPanelSurface`）、高度缩放动效（[UI/Panel/PanelAnimationCoordinator.swift](UI/Panel/PanelAnimationCoordinator.swift)）、SwiftUI 主视图（`LauncherView`）、AppKit 输入框与结果列表（`LauncherSearchInput`、`LauncherResultsList`）、`⌘K` 操作卡片（`LauncherActionSheetView`）与 `⌘Y` Quick Look（`QuickLookPresenter`）。
@@ -158,7 +159,7 @@ App -> UI -> Features / Application / Domain
   - [UI/Icons/](UI/Icons/)：原生应用高清图标提取与缓存；图标是 `NSImage`，`IconProviding` 协议也定义在本层。
   - *约束：`NSImage`、`NSPanel`、`NSStatusItem` 等 UI 专属类型仅限在此层流转。*
 - [Features/](Features/)：用户功能的视图模型、状态与 SwiftUI 视图。
-  - [Features/Launcher/](Features/Launcher/)：[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift) 统一编排搜索输入、结果排列与选中、`⌘K` 菜单、Quick AI 模式与打开调度；`QuickQueryResolver`（计算、本机 IP）、`WebURLResolver`（网址识别）、`LauncherActionMenu`（`⌘K` 动作）、`LauncherLayout`（面板尺寸）、`QuickAIAnswerView`（回答区）。
+  - [Features/Launcher/](Features/Launcher/)：[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift) 统一编排搜索输入、结果排列与选中、`⌘K` 菜单、Quick AI 模式与打开调度；`QuickQueryResolver`（计算、本机 IP）、`SearchResultPresentation`（结果行的副标题与图标）、`WebURLResolver`（网址识别）、`LauncherActionMenu`（`⌘K` 动作）、`LauncherLayout`（面板尺寸）、`QuickAIAnswerView`（回答区）。
   - [Features/Translator/](Features/Translator/)：`TranslatorViewModel`（每个气泡一份：取词、截图识别、流式翻译、朗读）、`TranslatorState`（会话与提示）、`TranslatorView`（气泡内容）。
   - [Features/Settings/](Features/Settings/)：`SettingsViewModel`、`SettingsCategory`（侧边栏分类与可搜索的设置项名称）、`ShortcutFormatter`（快捷键展示，只用 Carbon 的键码常量）。
   - [Features/Shared/](Features/Shared/)：Quick AI 与翻译共用的 Markdown 解析与显示（`MarkdownParser`、`MarkdownBlockView`）与流式增量合并上屏（`StreamingTextBuffer`）。

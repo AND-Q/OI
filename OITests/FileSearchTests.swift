@@ -8,64 +8,67 @@ final class FileSearchTests: XCTestCase {
     // MARK: - Quick queries
 
     func testQuickQueryResolverEvaluatesArithmeticAndRejectsInvalidExpressions() {
+        let resolver = QuickQueryResolver(ipAddressProvider: MemoryLocalIPAddressProvider())
         XCTAssertEqual(
-            QuickQueryResolver.resolve("2 + 3 * (4 - 1)"),
+            resolver.resolve("2 + 3 * (4 - 1)"),
             .calculation(expression: "2 + 3 * (4 - 1)", value: "11")
         )
         XCTAssertEqual(
-            QuickQueryResolver.resolve("2^3^2"),
+            resolver.resolve("2^3^2"),
             .calculation(expression: "2^3^2", value: "512")
         )
         XCTAssertEqual(
-            QuickQueryResolver.resolve("-2^2"),
+            resolver.resolve("-2^2"),
             .calculation(expression: "-2^2", value: "-4")
         )
         XCTAssertEqual(
-            QuickQueryResolver.resolve("2＋3"),
+            resolver.resolve("2＋3"),
             .calculation(expression: "2＋3", value: "5")
         )
         XCTAssertEqual(
-            QuickQueryResolver.resolve("（2+3）"),
+            resolver.resolve("（2+3）"),
             .calculation(expression: "（2+3）", value: "5")
         )
-        XCTAssertNil(QuickQueryResolver.resolve("-1"))
-        XCTAssertNil(QuickQueryResolver.resolve("+86"))
-        XCTAssertNil(QuickQueryResolver.resolve("2026-09-24"))
-        XCTAssertNil(QuickQueryResolver.resolve("2024-05"))
-        XCTAssertNil(QuickQueryResolver.resolve("09-24"))
-        XCTAssertNil(QuickQueryResolver.resolve("3-1"))
-        XCTAssertNil(QuickQueryResolver.resolve("1-2"))
-        XCTAssertNil(QuickQueryResolver.resolve("1 / 0"))
-        XCTAssertNil(QuickQueryResolver.resolve("notes"))
+        XCTAssertNil(resolver.resolve("-1"))
+        XCTAssertNil(resolver.resolve("+86"))
+        XCTAssertNil(resolver.resolve("2026-09-24"))
+        XCTAssertNil(resolver.resolve("2024-05"))
+        XCTAssertNil(resolver.resolve("09-24"))
+        XCTAssertNil(resolver.resolve("3-1"))
+        XCTAssertNil(resolver.resolve("1-2"))
+        XCTAssertNil(resolver.resolve("1 / 0"))
+        XCTAssertNil(resolver.resolve("notes"))
     }
 
     /// 回归测试：两段斜杠是除法，不按日期排除；完整的年/月/日仍视为日期。
     func testQuickQueryResolverEvaluatesTwoPartSlashDivision() {
+        let resolver = QuickQueryResolver(ipAddressProvider: MemoryLocalIPAddressProvider())
         XCTAssertEqual(
-            QuickQueryResolver.resolve("1024/8"),
+            resolver.resolve("1024/8"),
             .calculation(expression: "1024/8", value: "128")
         )
         XCTAssertEqual(
-            QuickQueryResolver.resolve("3600/60"),
+            resolver.resolve("3600/60"),
             .calculation(expression: "3600/60", value: "60")
         )
         XCTAssertEqual(
-            QuickQueryResolver.resolve("10/4"),
+            resolver.resolve("10/4"),
             .calculation(expression: "10/4", value: "2.5")
         )
-        XCTAssertNil(QuickQueryResolver.resolve("2026/09/24"))
+        XCTAssertNil(resolver.resolve("2026/09/24"))
     }
 
     func testQuickQueryResolverRecognizesLocalIPAliases() {
-        guard case .localIPAddress = QuickQueryResolver.resolve("本机 IP") else {
-            return XCTFail("Expected the local IP quick query")
-        }
-        guard case .localIPAddress = QuickQueryResolver.resolve("ip") else {
-            return XCTFail("Expected the short IP alias")
-        }
-        guard case .localIPAddress = QuickQueryResolver.resolve("IP 查询") else {
-            return XCTFail("Expected the IP query alias")
-        }
+        let resolver = QuickQueryResolver(ipAddressProvider: MemoryLocalIPAddressProvider(address: "192.168.1.8"))
+
+        XCTAssertEqual(resolver.resolve("本机 IP"), .localIPAddress("192.168.1.8"))
+        XCTAssertEqual(resolver.resolve("ip"), .localIPAddress("192.168.1.8"))
+        XCTAssertEqual(resolver.resolve("IP 查询"), .localIPAddress("192.168.1.8"))
+        XCTAssertEqual(
+            QuickQueryResolver(ipAddressProvider: MemoryLocalIPAddressProvider()).resolve("ip"),
+            .localIPAddress(nil),
+            "取不到地址时仍显示本机 IP 一行"
+        )
     }
 
     func testViewModelKeepsApplicationAndFileResultsBelowQuickQuery() async {

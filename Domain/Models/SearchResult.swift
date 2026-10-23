@@ -39,15 +39,6 @@ enum SearchResult: Identifiable, Hashable, Sendable {
         return false
     }
 
-    /// SF Symbol fallback for results without a file-system URL (quick queries and web URLs).
-    var symbolName: String? {
-        switch self {
-        case .quickQuery(let result): return result.symbolName
-        case .webURL: return "globe"
-        case .application, .file: return nil
-        }
-    }
-
     /// Target directory for terminal operations: folders target themselves, files and applications target their containing directory.
     var terminalDirectory: URL? {
         switch self {
