@@ -287,6 +287,21 @@
 - **涉及文件**：
   - [Domain/Models/AppVersion.swift](Domain/Models/AppVersion.swift)、[Application/Ports/LatestReleaseFetching.swift](Application/Ports/LatestReleaseFetching.swift)、[Application/UseCases/CheckForUpdates.swift](Application/UseCases/CheckForUpdates.swift)、[Application/Errors/ApplicationError.swift](Application/Errors/ApplicationError.swift)、[Infrastructure/Update/GitHubReleaseFetcher.swift](Infrastructure/Update/GitHubReleaseFetcher.swift)、[Features/Shared/QuickAIMarkdownBlockView.swift](Features/Shared/QuickAIMarkdownBlockView.swift)、[Features/Launcher/QuickAIAnswerView.swift](Features/Launcher/QuickAIAnswerView.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[UI/Update/UpdateCheckController.swift](UI/Update/UpdateCheckController.swift)、[UI/StatusBar/StatusBarController.swift](UI/StatusBar/StatusBarController.swift)、[App/AppConfiguration.swift](App/AppConfiguration.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[App/AppCoordinator.swift](App/AppCoordinator.swift)、[OITests/UpdateCheckTests.swift](OITests/UpdateCheckTests.swift)、[OITests/StatusBarControllerTests.swift](OITests/StatusBarControllerTests.swift)
 
+## [x] 17. “用…打开”与多编辑器分流（Open With...）
+
+- **需求描述**：
+  - 搜索到某个项目文件夹、.md 文档或代码文件时，回车默认只能用系统关联 App 打开，无法便捷分流至专用编辑器。
+- **需要做到**：
+  - `Cmd+K` 动作菜单中支持“用其他 App 打开”（如用 VS Code、Cursor、Sublime、Finder 分流打开）；
+  - 动态列出支持该文件/文件夹类型的已安装应用：与 Finder「打开方式」相同的系统列表；文件夹没有「打开方式」，另列出已安装的常用编辑器。
+- **实现说明**：
+  - 菜单：[LauncherActionMenu](Features/Launcher/LauncherActionMenu.swift) 为文件与文件夹结果新增「用其他 App 打开…」（应用结果不提供，用编辑器打开 .app 包没有意义）；选中后由 [LauncherPanelController](UI/Panel/LauncherPanelController.swift) 弹出系统菜单，左上角对齐操作卡片的左下角，选中即用该 App 打开并收起面板；文件已被移动或删除时在面板上显示红色横幅，面板不收起；
+  - 列表：[FileOpening](Application/Ports/FileOpening.swift) 端口新增 `applications(toOpen:)` 与 `open(_:withApplicationAt:)`；[WorkspaceFileOpener](Infrastructure/Launch/WorkspaceFileOpener.swift) 用 `NSWorkspace` 取系统登记的能打开该文件的 App（与 Finder 右键「打开方式」一致），文件夹另补本机已安装的 VS Code、Cursor、Windsurf、Zed、Sublime Text、Xcode；同一 App 装有多个副本时按 Bundle ID 只保留一个；默认 App 在前并标注「（默认）」，其余按名称排序；
+  - 打开：[OpenFile](Application/UseCases/OpenFile.swift) 用例与 [LauncherViewModel](Features/Launcher/LauncherViewModel.swift) 与默认打开一样在后台进行，失败时以系统通知说明原因；
+  - 测试：文件与文件夹的菜单项、菜单项标题与图标、文件不存在时的提示、用所选 App 打开及失败通知。
+- **涉及文件**：
+  - [Application/Ports/FileOpening.swift](Application/Ports/FileOpening.swift)、[Application/UseCases/OpenFile.swift](Application/UseCases/OpenFile.swift)、[Infrastructure/Launch/WorkspaceFileOpener.swift](Infrastructure/Launch/WorkspaceFileOpener.swift)、[Features/Launcher/LauncherActionMenu.swift](Features/Launcher/LauncherActionMenu.swift)、[Features/Launcher/LauncherLayout.swift](Features/Launcher/LauncherLayout.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)、[UI/Panel/LauncherActionSheetView.swift](UI/Panel/LauncherActionSheetView.swift)、[UI/Panel/LauncherView.swift](UI/Panel/LauncherView.swift)、[OITests/FileSearchTests.swift](OITests/FileSearchTests.swift)、[OITests/LauncherActionMenuTests.swift](OITests/LauncherActionMenuTests.swift)
+
 ## [ ] 系统设置项直达
 
 - **需求描述**：
@@ -370,15 +385,6 @@
   - 只记录纯文本，跳过密码管理器等标记为敏感或临时的内容；
   - 短期保留（如 8 小时），可一键清除；
   - 支持模糊搜索，`Enter` 复制所选内容。
-
-## [ ] “用…打开”与多编辑器分流（Open With...）
-
-- **需求描述**：
-  - 搜索到某个项目文件夹、.md 文档或代码文件时，回车默认只能用系统关联 App 打开，无法便捷分流至专用编辑器。
-- **需要做到**：
-  - [x] `Cmd+K` 动作菜单中支持“用其他 App 打开”（如用 VS Code、Cursor、Sublime、Finder 分流打开）；
-  - [x] 动态列出支持该文件/文件夹类型的已安装应用：与 Finder「打开方式」相同的系统列表；文件夹没有「打开方式」，另列出已安装的常用编辑器；
-  - 记忆与置顶用户常用偏好。
 
 ## [ ] 截图翻译增强（定格画面、窗口检测、调整选框）
 
