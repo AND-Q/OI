@@ -80,8 +80,8 @@ final class SettingsViewModel: ObservableObject {
     private let translatorKeyStore: any APIKeyStoring
     private let translatorEnvironment: any TranslatorEnvironmentHandling
     private let appLanguageController: any AppLanguageControlling
-    /// OI 启动时的界面语言，即当前界面实际使用的语言。
-    private let launchAppLanguage: AppLanguage
+    /// OI 启动时界面实际使用的语言（简体中文或英文）。
+    private let launchInterfaceLanguage: AppLanguage
     private let listAIModels: ListAIModels?
     private var savedQuickAIAPIKey = ""
     private var savedTranslationAPIKey = ""
@@ -105,7 +105,7 @@ final class SettingsViewModel: ObservableObject {
         self.translatorKeyStore = translatorKeyStore
         self.translatorEnvironment = translatorEnvironment
         self.appLanguageController = appLanguageController
-        self.launchAppLanguage = appLanguageController.language
+        self.launchInterfaceLanguage = appLanguageController.interfaceLanguage(for: appLanguageController.language)
         self.appLanguage = appLanguageController.language
         self.listAIModels = listAIModels
         self.settings = settingsStore.load()
@@ -143,9 +143,10 @@ final class SettingsViewModel: ObservableObject {
         appLanguage = language
     }
 
-    /// 所选界面语言与当前界面使用的不同，需要重新打开 OI 才能生效；改回原来的语言即不再需要。
+    /// 所选界面语言实际生效后与当前界面使用的不同，需要重新打开 OI 才能生效；改回原来的语言，
+    /// 或改选的就是当前界面的语言（如中文系统上由跟随系统改选简体中文）时不需要。
     var isRelaunchNeededForAppLanguage: Bool {
-        appLanguage != launchAppLanguage
+        appLanguageController.interfaceLanguage(for: appLanguage) != launchInterfaceLanguage
     }
 
     /// 退出并重新打开 OI。

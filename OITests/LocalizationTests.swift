@@ -65,9 +65,35 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(controller.language, .system)
     }
 
+    /// 跟随系统时按系统的首选语言顺序取第一个 OI 提供的语言：繁体中文不改用简体，都没有时为英文。
+    func testFollowingSystemPicksFirstProvidedPreferredLanguage() throws {
+        let suiteName = "OITests-AppLanguage-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        func interfaceLanguage(_ systemLanguages: [String]) -> AppLanguage {
+            UserDefaultsAppLanguageController(defaults: defaults, domainName: suiteName, systemLanguages: systemLanguages)
+                .interfaceLanguage(for: .system)
+        }
+
+        XCTAssertEqual(interfaceLanguage(["zh-Hans-CN", "en-US"]), .simplifiedChinese)
+        XCTAssertEqual(interfaceLanguage(["zh-CN"]), .simplifiedChinese)
+        XCTAssertEqual(interfaceLanguage(["en-US", "zh-Hans-CN"]), .english)
+        XCTAssertEqual(interfaceLanguage(["ja-JP", "zh-Hans-CN"]), .simplifiedChinese)
+        XCTAssertEqual(interfaceLanguage(["zh-Hant-TW", "ja-JP"]), .english)
+        XCTAssertEqual(interfaceLanguage([]), .english)
+
+        let controller = UserDefaultsAppLanguageController(
+            defaults: defaults,
+            domainName: suiteName,
+            systemLanguages: ["zh-Hans-CN"]
+        )
+        XCTAssertEqual(controller.interfaceLanguage(for: .english), .english)
+        XCTAssertEqual(controller.interfaceLanguage(for: .simplifiedChinese), .simplifiedChinese)
+    }
+
     /// 改了界面语言即提示重新打开，改回启动时的语言不再提示；「立即重新打开」交给协调者处理。
     func testChangingLanguageAsksToRelaunchUntilChangedBack() {
-        let controller = MemoryAppLanguageController(language: .system)
+        let controller = MemoryAppLanguageController(language: .system, systemLanguage: .simplifiedChinese)
         let viewModel = SettingsViewModel(
             settingsStore: MemoryAppSettingsStore(),
             loginItemController: StubLoginItemController(),
@@ -88,6 +114,11 @@ final class LocalizationTests: XCTestCase {
 
         viewModel.setAppLanguage(.system)
         XCTAssertEqual(controller.language, .system)
+        XCTAssertFalse(viewModel.isRelaunchNeededForAppLanguage)
+
+        // 中文系统上改选简体中文：界面仍是简体中文，不需要重新打开。
+        viewModel.setAppLanguage(.simplifiedChinese)
+        XCTAssertEqual(controller.language, .simplifiedChinese)
         XCTAssertFalse(viewModel.isRelaunchNeededForAppLanguage)
     }
 
