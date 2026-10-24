@@ -3,7 +3,7 @@ import XCTest
 
 @testable import OI
 
-/// 英文界面：本地化资源已打包、界面语言的读写、设置面板的重新打开提示，以及随系统语言选定的默认翻译语言。
+/// 英文界面：本地化资源已打包、界面语言的读写、设置面板的重新打开提示，以及随首选语言选定的默认翻译语言。
 @MainActor
 final class LocalizationTests: XCTestCase {
     // MARK: - 本地化资源
