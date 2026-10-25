@@ -48,6 +48,11 @@ struct TranslateText {
         )
     }
 
+    /// 识别原文语言（BCP-47）；无法识别时为 nil。
+    func detectSourceLanguage(of text: String) -> String? {
+        languageDetector.dominantLanguageCode(of: text)
+    }
+
     /// 按当前划词翻译的接口设置翻译，并把译文增量逐段交给 `onDelta`。
     /// 接口地址或模型缺失时不发起请求，直接抛出未配置错误。
     func execute(_ request: TranslationRequest, onDelta: (String) -> Void) async throws {

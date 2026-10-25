@@ -207,7 +207,10 @@ final class TranslatorViewModel: ObservableObject {
         }
         guard let session, let text = session.speechText else { return }
         let speaker = self.speaker
-        let languageCode = session.sourceLanguageCode
+        // 修改过原文、尚未重新翻译时，记录的还是修改前原文的语言，按现在的原文重新识别。
+        let languageCode = session.state == .draft
+            ? translateText.detectSourceLanguage(of: text)
+            : session.sourceLanguageCode
         isSpeaking = true
         speechTask = Task { [weak self] in
             await speaker.speak(text, languageCode: languageCode)

@@ -361,6 +361,25 @@ final class TranslatorViewModelTests: TranslatorTestCase {
         XCTAssertEqual(speaker.cancelledCount, 0)
     }
 
+    /// 修改原文后尚未重新翻译时，按修改后的原文识别语言，选用对应的发音人。
+    func testSpeechAfterEditingUsesLanguageOfEditedSource() async throws {
+        let speaker = RecordingTextSpeaker()
+        let viewModel = makeTranslatorViewModel(
+            capturer: StubTextCapturer(selection: CapturedText(text: "Hello", source: .selection, screenRect: nil)),
+            detector: StubLanguageDetector(codes: ["Hello": "en", "Bonjour": "fr"]),
+            speaker: speaker
+        )
+        _ = await viewModel.captureFromShortcut()
+        viewModel.updateSourceText("Bonjour")
+
+        viewModel.toggleSpeech()
+        try await waitUntil { speaker.requests.count == 1 }
+        XCTAssertEqual(speaker.requests, [RecordingTextSpeaker.Request(text: "Bonjour", languageCode: "fr")])
+
+        speaker.finishSpeaking()
+        try await waitUntil { !viewModel.isSpeaking }
+    }
+
     /// 朗读中再按一次即停止；重新取词或气泡隐藏时也停止朗读上一段。
     func testSpeechStopsWhenToggledAgainOrSessionChanges() async throws {
         let speaker = RecordingTextSpeaker()
