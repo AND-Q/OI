@@ -8,6 +8,9 @@ import SwiftUI
 final class LauncherPanelController {
     private let viewModel: LauncherViewModel
     private let iconProvider: any IconProviding
+    /// 复制路径、链接、回答等写入的剪贴板，测试传入独立的剪贴板以免覆盖系统剪贴板。
+    /// 选中文字的 ⌘C 由文字控件自己写入系统剪贴板，不经这里。
+    private let pasteboard: NSPasteboard
     let quickLook = QuickLookPresenter()
     let panel: LauncherPanel
     private let animationCoordinator: PanelAnimationCoordinator
@@ -21,10 +24,12 @@ final class LauncherPanelController {
 
     init(
         viewModel: LauncherViewModel,
-        iconProvider: any IconProviding
+        iconProvider: any IconProviding,
+        pasteboard: NSPasteboard = .general
     ) {
         self.viewModel = viewModel
         self.iconProvider = iconProvider
+        self.pasteboard = pasteboard
 
         let compactRect = NSRect(
             x: 0,
@@ -610,8 +615,8 @@ final class LauncherPanelController {
     }
 
     private func writeToPasteboard(_ value: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(value, forType: .string)
+        pasteboard.clearContents()
+        pasteboard.setString(value, forType: .string)
     }
 
     /// 面板里唯一的文本输入是检索框，字段编辑器为第一响应者即表示焦点在输入框。

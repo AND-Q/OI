@@ -181,9 +181,12 @@ final class LauncherPanelControllerTests: XCTestCase {
 
     func testLauncherPanelControllerRevealWebURLCopiesLinkAndDismisses() throws {
         let viewModel = makeViewModel(with: [])
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceIconProvider()
+            iconProvider: WorkspaceIconProvider(),
+            pasteboard: pasteboard
         )
         defer { controller.stop() }
 
@@ -192,7 +195,7 @@ final class LauncherPanelControllerTests: XCTestCase {
 
         controller.reveal(.webURL(URL(string: "https://github.com")!))
 
-        XCTAssertEqual(NSPasteboard.general.string(forType: .string), "https://github.com")
+        XCTAssertEqual(pasteboard.string(forType: .string), "https://github.com")
         XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
     }
 

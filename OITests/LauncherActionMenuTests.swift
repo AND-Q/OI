@@ -256,9 +256,12 @@ final class LauncherActionMenuTests: XCTestCase {
     func testOptionCommandCCopiesPathForFileResult() async throws {
         let app = AppDescriptor(name: "PathApp", url: URL(fileURLWithPath: "/Applications/PathApp.app"), bundleIdentifier: "com.test.pathapp")
         let viewModel = makeViewModel(with: [app])
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
         let controller = LauncherPanelController(
             viewModel: viewModel,
-            iconProvider: WorkspaceIconProvider()
+            iconProvider: WorkspaceIconProvider(),
+            pasteboard: pasteboard
         )
         defer { controller.stop() }
         controller.show()
@@ -280,7 +283,7 @@ final class LauncherActionMenuTests: XCTestCase {
             )
         )
         XCTAssertNil(controller.handleKeyDown(event))
-        XCTAssertEqual(NSPasteboard.general.string(forType: .string), "/Applications/PathApp.app")
+        XCTAssertEqual(pasteboard.string(forType: .string), "/Applications/PathApp.app")
         XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
     }
 
