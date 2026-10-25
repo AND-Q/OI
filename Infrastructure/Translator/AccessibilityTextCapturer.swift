@@ -1,8 +1,9 @@
 import AppKit
 import ApplicationServices
+import Carbon.HIToolbox
 import os
 
-/// 用辅助功能 API 读取其他应用中的文字，用剪贴板兜底。
+/// 用辅助功能 API 读取其他应用中的文字，读不到选区时模拟 ⌘C，用剪贴板兜底。
 /// 原生文本控件走字符区间属性（`AXSelectedText`、`AXRangeForPosition` 等）；WebKit 与 Chromium
 /// 的网页内容不提供字符区间，改用文本标记（text marker）属性。安全输入框（密码）一律不读取。
 struct AccessibilityTextCapturer: TextCapturing {
@@ -17,6 +18,12 @@ struct AccessibilityTextCapturer: TextCapturing {
     /// 取词时从命中的容器向下查找文字元素的最大层数，以及每层最多检查的子元素数。
     private static let maximumDescendantDepth = 4
     private static let maximumChildrenScanned = 64
+    /// 模拟 ⌘C 后等待前台应用写入剪贴板的上限：Chrome 等跨进程复制，写入稍有延迟；
+    /// 没有选中文字时应用不改动剪贴板，等满即放弃。
+    private static let copyTimeout: Duration = .milliseconds(300)
+    private static let copyPollInterval: Duration = .milliseconds(10)
+    /// 正在模拟 ⌘C：连按快捷键时后一次不再复制，以免把前一次复制出的选区当作剪贴板原有的内容保存并恢复。
+    @MainActor private static var isCopying = false
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "OI", category: "Translator")
 
     func selectedText() async -> CapturedText? {
@@ -35,12 +42,38 @@ struct AccessibilityTextCapturer: TextCapturing {
         }.value
     }
 
+    /// 模拟 ⌘C 让前台应用自己复制选中的文字，读出后立即恢复剪贴板原来的内容（剪贴板管理器仍可能记下这一次复制）。
+    /// 没有选中文字时应用不改动剪贴板，等待超时即返回 nil。OI 自己的窗口（如固定的气泡）是 key 时
+    /// 按键会发给 OI，不模拟。
+    @MainActor
+    func copiedSelection() async -> CapturedText? {
+        guard !Self.isCopying, NSApp.keyWindow == nil, Self.frontmostForeignProcessID() != nil,
+              !IsSecureEventInputEnabled() else { return nil }
+        Self.isCopying = true
+        defer { Self.isCopying = false }
+        let pasteboard = NSPasteboard.general
+        let changeCount = pasteboard.changeCount
+        let savedItems = Self.savedItems(of: pasteboard)
+        Self.postCopyShortcut()
+
+        let clock = ContinuousClock()
+        let deadline = clock.now + Self.copyTimeout
+        // 应用先清空剪贴板再写入内容，两步之间读不到文字，等到有内容为止。
+        while pasteboard.changeCount == changeCount || (pasteboard.types ?? []).isEmpty,
+              clock.now < deadline, !Task.isCancelled {
+            try? await Task.sleep(for: Self.copyPollInterval)
+        }
+        guard pasteboard.changeCount != changeCount else { return nil }
+        let copied = Self.copiedText(in: pasteboard)
+        Self.restore(savedItems, to: pasteboard)
+        guard let copied, let cleaned = CapturedText.cleaned(copied) else { return nil }
+        return CapturedText(text: cleaned, source: .selection, screenRect: nil)
+    }
+
     @MainActor
     func clipboardText() -> CapturedText? {
         let pasteboard = NSPasteboard.general
-        // nspasteboard.org 约定：密码管理器复制的敏感内容带此标记，不读取也就不会发送出去。
-        let concealedType = NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
-        if pasteboard.types?.contains(concealedType) == true { return nil }
+        if Self.isConcealed(pasteboard) { return nil }
         guard let text = pasteboard.string(forType: .string), let cleaned = CapturedText.cleaned(text) else {
             return nil
         }
@@ -315,6 +348,59 @@ struct AccessibilityTextCapturer: TextCapturing {
 
     private static func describe(_ rect: CGRect) -> String {
         String(format: "(%.0f, %.0f, %.0f×%.0f)", rect.minX, rect.minY, rect.width, rect.height)
+    }
+
+    // MARK: - 模拟 ⌘C
+
+    /// 剪贴板现有内容的副本：逐项、逐类型读出数据。原来的各项属于剪贴板，清空后不能直接写回。
+    @MainActor
+    static func savedItems(of pasteboard: NSPasteboard) -> [NSPasteboardItem] {
+        (pasteboard.pasteboardItems ?? []).map { item in
+            let copy = NSPasteboardItem()
+            for type in item.types {
+                if let data = item.data(forType: type) {
+                    copy.setData(data, forType: type)
+                }
+            }
+            return copy
+        }
+    }
+
+    /// 把 `savedItems(of:)` 保存的内容写回剪贴板。
+    @MainActor
+    static func restore(_ items: [NSPasteboardItem], to pasteboard: NSPasteboard) {
+        pasteboard.clearContents()
+        if !items.isEmpty {
+            pasteboard.writeObjects(items)
+        }
+    }
+
+    /// 模拟 ⌘C 后复制出的文字。复制出的是文件（如在 Finder 中选中了文件）或被标记为敏感的内容时为 nil。
+    @MainActor
+    static func copiedText(in pasteboard: NSPasteboard) -> String? {
+        guard !isConcealed(pasteboard), pasteboard.types?.contains(.fileURL) != true else { return nil }
+        return pasteboard.string(forType: .string)
+    }
+
+    /// nspasteboard.org 约定：密码管理器复制的敏感内容带此标记，不读取也就不会发送出去。
+    @MainActor
+    private static func isConcealed(_ pasteboard: NSPasteboard) -> Bool {
+        pasteboard.types?.contains(NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")) == true
+    }
+
+    /// 模拟按下并松开 ⌘C。只带 ⌘：用户此时可能还按着翻译快捷键的修饰键（如 ⌥D 的 ⌥），
+    /// 混入后会变成 ⌥⌘C 等应用的其他快捷键。
+    private static func postCopyShortcut() {
+        let source = CGEventSource(stateID: .privateState)
+        for isKeyDown in [true, false] {
+            guard let event = CGEvent(
+                keyboardEventSource: source,
+                virtualKey: CGKeyCode(kVK_ANSI_C),
+                keyDown: isKeyDown
+            ) else { continue }
+            event.flags = .maskCommand
+            event.post(tap: .cghidEventTap)
+        }
     }
 
     // MARK: - 辅助功能工具方法

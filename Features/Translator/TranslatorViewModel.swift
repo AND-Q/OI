@@ -67,6 +67,7 @@ final class TranslatorViewModel: ObservableObject {
     }
 
     /// 快捷键触发：优先翻译前台应用中选中的文字，未选中时翻译剪贴板；两者都没有时只展示提示。
+    /// 辅助功能读不到选区时（如 Chrome 网页、预览中的 PDF）模拟 ⌘C 复制选中的文字，读出后即恢复剪贴板。
     /// 返回气泡的展示位置；被更新的一次触发取代时返回 nil。
     func captureFromShortcut() async -> TranslatorPresentation? {
         let generation = beginCapture()
@@ -74,6 +75,9 @@ final class TranslatorViewModel: ObservableObject {
         var selection: CapturedText?
         if isTrusted {
             selection = await textCapturer.selectedText()
+            if selection == nil, generation == captureGeneration {
+                selection = await textCapturer.copiedSelection()
+            }
         }
         guard generation == captureGeneration else { return nil }
 

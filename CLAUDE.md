@@ -146,7 +146,7 @@ App -> UI -> Features / Application / Domain
   - [Infrastructure/FileSearch/](Infrastructure/FileSearch/)：基于系统 Spotlight 索引（`MDQuery`）的文件搜索（[Infrastructure/FileSearch/SpotlightFileSearcher.swift](Infrastructure/FileSearch/SpotlightFileSearcher.swift)）。
   - [Infrastructure/Launch/](Infrastructure/Launch/)：基于 `NSWorkspace` 的应用启动、文件与网址打开（`WorkspaceApplicationLauncher`、`WorkspaceFileOpener`、`WorkspaceURLOpener`）。
   - [Infrastructure/AI/](Infrastructure/AI/)：OpenAI 兼容接口的流式客户端（`OpenAICompatibleAIClient`，也负责读取模型列表）与钥匙串中的 API Key 存储（`KeychainAPIKeyStore`，Quick AI 与翻译各存一份）。
-  - [Infrastructure/Translator/](Infrastructure/Translator/)：辅助功能取词（`AccessibilityTextCapturer`）、取不到时模拟双击选词（`DoubleClickWordSelector`）、触控板用力点按监听（`GlobalForceTouchMonitor`）、语种识别（`NaturalLanguageDetector`）、截图识字（`VisionScreenTextRecognizer`，ScreenCaptureKit + Vision）、发音朗读（`SystemTextSpeaker`，`AVSpeechSynthesizer`）、权限状态与授权流程（`SystemTranslatorEnvironment`）。
+  - [Infrastructure/Translator/](Infrastructure/Translator/)：辅助功能取词（`AccessibilityTextCapturer`，读不到选区时模拟 `⌘C`）、取不到时模拟双击选词（`DoubleClickWordSelector`）、触控板用力点按监听（`GlobalForceTouchMonitor`）、语种识别（`NaturalLanguageDetector`）、截图识字（`VisionScreenTextRecognizer`，ScreenCaptureKit + Vision）、发音朗读（`SystemTextSpeaker`，`AVSpeechSynthesizer`）、权限状态与授权流程（`SystemTranslatorEnvironment`）。
   - [Infrastructure/Shortcut/](Infrastructure/Shortcut/)：基于 Carbon API 的全局热键注册，每个快捷键一个实例，按热键 ID 区分。
   - [Infrastructure/Settings/](Infrastructure/Settings/)：基于 `UserDefaults` 的设置存储，以及经本应用 `AppleLanguages` 偏好指定的界面语言（`UserDefaultsAppLanguageController`）。
   - [Infrastructure/Usage/](Infrastructure/Usage/)：基于 `UserDefaults` 的应用使用历史持久化存储。

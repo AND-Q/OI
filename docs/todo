@@ -401,6 +401,23 @@
 - **涉及文件**：
   - [Localizable.xcstrings](Localizable.xcstrings)、[InfoPlist.xcstrings](InfoPlist.xcstrings)、[Application/Ports/AppLanguageControlling.swift](Application/Ports/AppLanguageControlling.swift)、[Infrastructure/Settings/UserDefaultsAppLanguageController.swift](Infrastructure/Settings/UserDefaultsAppLanguageController.swift)、[Domain/Models/TranslationLanguage.swift](Domain/Models/TranslationLanguage.swift)、[Infrastructure/Settings/UserDefaultsAppSettingsStore.swift](Infrastructure/Settings/UserDefaultsAppSettingsStore.swift)、[Features/Settings/SettingsViewModel.swift](Features/Settings/SettingsViewModel.swift)、[UI/Settings/SettingsView.swift](UI/Settings/SettingsView.swift)、[App/AppCoordinator.swift](App/AppCoordinator.swift)、[App/AppDependencies.swift](App/AppDependencies.swift)、[OITests/LocalizationTests.swift](OITests/LocalizationTests.swift)，以及各层含界面文字的文件
 
+## [x] 24. 读不到选区时模拟 ⌘C 复制
+
+- **需求描述**：
+  - Chrome 网页、预览中的 PDF 等应用用辅助功能读不到选中的文字，选中后按 `⌥D` 翻译的却是剪贴板。Chrome 只在收到某些辅助功能查询（如用力点按取词时按坐标找元素）后才生成网页的辅助功能树，`AXManualAccessibility` 唤不醒它，重开 Chrome 后又读不到；预览的 PDF 则始终读不到。
+- **需要做到**：
+  - 辅助功能读不到选区时，模拟按一次 `⌘C` 让应用自己复制选中的文字并翻译，读出后立即恢复剪贴板原来的内容；
+  - 没有选中文字时照常翻译原来的剪贴板；辅助功能能读到选区的应用不按 `⌘C`、不碰剪贴板；用力点按的双击选词仍不按 `⌘C`；
+  - 不在密码输入时模拟；不把复制出的文件当作文字。
+- **实现说明**：
+  - 端口：[TextCapturing](Application/Ports/TextCapturing.swift) 新增 `copiedSelection()`；[TranslatorViewModel](Features/Translator/TranslatorViewModel.swift) 的快捷键取词在辅助功能读不到选区、且未被更新的一次触发取代时调用它，仍读不到再翻译剪贴板；未获辅助功能权限时不模拟（发送按键同样需要这项权限）；
+  - 复制：[AccessibilityTextCapturer](Infrastructure/Translator/AccessibilityTextCapturer.swift) 先逐项、逐类型保存剪贴板内容，再以私有事件源发送只带 `⌘` 的 `⌘C`（用户还按着翻译快捷键的 `⌥`，混入后会变成 `⌥⌘C`），每 10ms 查看一次剪贴板，最多 0.3 秒；应用先清空再写入，等到剪贴板变化且有内容为止；读出文字后立即写回保存的内容，剪贴板变化过就恢复（应用清空后没有写入也恢复）。复制出的带文件地址（如 Finder 中选中的文件）或 `org.nspasteboard.ConcealedType` 标记时不当作文字；安全输入状态下、OI 自己的窗口（如固定的气泡）为 key 时不模拟（按键会发给 OI）；连按快捷键时进行中的复制尚未结束则后一次不再复制，避免把前一次复制出的选区当作原有内容保存；复制到的选区不知道位置，气泡贴着指针弹出；
+  - 已知代价：剪贴板管理器可能记下这一次复制；VS Code 等编辑器未选中时 `⌘C` 复制整行，未选中就按 `⌥D` 翻译的是当前行；应用超过 0.3 秒才写入剪贴板时放弃等待，这次复制不会被恢复；
+  - 文档：[README](README.md)（含[英文版](README.en.md)）与[使用指南](docs/OI%20使用指南.md)的隐私说明写明这次 `⌘C` 与剪贴板恢复，使用指南补充触发方式与常见问题 Q9；
+  - 测试：剪贴板逐项、逐类型保存与恢复（含原本为空），复制出文件或敏感内容时不当作文字，视图模型在读不到选区时使用复制到的文字、未授权时不模拟。
+- **涉及文件**：
+  - [Application/Ports/TextCapturing.swift](Application/Ports/TextCapturing.swift)、[Infrastructure/Translator/AccessibilityTextCapturer.swift](Infrastructure/Translator/AccessibilityTextCapturer.swift)、[Features/Translator/TranslatorViewModel.swift](Features/Translator/TranslatorViewModel.swift)、[OITests/TextCaptureTests.swift](OITests/TextCaptureTests.swift)、[OITests/TranslatorViewModelTests.swift](OITests/TranslatorViewModelTests.swift)、[OITests/TranslatorTestSupport.swift](OITests/TranslatorTestSupport.swift)
+
 ## [ ] 系统设置项直达
 
 - **需求描述**：

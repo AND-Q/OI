@@ -43,6 +43,28 @@ final class TranslatorViewModelTests: TranslatorTestCase {
         XCTAssertNil(viewModel.notice)
     }
 
+    /// 辅助功能读不到选区时翻译模拟 ⌘C 复制到的选中文字，不知道其位置；未授权时不模拟，直接翻译剪贴板。
+    func testShortcutTranslatesCopiedSelectionWhenAccessibilityCannotReadIt() async {
+        let capturer = StubTextCapturer(
+            copied: CapturedText(text: "copied selection", source: .selection, screenRect: nil),
+            clipboard: CapturedText(text: "剪贴板", source: .clipboard, screenRect: nil)
+        )
+        let viewModel = makeTranslatorViewModel(capturer: capturer)
+        let untrusted = makeTranslatorViewModel(
+            capturer: capturer,
+            environment: MemoryTranslatorEnvironment(isAccessibilityTrusted: false)
+        )
+
+        let presentation = await viewModel.captureFromShortcut()
+        _ = await untrusted.captureFromShortcut()
+
+        XCTAssertEqual(presentation, TranslatorPresentation(anchorRect: nil))
+        XCTAssertEqual(viewModel.session?.sourceText, "copied selection")
+        XCTAssertEqual(viewModel.session?.source, .selection)
+        XCTAssertNil(viewModel.notice)
+        XCTAssertEqual(untrusted.session?.sourceText, "剪贴板")
+    }
+
     /// 未授权时读不到选区：直接翻译剪贴板，并提示原因，避免用户误以为翻译的是选中的文字。
     func testShortcutWithoutAccessibilityTranslatesClipboardWithNotice() async {
         let viewModel = makeTranslatorViewModel(

@@ -5,7 +5,7 @@ import XCTest
 
 @testable import OI
 
-/// 取词：单词边界、待翻译文字的整理与双击选词。
+/// 取词：单词边界、待翻译文字的整理、模拟 ⌘C 时剪贴板的保存与恢复，以及双击选词。
 @MainActor
 final class TextCaptureTests: TranslatorTestCase {
     // MARK: - 单词边界
@@ -42,6 +42,58 @@ final class TextCaptureTests: TranslatorTestCase {
         XCTAssertEqual(CapturedText.cleaned("  hi \n"), "hi")
         let long = String(repeating: "a", count: CapturedText.maximumLength + 10)
         XCTAssertEqual(CapturedText.cleaned(long)?.count, CapturedText.maximumLength)
+    }
+
+    // MARK: - 模拟 ⌘C
+
+    /// 模拟 ⌘C 前保存的剪贴板内容逐项、逐类型写回；原来为空时恢复为空。
+    func testSavedPasteboardItemsAreRestoredWithAllTypes() throws {
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        let custom = NSPasteboard.PasteboardType("com.example.oi-test")
+        let first = NSPasteboardItem()
+        first.setString("原来的文字", forType: .string)
+        first.setData(Data([1, 2, 3]), forType: custom)
+        let second = NSPasteboardItem()
+        second.setString("第二项", forType: .string)
+        pasteboard.clearContents()
+        pasteboard.writeObjects([first, second])
+
+        let saved = AccessibilityTextCapturer.savedItems(of: pasteboard)
+        pasteboard.clearContents()
+        pasteboard.setString("复制的选区", forType: .string)
+        AccessibilityTextCapturer.restore(saved, to: pasteboard)
+
+        let items = try XCTUnwrap(pasteboard.pasteboardItems)
+        XCTAssertEqual(items.count, 2)
+        XCTAssertEqual(items.first?.string(forType: .string), "原来的文字")
+        XCTAssertEqual(items.first?.data(forType: custom), Data([1, 2, 3]))
+        XCTAssertEqual(items.last?.string(forType: .string), "第二项")
+
+        pasteboard.clearContents()
+        let empty = AccessibilityTextCapturer.savedItems(of: pasteboard)
+        pasteboard.setString("复制的选区", forType: .string)
+        AccessibilityTextCapturer.restore(empty, to: pasteboard)
+        XCTAssertNil(pasteboard.string(forType: .string))
+    }
+
+    /// 复制出的是文件或被标记为敏感的内容时不当作选中的文字。
+    func testCopiedTextIgnoresFilesAndConcealedContent() {
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+
+        pasteboard.clearContents()
+        pasteboard.setString("selected", forType: .string)
+        XCTAssertEqual(AccessibilityTextCapturer.copiedText(in: pasteboard), "selected")
+
+        pasteboard.clearContents()
+        pasteboard.writeObjects([URL(fileURLWithPath: "/Applications/Safari.app") as NSURL])
+        XCTAssertNil(AccessibilityTextCapturer.copiedText(in: pasteboard), "在 Finder 中选中的是文件")
+
+        pasteboard.clearContents()
+        pasteboard.setString("secret", forType: .string)
+        pasteboard.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+        XCTAssertNil(AccessibilityTextCapturer.copiedText(in: pasteboard))
     }
 
     // MARK: - 双击选词

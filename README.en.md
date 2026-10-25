@@ -115,6 +115,7 @@ Enter the API endpoint, model, and API key in **Settings… → Quick AI** and *
 
 - App search, file search, and quick queries run locally. Search terms and opened files are not recorded; only app launch counts and last-used times are kept for ranking, and you can turn that off in Settings.
 - Your question or the original text is sent to the API you entered only when you ask Quick AI or translate. Screenshots are recognized on your Mac and are never saved or uploaded; only the recognized text is sent.
+- If Accessibility can't read the selected text when you press `⌥D` (in Chrome pages or PDFs in Preview, for example), OI presses `⌘C` once to read the selection, then immediately puts back what was on your clipboard. Clipboard managers may still record that copy.
 - Beyond that, OI only reads the model list from the API you entered when you click **Fetch Models** or **Test Connection** in Settings (no questions or text are sent), and only contacts GitHub when you choose **Check for Updates…**.
 
 ## FAQ

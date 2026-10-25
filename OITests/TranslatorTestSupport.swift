@@ -101,6 +101,8 @@ struct StubLanguageDetector: LanguageDetecting {
 
 struct StubTextCapturer: TextCapturing {
     var selection: CapturedText?
+    /// 辅助功能读不到选区时模拟 ⌘C 复制到的文字。
+    var copied: CapturedText?
     var wordAtPoint: CapturedText?
     /// 点按处没有单词时的取词结果。
     var lookupWithoutWord: WordLookup = .notOnText
@@ -108,6 +110,11 @@ struct StubTextCapturer: TextCapturing {
 
     func selectedText() async -> CapturedText? {
         selection
+    }
+
+    @MainActor
+    func copiedSelection() async -> CapturedText? {
+        copied
     }
 
     func word(at point: CGPoint) async -> WordLookup {
