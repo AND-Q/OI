@@ -13,6 +13,9 @@ struct LauncherView: View {
         VStack(spacing: 0) {
             searchBar
                 .frame(height: LauncherLayout.searchHeight)
+                // Quick AI 模式下按住输入框以外的空白处拖动面板；检索模式下面板不可拖动。
+                .contentShape(Rectangle())
+                .gesture(WindowDragGesture(), including: viewModel.isQuickAIModeActive ? .all : .subviews)
 
             // 窗口高度由动画协调器逐帧设置，内容只是填满每帧发布的空间，因此不会与窗口边缘错位。
             // 是否挂载只跟随输入是否展开：列表在第一帧几何更新之前就已创建，而不是在动画中途创建

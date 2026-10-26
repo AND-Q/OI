@@ -111,6 +111,40 @@ final class PanelAnimationCoordinatorTests: XCTestCase {
         XCTAssertEqual(panel.alphaValue, 1)
     }
 
+    func testDraggedPanelKeepsTopLeftWhenResizingUntilMovedBackToDefaultPosition() throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("没有可用的显示器") }
+        let panel = LauncherPanel(
+            contentRect: NSRect(x: 0, y: 0, width: LauncherLayout.width, height: LauncherLayout.searchHeight),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        let animation = PanelAnimationCoordinator(
+            panel: panel,
+            initialHeight: LauncherLayout.searchHeight,
+            reduceMotion: { true }
+        )
+        animation.screen = screen
+        animation.moveToDefaultPosition(height: LauncherLayout.searchHeight)
+        panel.orderFrontRegardless()
+        defer { panel.orderOut(nil) }
+
+        // 用户拖动：不经协调者移动面板。
+        let visibleFrame = screen.visibleFrame
+        let draggedTopLeft = NSPoint(x: visibleFrame.minX + 40, y: visibleFrame.maxY - 40)
+        panel.setFrameTopLeftPoint(draggedTopLeft)
+
+        let quickAIHeight = LauncherLayout.totalHeight(isExpanded: true, content: .quickAI)
+        animation.resize(toHeight: quickAIHeight)
+        XCTAssertEqual(panel.frame.height, quickAIHeight)
+        XCTAssertEqual(panel.frame.minX, draggedTopLeft.x)
+        XCTAssertEqual(panel.frame.maxY, draggedTopLeft.y)
+
+        // 再次呼出时回到默认位置，不记忆拖动后的位置。
+        animation.moveToDefaultPosition(height: quickAIHeight)
+        XCTAssertEqual(panel.frame, PanelAnimationCoordinator.frame(for: screen, height: quickAIHeight))
+    }
+
     func testScreenClosedBoundaryCheckIncludesScreenMaxBoundaries() {
         let screenRect = NSRect(x: 0, y: 0, width: 1470, height: 956)
         let topEdgePoint = NSPoint(x: 500, y: 956)

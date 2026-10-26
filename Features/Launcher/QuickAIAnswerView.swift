@@ -53,8 +53,11 @@ struct QuickAIAnswerView: View {
                 }
             }
 
+            // 按住页脚拖动面板，方便对照屏幕内容看回答；回答区留给选中文字。
             footer
                 .frame(height: LauncherLayout.quickAIFooterHeight)
+                .contentShape(Rectangle())
+                .gesture(WindowDragGesture())
         }
     }
 

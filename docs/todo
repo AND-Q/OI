@@ -418,6 +418,21 @@
 - **涉及文件**：
   - [Application/Ports/TextCapturing.swift](Application/Ports/TextCapturing.swift)、[Infrastructure/Translator/AccessibilityTextCapturer.swift](Infrastructure/Translator/AccessibilityTextCapturer.swift)、[Features/Translator/TranslatorViewModel.swift](Features/Translator/TranslatorViewModel.swift)、[OITests/TextCaptureTests.swift](OITests/TextCaptureTests.swift)、[OITests/TranslatorViewModelTests.swift](OITests/TranslatorViewModelTests.swift)、[OITests/TranslatorTestSupport.swift](OITests/TranslatorTestSupport.swift)
 
+## [x] 25. Quick AI 面板支持拖动
+
+- **需求描述**：
+  - 按 `Tab` 进入 Quick AI 问答模式后，面板可以拖动，方便边对照屏幕内容边查看回答。
+- **需要做到**：
+  - 仅在按 `Tab` 进入 Quick AI 模式后面板可拖动，普通搜索模式下不可拖动；
+  - 不记忆拖动后的位置，下次打开时仍回到原来的默认位置。
+- **实现说明**：
+  - 拖动区域：与翻译气泡相同，用 `WindowDragGesture`；[LauncherView](UI/Panel/LauncherView.swift) 的输入行只在 Quick AI 模式下启用（按住输入框以外的空白处或右侧的图标），[QuickAIAnswerView](Features/Launcher/QuickAIAnswerView.swift) 的页脚整行可拖；输入框与回答区不可拖，留给编辑问题和选中回答；
+  - 位置：[PanelAnimationCoordinator](UI/Panel/PanelAnimationCoordinator.swift) 监听面板的移动通知，不是 OI 自己设置几何（经 `setPanelFrame`）时即视为用户拖动；拖动过的面板调整高度时左上角留在放下的位置（按当前位置计算，并限制在所在屏幕可见区域的上下边缘内）；拖动后按 `Tab` 返回检索，面板留在原处、列表向下展开，直到关闭；
+  - 复位：[LauncherPanelController](UI/Panel/LauncherPanelController.swift) 每次呼出经 `moveToDefaultPosition` 放回默认位置并清除拖动记录；
+  - 测试：拖动后调整高度保持左上角，放回默认位置后与默认几何一致。
+- **涉及文件**：
+  - [UI/Panel/PanelAnimationCoordinator.swift](UI/Panel/PanelAnimationCoordinator.swift)、[UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)、[UI/Panel/LauncherView.swift](UI/Panel/LauncherView.swift)、[Features/Launcher/QuickAIAnswerView.swift](Features/Launcher/QuickAIAnswerView.swift)、[OITests/PanelAnimationCoordinatorTests.swift](OITests/PanelAnimationCoordinatorTests.swift)
+
 ## [ ] 系统设置项直达
 
 - **需求描述**：
@@ -446,14 +461,6 @@
   - 设置窗口中可为任意 App 添加、删除别名（如 `ps` → Photoshop、`wyy` → 网易云音乐），别名立即参与检索；
   - 可将 App 从结果中隐藏，并在设置中查看与恢复；
   - `Cmd+K` 菜单提供「添加别名…」与「从结果中隐藏」。
-
-## [ ] Quick AI 面板支持拖动
-
-- **需求描述**：
-  - 按 `Tab` 进入 Quick AI 问答模式后，面板可以拖动，方便边对照屏幕内容边查看回答。
-- **需要做到**：
-  - 仅在按 `Tab` 进入 Quick AI 模式后面板可拖动，普通搜索模式下不可拖动；
-  - 不记忆拖动后的位置，下次打开时仍回到原来的默认位置。
 
 ## [ ] 快捷链接与网页搜索增强
 

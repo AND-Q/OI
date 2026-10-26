@@ -40,10 +40,19 @@ final class PanelAnimationCoordinator: ObservableObject {
         from: CGFloat, to: CGFloat, startTime: CFTimeInterval, duration: TimeInterval, completion: (() -> Void)?
     )?
     private var isDismissing = false
+    /// 用户拖动过面板（只有 Quick AI 模式下能拖动，见 LauncherView）：左上角留在放下的位置，
+    /// 高度变化时向下伸缩。每次呼出面板时复位，不记忆拖动后的位置。
+    private var isMoved = false
+    /// 正在由 OI 自己设置面板几何：期间的移动通知不是用户拖动。
+    private var isApplyingFrame = false
+    private var moveObservers: [any NSObjectProtocol] = []
 
     /// 持有者释放时若动画仍在进行，打破时钟与 CADisplayLink 目标之间的循环引用。
     isolated deinit {
         clock?.stop()
+        for observer in moveObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
 
     init(
@@ -59,6 +68,13 @@ final class PanelAnimationCoordinator: ObservableObject {
         let radius = Self.cornerRadius(forHeight: initialHeight)
         self.cornerRadius = radius
         updateLayerCornerRadius(radius)
+        moveObservers = [NSWindow.willMoveNotification, NSWindow.didMoveNotification].map { name in
+            NotificationCenter.default.addObserver(forName: name, object: panel, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.panelDidMove()
+                }
+            }
+        }
     }
 
     var isDismissalInProgress: Bool { isDismissing }
@@ -75,15 +91,49 @@ final class PanelAnimationCoordinator: ObservableObject {
     static func frame(for screen: NSScreen?, height: CGFloat) -> NSRect {
         let visibleFrame = screen?.visibleFrame
             ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let x = visibleFrame.midX - LauncherLayout.width / 2
-        let y = visibleFrame.maxY - Layout.topGap - height
+        return frame(
+            topLeft: NSPoint(x: visibleFrame.midX - LauncherLayout.width / 2, y: visibleFrame.maxY - Layout.topGap),
+            height: height,
+            within: visibleFrame
+        )
+    }
+
+    /// 左上角固定在 `topLeft`，高度向下增长；超出屏幕可见区域的上下边缘时整体移回区域内。
+    private static func frame(topLeft: NSPoint, height: CGFloat, within visibleFrame: NSRect) -> NSRect {
+        let y = topLeft.y - height
         let clampedY = max(visibleFrame.minY, min(y, visibleFrame.maxY - height))
         return NSRect(
-            x: x.rounded(),
+            x: topLeft.x.rounded(),
             y: clampedY.rounded(),
             width: LauncherLayout.width,
             height: height.rounded()
         )
+    }
+
+    /// 面板在 `height` 下的位置：拖动过时左上角留在放下的位置（按当前位置计算，拖动途中调整高度也不会跳回），
+    /// 否则为默认位置。
+    func frame(forHeight height: CGFloat) -> NSRect {
+        guard isMoved, let visibleFrame = (panel.screen ?? screen)?.visibleFrame else {
+            return Self.frame(for: screen, height: height)
+        }
+        return Self.frame(
+            topLeft: NSPoint(x: panel.frame.minX, y: panel.frame.maxY),
+            height: height,
+            within: visibleFrame
+        )
+    }
+
+    /// 把面板放回 `screen` 上的默认位置并清除拖动记录；每次呼出面板时调用。
+    func moveToDefaultPosition(height: CGFloat) {
+        isMoved = false
+        setPanelFrame(Self.frame(for: screen, height: height), display: true)
+    }
+
+    /// OI 自己设置面板几何都经过这里，期间的移动通知不算用户拖动。
+    func setPanelFrame(_ frame: NSRect, display: Bool) {
+        isApplyingFrame = true
+        panel.setFrame(frame, display: display)
+        isApplyingFrame = false
     }
 
     /// 放弃进行中的过渡，立即采用 `height`。
@@ -230,7 +280,7 @@ final class PanelAnimationCoordinator: ObservableObject {
 
             CATransaction.begin()
             CATransaction.setDisableActions(true)
-            panel.setFrame(Self.frame(for: screen, height: height), display: false)
+            setPanelFrame(frame(forHeight: height), display: false)
             setLayerCornerRadius(radius)
             CATransaction.commit()
 
@@ -267,9 +317,15 @@ final class PanelAnimationCoordinator: ObservableObject {
         currentVelocity = 0
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        panel.setFrame(Self.frame(for: screen, height: height), display: false)
+        setPanelFrame(frame(forHeight: height), display: false)
         updateLayerCornerRadius(radius)
         CATransaction.commit()
+    }
+
+    /// 移动通知不是来自 OI 自己设置面板几何时，即用户拖动了面板。
+    private func panelDidMove() {
+        guard !isApplyingFrame, panel.isVisible, !isDismissing else { return }
+        isMoved = true
     }
 
     /// 每帧只更新圆角。阴影刻意不在动画循环中重算：`invalidateShadow` 会让 WindowServer

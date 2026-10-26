@@ -50,7 +50,9 @@ final class LauncherPanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = false
-        panel.isMovable = false
+        // 只有 Quick AI 模式下能按住输入框以外的空白处或页脚拖动（见 LauncherView），
+        // 不随背景拖动，以免与选中回答冲突。
+        panel.isMovable = true
         panel.isMovableByWindowBackground = false
         // Quick Look 经由响应链寻找接管者，接管点挂在窗口自身。
         panel.quickLookPresenter = quickLook
@@ -154,11 +156,7 @@ final class LauncherPanelController {
             animationCoordinator.cancelDismissal()
             activeScreen = targetScreen()
             animationCoordinator.screen = activeScreen
-            let height = animationCoordinator.currentHeight
-            panel.setFrame(
-                PanelAnimationCoordinator.frame(for: activeScreen, height: height),
-                display: true
-            )
+            animationCoordinator.moveToDefaultPosition(height: animationCoordinator.currentHeight)
             panel.makeKeyAndOrderFront(nil)
             viewModel.requestFocus()
             return
@@ -170,10 +168,7 @@ final class LauncherPanelController {
         activeScreen = targetScreen()
         animationCoordinator.screen = activeScreen
         let height = viewModel.panelHeight
-        panel.setFrame(
-            PanelAnimationCoordinator.frame(for: activeScreen, height: height),
-            display: true
-        )
+        animationCoordinator.moveToDefaultPosition(height: height)
         animationCoordinator.prepareForPresentation(height: height)
         // 淡出完成后面板的透明度保持为 1；以完全不透明的状态移到最前，
         // 会在 fadeIn 把透明度降到 0 之前闪现一帧。
@@ -198,13 +193,10 @@ final class LauncherPanelController {
         guard panel.isVisible else { return }
 
         animationCoordinator.screen = resolvedScreen()
-        let target = PanelAnimationCoordinator.frame(
-            for: animationCoordinator.screen,
-            height: height
-        )
+        let target = animationCoordinator.frame(forHeight: height)
         guard target.size != panel.frame.size || height != animationCoordinator.targetHeight else {
             if panel.frame.origin != target.origin {
-                panel.setFrameOrigin(target.origin)
+                animationCoordinator.setPanelFrame(target, display: false)
             }
             return
         }
