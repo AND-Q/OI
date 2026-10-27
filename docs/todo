@@ -446,21 +446,6 @@
   - 回答区按轮次往下排列，每轮是「问题 + 回答」，问题以靠右的气泡显示；发送新问题时滚到底部；可以追问时页脚提示「↩ 追问」；
   - 发给模型的历史只包含有可见回答的轮次（中途中断的部分回答也算），回答去掉 `<think>` 推理内容，没有回答的失败轮次不发送；本次不做截断，上下文超长时服务返回的错误照常显示在这一轮下方；
   - 以下保持现状：面板失焦收起、再次呼出丢弃对话（见「Quick AI 回答不再轻易丢失」）；`Esc` 中断并关闭；`Tab` 返回检索即结束这段对话，再按 `Tab` 就是新对话，因此本次不加 `Cmd+N`；划词翻译的行为不变。
-- **设计**：
-  - 端口：[AIAnswering](Application/Ports/AIAnswering.swift) 由「一个问题」改为「一组消息」：新增 `AIChatMessage`（`role` 为 `user` / `assistant`，以及 `content`），方法改为 `streamAnswer(to messages: [AIChatMessage], systemPrompt:configuration:)`，系统提示词仍单独传入；
-  - 客户端：[OpenAICompatibleAIClient](Infrastructure/AI/OpenAICompatibleAIClient.swift) 的 `makeRequest` 按「system + 依次映射的 messages」组装，其余不变；
-  - 用例：[AIStreaming](Application/UseCases/AIStreaming.swift) 的 `stream` 改收消息数组；[AskQuickAI](Application/UseCases/AskQuickAI.swift) 改为 `execute(messages:onDelta:)`；[TranslateText](Application/UseCases/TranslateText.swift) 传单条 user 消息；
-  - 状态：[LauncherState](Features/Launcher/LauncherState.swift) 新增 `QuickAITurn`（问题、回答，以及 `streaming` / `finished` / `failed` 状态），`QuickAISession` 改为持有 `turns` 与 `isAnswerCopied`；`returnAction(hasDraft:)` 依次判断：输出中不响应，有草稿则发送，最后一轮失败或没有可见回答则重试，否则复制并关闭；`history` 按上面的规则生成发给模型的消息；
-  - 视图模型：[LauncherViewModel](Features/Launcher/LauncherViewModel.swift) 去掉 `query` 改动时丢弃会话的逻辑（否则发送后清空输入框会丢掉刚建好的会话）；`startQuickAI()` 在没有输出时用「历史 + 新问题」请求，追加新轮次后清空输入框，只有第一轮调整面板高度，增量与完成状态写入最后一轮；新增 `retryQuickAI()`，用这一轮之前的历史加上它的问题重新请求；`stopQuickAI()`、`quickAIAnswerToCopy` 改为针对最后一轮；新增 `quickAIReturnAction`，供按键与页脚共用；
-  - 按键：[LauncherPanelController](UI/Panel/LauncherPanelController.swift) 的 `handleReturnKey` 按 `quickAIReturnAction` 分为发送、重试、复制并关闭、不响应四支，其余按键不变；
-  - 回答区：[QuickAIAnswerView](Features/Launcher/QuickAIAnswerView.swift) 把每轮抽成 `QuickAITurnView`（问题是靠右的气泡，下面是现有的回答显示），输出时只有最后一轮重绘，前面各轮不重复解析 Markdown；轮数变化时贴底并滚到底部，流式跟随改为跟随最后一轮的回答；
-  - 文案：「追问」写入 [Localizable.xcstrings](Localizable.xcstrings)（英文 `Follow Up`）。
-- **测试**：
-  - 更新 [QuickAITests](OITests/QuickAITests.swift) 与 [TranslatorTestSupport](OITests/TranslatorTestSupport.swift) 中测试替身的签名；
-  - 改写：改动输入后会话保留；`returnAction` 覆盖有无草稿的各种状态；重试只重跑最后一轮，并带上之前的历史；
-  - 新增：追问发出的消息按 user / assistant 交替、最后一条是新问题、输入框被清空；历史去掉 `<think>` 并跳过没有回答的轮次；输出中按 `Enter` 不发送；翻译只发一条 user 消息；`makeRequest` 的消息顺序为 system、历史、新问题。
-- **涉及文件**：
-  - [Application/Ports/AIAnswering.swift](Application/Ports/AIAnswering.swift)、[Infrastructure/AI/OpenAICompatibleAIClient.swift](Infrastructure/AI/OpenAICompatibleAIClient.swift)、[Application/UseCases/AIStreaming.swift](Application/UseCases/AIStreaming.swift)、[Application/UseCases/AskQuickAI.swift](Application/UseCases/AskQuickAI.swift)、[Application/UseCases/TranslateText.swift](Application/UseCases/TranslateText.swift)、[Features/Launcher/LauncherState.swift](Features/Launcher/LauncherState.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Features/Launcher/QuickAIAnswerView.swift](Features/Launcher/QuickAIAnswerView.swift)、[UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)、[Localizable.xcstrings](Localizable.xcstrings)、[OITests/QuickAITests.swift](OITests/QuickAITests.swift)、[OITests/TranslatorTestSupport.swift](OITests/TranslatorTestSupport.swift)
 
 ## [ ] Quick AI 输入框移到底部
 
@@ -474,19 +459,6 @@
   - 页脚保留其余快捷键提示（`⌘C` 复制、`⇥` 返回搜索、`esc` 关闭）与「已复制到剪贴板」，去掉与标题重复的「Quick AI」标签；
   - 标题不自动生成（需要额外请求一次模型），固定为「Quick AI · 模型名」；
   - 按键行为与「Quick AI 多轮追问」一致，不因输入框的位置而改变。
-- **设计**：
-  - 标题栏：[LauncherView](UI/Panel/LauncherView.swift) 的 `searchBar` 在有会话时换成标题栏视图，高度仍是 `LauncherLayout.searchHeight`；整行使用 `WindowDragGesture`；
-  - 底部输入框：[QuickAIAnswerView](Features/Launcher/QuickAIAnswerView.swift) 在对话与页脚之间增加一个输入框插槽（泛型的 `@ViewBuilder` 参数），由 [LauncherView](UI/Panel/LauncherView.swift) 传入绑定同一个 `query` 的 [LauncherSearchInput](UI/Panel/LauncherSearchInput.swift)，这样 Features 层不引用 UI 层；
-  - 焦点：顶部输入框换成标题栏后，同一时刻仍只有一个 `LauncherSearchInputView`，[LauncherPanelController](UI/Panel/LauncherPanelController.swift) 中按它查找的 `focusSearchFieldAtEnd()`、`isSearchFieldFocused` 不用改；第一次发送后与点 `‹` 返回后调用 `requestFocus()`，让新的输入框获得焦点；
-  - 占位文字：[LauncherSearchInput](UI/Panel/LauncherSearchInput.swift) 增加区分「追问」的参数；
-  - 尺寸：[LauncherLayout](Features/Launcher/LauncherLayout.swift) 新增底部输入框的高度，`quickAIHeight` 不变，对话区相应变矮；
-  - 模型名：取发送时设置中的 `quickAIModel`（[LauncherViewModel](Features/Launcher/LauncherViewModel.swift) 已持有设置存储）；
-  - 文案：「继续追问，按回车发送」与标题「Quick AI · %@」写入 [Localizable.xcstrings](Localizable.xcstrings)。
-- **测试**：
-  - 视图模型：第一次发送后与返回检索后请求聚焦（`focusRequest` 递增）；标题中的模型名取自设置；
-  - 界面在 Xcode 中手工验收：提问前后输入框的位置与焦点、标题栏拖动、`‹` 返回、输入法组字时按 `Enter` 只上屏不发送。
-- **涉及文件**：
-  - [UI/Panel/LauncherView.swift](UI/Panel/LauncherView.swift)、[UI/Panel/LauncherSearchInput.swift](UI/Panel/LauncherSearchInput.swift)、[Features/Launcher/QuickAIAnswerView.swift](Features/Launcher/QuickAIAnswerView.swift)、[Features/Launcher/LauncherLayout.swift](Features/Launcher/LauncherLayout.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Localizable.xcstrings](Localizable.xcstrings)、[OITests/QuickAITests.swift](OITests/QuickAITests.swift)
 
 ## [ ] Quick AI 回答不再轻易丢失
 
