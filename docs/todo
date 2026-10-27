@@ -462,6 +462,32 @@
 - **涉及文件**：
   - [Application/Ports/AIAnswering.swift](Application/Ports/AIAnswering.swift)、[Infrastructure/AI/OpenAICompatibleAIClient.swift](Infrastructure/AI/OpenAICompatibleAIClient.swift)、[Application/UseCases/AIStreaming.swift](Application/UseCases/AIStreaming.swift)、[Application/UseCases/AskQuickAI.swift](Application/UseCases/AskQuickAI.swift)、[Application/UseCases/TranslateText.swift](Application/UseCases/TranslateText.swift)、[Features/Launcher/LauncherState.swift](Features/Launcher/LauncherState.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Features/Launcher/QuickAIAnswerView.swift](Features/Launcher/QuickAIAnswerView.swift)、[UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)、[Localizable.xcstrings](Localizable.xcstrings)、[OITests/QuickAITests.swift](OITests/QuickAITests.swift)、[OITests/TranslatorTestSupport.swift](OITests/TranslatorTestSupport.swift)
 
+## [ ] Quick AI 输入框移到底部
+
+- **需求描述**：
+  - 有了多轮追问（见「Quick AI 多轮追问」）后，最新的回答总在回答区底部，输入框却在面板顶部，每次追问视线都要上下来回。参照 Raycast 的 Quick AI：提问后顶部变成标题栏，输入框移到底部。
+- **需要做到**：
+  - 提问前不变：输入框在顶部，与检索共用；
+  - 第一次发送后，顶部输入行变为标题栏：左侧是 `‹`，中间是「Quick AI · 模型名」；高度与原输入行相同，面板尺寸与伸缩动效不变；按住整行可以拖动面板；
+  - 点 `‹` 与按 `Tab` 相同：返回检索并结束这段对话，焦点回到顶部输入框；
+  - 输入框移到对话下方，焦点随之移到底部输入框；占位文字为「继续追问，按回车发送」；输入框右侧显示当前 `Enter` 的作用（追问 / 重试 / 复制并关闭，输出期间不显示），页脚不再重复这一项；
+  - 页脚保留其余快捷键提示（`⌘C` 复制、`⇥` 返回搜索、`esc` 关闭）与「已复制到剪贴板」，去掉与标题重复的「Quick AI」标签；
+  - 标题不自动生成（需要额外请求一次模型），固定为「Quick AI · 模型名」；
+  - 按键行为与「Quick AI 多轮追问」一致，不因输入框的位置而改变。
+- **设计**：
+  - 标题栏：[LauncherView](UI/Panel/LauncherView.swift) 的 `searchBar` 在有会话时换成标题栏视图，高度仍是 `LauncherLayout.searchHeight`；整行使用 `WindowDragGesture`；
+  - 底部输入框：[QuickAIAnswerView](Features/Launcher/QuickAIAnswerView.swift) 在对话与页脚之间增加一个输入框插槽（泛型的 `@ViewBuilder` 参数），由 [LauncherView](UI/Panel/LauncherView.swift) 传入绑定同一个 `query` 的 [LauncherSearchInput](UI/Panel/LauncherSearchInput.swift)，这样 Features 层不引用 UI 层；
+  - 焦点：顶部输入框换成标题栏后，同一时刻仍只有一个 `LauncherSearchInputView`，[LauncherPanelController](UI/Panel/LauncherPanelController.swift) 中按它查找的 `focusSearchFieldAtEnd()`、`isSearchFieldFocused` 不用改；第一次发送后与点 `‹` 返回后调用 `requestFocus()`，让新的输入框获得焦点；
+  - 占位文字：[LauncherSearchInput](UI/Panel/LauncherSearchInput.swift) 增加区分「追问」的参数；
+  - 尺寸：[LauncherLayout](Features/Launcher/LauncherLayout.swift) 新增底部输入框的高度，`quickAIHeight` 不变，对话区相应变矮；
+  - 模型名：取发送时设置中的 `quickAIModel`（[LauncherViewModel](Features/Launcher/LauncherViewModel.swift) 已持有设置存储）；
+  - 文案：「继续追问，按回车发送」与标题「Quick AI · %@」写入 [Localizable.xcstrings](Localizable.xcstrings)。
+- **测试**：
+  - 视图模型：第一次发送后与返回检索后请求聚焦（`focusRequest` 递增）；标题中的模型名取自设置；
+  - 界面在 Xcode 中手工验收：提问前后输入框的位置与焦点、标题栏拖动、`‹` 返回、输入法组字时按 `Enter` 只上屏不发送。
+- **涉及文件**：
+  - [UI/Panel/LauncherView.swift](UI/Panel/LauncherView.swift)、[UI/Panel/LauncherSearchInput.swift](UI/Panel/LauncherSearchInput.swift)、[Features/Launcher/QuickAIAnswerView.swift](Features/Launcher/QuickAIAnswerView.swift)、[Features/Launcher/LauncherLayout.swift](Features/Launcher/LauncherLayout.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Localizable.xcstrings](Localizable.xcstrings)、[OITests/QuickAITests.swift](OITests/QuickAITests.swift)
+
 ## [ ] Quick AI 回答不再轻易丢失
 
 - **需求描述**：
