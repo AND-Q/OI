@@ -433,6 +433,16 @@
 - **涉及文件**：
   - [UI/Panel/PanelAnimationCoordinator.swift](UI/Panel/PanelAnimationCoordinator.swift)、[UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)、[UI/Panel/LauncherView.swift](UI/Panel/LauncherView.swift)、[Features/Launcher/QuickAIAnswerView.swift](Features/Launcher/QuickAIAnswerView.swift)、[OITests/PanelAnimationCoordinatorTests.swift](OITests/PanelAnimationCoordinatorTests.swift)
 
+## [ ] Quick AI 回答不再轻易丢失
+
+- **需求描述**：
+  - 现在三种情况会让回答消失：回答后改动输入框里的任意一个字、点到其他窗口（面板收起并中断输出）、关闭后再次呼出面板。拖动面板对照屏幕内容时，一点别的窗口回答就没了。
+- **需要做到**：
+  - 已有回答时改动输入框不清空回答，按 `Enter` 才以新问题重新提问并替换回答；
+  - 已提问后面板失去焦点（点到桌面或其他应用）时不收起、不中断输出，按 `Esc` 才关闭；尚未提问时仍与检索模式一样，失焦即收起；
+  - 面板因此留在屏幕上时，再按呼出快捷键回到面板（输入框获得焦点），而不是关闭面板；
+  - 关闭面板后 5 分钟内再次呼出，输入框为空时按 `Tab` 恢复上一次的问题与回答；输出中途关闭的，恢复已经收到的内容。
+
 ## [ ] 系统设置项直达
 
 - **需求描述**：
