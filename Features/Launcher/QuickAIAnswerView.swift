@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// Quick AI 回答区：流式显示的 Markdown 回答，以及显示状态与快捷键的页脚。
+/// Quick AI 回答区：按轮次往下排列的提问与流式显示的 Markdown 回答，以及显示状态与快捷键的页脚。
 @MainActor
 struct QuickAIAnswerView: View {
     let session: QuickAISession
+    let returnAction: QuickAISession.ReturnAction
     let scrollRequest: QuickAIScrollRequest
 
     /// `↑` / `↓` 每次滚动的距离。
@@ -16,8 +17,13 @@ struct QuickAIAnswerView: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
-                    content
+                VStack(alignment: .leading, spacing: 22) {
+                    ForEach(Array(session.turns.enumerated()), id: \.offset) { _, turn in
+                        VStack(alignment: .leading, spacing: 10) {
+                            questionBubble(turn.question)
+                            answer(of: turn)
+                        }
+                    }
                 }
                 .textSelection(.enabled)
                 .padding(.horizontal, 22)
@@ -39,8 +45,13 @@ struct QuickAIAnswerView: View {
                 }
             }
             // 流式输出期间仅在停留底部时跟随最新内容；往上翻看时不再被拉回。
-            .onChange(of: session.answer) {
+            .onChange(of: session.lastTurn.answer) {
                 guard session.isStreaming, isPinnedToBottom else { return }
+                position.scrollTo(edge: .bottom)
+            }
+            // 发送新的问题时滚到底部，此后照常跟随这一轮的输出。
+            .onChange(of: session.turns.count) {
+                isPinnedToBottom = true
                 position.scrollTo(edge: .bottom)
             }
             .onChange(of: scrollRequest) { _, request in
@@ -61,11 +72,25 @@ struct QuickAIAnswerView: View {
         }
     }
 
+    /// 提问显示为靠右的气泡，与左侧的回答区分开；过长时换行，左侧至少留出一段空白。
+    private func questionBubble(_ question: String) -> some View {
+        HStack(spacing: 0) {
+            Spacer(minLength: 80)
+            Text(question)
+                .font(.system(size: 14))
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+        }
+    }
+
     @ViewBuilder
-    private var content: some View {
-        let visibleAnswer = MarkdownParser.removingThinking(from: session.answer)
+    private func answer(of turn: QuickAISession.Turn) -> some View {
+        let visibleAnswer = turn.visibleAnswer
         if visibleAnswer.isEmpty {
-            switch session.state {
+            switch turn.state {
             case .streaming:
                 HStack(spacing: 8) {
                     ProgressView()
@@ -83,7 +108,7 @@ struct QuickAIAnswerView: View {
             ForEach(Array(MarkdownParser.blocks(from: visibleAnswer).enumerated()), id: \.offset) { _, block in
                 MarkdownBlockView(block: block)
             }
-            if case .failed(let message) = session.state {
+            if case .failed(let message) = turn.state {
                 errorLabel(message)
             }
         }
@@ -105,8 +130,10 @@ struct QuickAIAnswerView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            // 与面板的 Enter 处理一致：输出期间不提示，失败或无内容时提示重试。
-            switch session.returnAction {
+            // 与面板的 Enter 处理一致：输出期间不提示，输入框有文字时提示追问，失败或无内容时提示重试。
+            switch returnAction {
+            case .followUp:
+                shortcutHint("↩", "追问")
             case .copyAndClose:
                 shortcutHint("↩", "复制并关闭")
             case .retry:

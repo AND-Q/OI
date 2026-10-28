@@ -28,9 +28,14 @@ struct AIStreaming {
         self.reasoningEffort = reasoningEffort
     }
 
-    /// 以 `systemPrompt` 为指令发送 `text`，并把增量逐段交给 `onDelta`。
+    /// 以 `systemPrompt` 为指令发送 `text`（`history` 为此前各轮的问答，排在 `text` 之前），并把增量逐段交给 `onDelta`。
     /// 接口地址或模型缺失时不发起请求，直接抛出未配置错误。
-    func stream(_ text: String, systemPrompt: String, onDelta: (String) -> Void) async throws {
+    func stream(
+        _ text: String,
+        history: [AIConversationTurn] = [],
+        systemPrompt: String,
+        onDelta: (String) -> Void
+    ) async throws {
         let settings = settingsStore.load()
         guard let configuration = AIEndpointConfiguration(
             baseURLString: settings[keyPath: baseURL],
@@ -44,6 +49,7 @@ struct AIStreaming {
         do {
             for try await delta in answerer.streamAnswer(
                 to: text,
+                history: history,
                 systemPrompt: systemPrompt,
                 configuration: configuration
             ) {

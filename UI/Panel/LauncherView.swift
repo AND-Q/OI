@@ -24,7 +24,11 @@ struct LauncherView: View {
                 divider
                 Group {
                     if let session = viewModel.quickAISession {
-                        QuickAIAnswerView(session: session, scrollRequest: viewModel.quickAIScrollRequest)
+                        QuickAIAnswerView(
+                            session: session,
+                            returnAction: viewModel.quickAIReturnAction ?? QuickAISession.ReturnAction.none,
+                            scrollRequest: viewModel.quickAIScrollRequest
+                        )
                     } else {
                         results
                     }

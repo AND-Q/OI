@@ -185,6 +185,30 @@ final class QuickAITests: XCTestCase {
         XCTAssertEqual(request.url?.absoluteString, "https://api.openai.com/v1/chat/completions")
     }
 
+    /// 追问时此前各轮的问答依次排在系统指令之后、本次提问之前。
+    func testMakeRequestPlacesHistoryBetweenSystemPromptAndQuestion() throws {
+        let configuration = try XCTUnwrap(AIEndpointConfiguration(
+            baseURLString: "https://api.openai.com/v1",
+            model: "gpt-4o-mini",
+            apiKey: nil
+        ))
+
+        let request = OpenAICompatibleAIClient.makeRequest(
+            question: "第二问",
+            history: [AIConversationTurn(question: "第一问", answer: "答一")],
+            systemPrompt: AskQuickAI.systemPrompt,
+            configuration: configuration
+        )
+
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
+        XCTAssertEqual(json["messages"] as? [[String: String]], [
+            ["role": "system", "content": AskQuickAI.systemPrompt],
+            ["role": "user", "content": "第一问"],
+            ["role": "assistant", "content": "答一"],
+            ["role": "user", "content": "第二问"],
+        ])
+    }
+
     // MARK: - Markdown
 
     func testMarkdownSplitsBlockElements() {
@@ -307,7 +331,7 @@ final class QuickAITests: XCTestCase {
         )
 
         do {
-            try await useCase.execute(question: "hi") { _ in XCTFail("不应收到增量") }
+            try await useCase.execute(question: "hi", history: []) { _ in XCTFail("不应收到增量") }
             XCTFail("应抛出未配置错误")
         } catch {
             XCTAssertEqual(error as? ApplicationError, .aiNotConfigured)
@@ -324,7 +348,7 @@ final class QuickAITests: XCTestCase {
         var received: [String] = []
 
         do {
-            try await useCase.execute(question: "hi") { received.append($0) }
+            try await useCase.execute(question: "hi", history: []) { received.append($0) }
             XCTFail("应抛出失败错误")
         } catch {
             XCTAssertEqual(error as? ApplicationError, .aiRequestFailed(reason: "服务返回 401：Incorrect API key"))
@@ -346,7 +370,7 @@ final class QuickAITests: XCTestCase {
             keyStore: MemoryAPIKeyStore()
         )
 
-        try await useCase.execute(question: "1+1") { _ in }
+        try await useCase.execute(question: "1+1", history: []) { _ in }
 
         XCTAssertEqual(answerer.recorder.configurations.first?.reasoningEffort, "high")
     }
@@ -366,19 +390,26 @@ final class QuickAITests: XCTestCase {
         XCTAssertEqual(viewModel.panelHeight, LauncherLayout.searchHeight)
     }
 
-    func testTabTogglesBackToSearchKeepingText() async throws {
+    /// `Tab` 返回检索即结束这段对话，输入框中的草稿成为检索词；再按 `Tab` 是新的对话。
+    func testTabTogglesBackToSearchKeepingDraftAndEndsConversation() async throws {
         let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: ["回答"]))
         viewModel.toggleQuickAIMode()
         viewModel.query = "问题"
         try await XCTUnwrap(viewModel.startQuickAI()).value
+        viewModel.query = "草稿"
 
         viewModel.toggleQuickAIMode()
 
         XCTAssertFalse(viewModel.isQuickAIModeActive)
         XCTAssertNil(viewModel.quickAISession)
-        XCTAssertEqual(viewModel.query, "问题")
+        XCTAssertEqual(viewModel.query, "草稿")
         XCTAssertTrue(viewModel.isExpanded)
         XCTAssertNotEqual(viewModel.expandedContent, .quickAI)
+
+        viewModel.toggleQuickAIMode()
+
+        XCTAssertTrue(viewModel.isQuickAIModeActive)
+        XCTAssertNil(viewModel.quickAISession)
     }
 
     func testQuickAIRequiresQuickAIMode() {
@@ -395,7 +426,8 @@ final class QuickAITests: XCTestCase {
         viewModel.query = "1+1 等于几"
 
         let task = try XCTUnwrap(viewModel.startQuickAI())
-        XCTAssertEqual(viewModel.quickAISession?.question, "1+1 等于几")
+        XCTAssertEqual(viewModel.quickAISession?.turns.map(\.question), ["1+1 等于几"])
+        XCTAssertEqual(viewModel.query, "", "问题移到回答区，输入框清空")
         XCTAssertEqual(viewModel.expandedContent, .quickAI)
         XCTAssertEqual(
             viewModel.panelHeight,
@@ -405,9 +437,36 @@ final class QuickAITests: XCTestCase {
 
         await task.value
 
-        XCTAssertEqual(viewModel.quickAISession?.answer, "**1+1** = 2")
-        XCTAssertEqual(viewModel.quickAISession?.state, .finished)
+        XCTAssertEqual(viewModel.quickAISession?.lastTurn.answer, "**1+1** = 2")
+        XCTAssertEqual(viewModel.quickAISession?.lastTurn.state, .finished)
         XCTAssertEqual(viewModel.quickAIAnswerToCopy, "**1+1** = 2")
+        XCTAssertEqual(viewModel.quickAIReturnAction, .copyAndClose)
+    }
+
+    func testFollowUpAppendsTurnAndSendsEarlierTurns() async throws {
+        let answerer = StubAIAnswerer(deltas: ["<think>推理</think>", "回答"])
+        let viewModel = makeQuickAIViewModel(answerer: answerer)
+        viewModel.toggleQuickAIMode()
+        viewModel.query = "第一问"
+        try await XCTUnwrap(viewModel.startQuickAI()).value
+        viewModel.markQuickAIAnswerCopied()
+
+        viewModel.query = "第二问"
+        XCTAssertEqual(viewModel.quickAIReturnAction, .followUp)
+        let followUp = try XCTUnwrap(viewModel.startQuickAI())
+        XCTAssertEqual(viewModel.query, "")
+        XCTAssertEqual(viewModel.quickAISession?.isAnswerCopied, false)
+        XCTAssertEqual(viewModel.quickAISession?.turns.first?.answer, "<think>推理</think>回答", "追问不清空已有回答")
+        await followUp.value
+
+        XCTAssertEqual(viewModel.quickAISession?.turns.map(\.question), ["第一问", "第二问"])
+        XCTAssertEqual(viewModel.quickAISession?.lastTurn.state, .finished)
+        XCTAssertEqual(answerer.recorder.questions, ["第一问", "第二问"])
+        XCTAssertEqual(
+            answerer.recorder.histories,
+            [[], [AIConversationTurn(question: "第一问", answer: "回答")]],
+            "历史中的回答不含推理内容"
+        )
     }
 
     func testQuickAIIgnoresEmptyQuery() {
@@ -429,7 +488,7 @@ final class QuickAITests: XCTestCase {
 
         try await XCTUnwrap(viewModel.startQuickAI()).value
 
-        guard case .failed(let message)? = viewModel.quickAISession?.state else {
+        guard case .failed(let message)? = viewModel.quickAISession?.lastTurn.state else {
             return XCTFail("应展示未配置提示")
         }
         XCTAssertTrue(message.contains("Quick AI"))
@@ -441,28 +500,36 @@ final class QuickAITests: XCTestCase {
         viewModel.toggleQuickAIMode()
         viewModel.query = "写一首诗"
         let task = try XCTUnwrap(viewModel.startQuickAI())
-        try await waitUntil { viewModel.quickAISession?.answer.isEmpty == false }
+        try await waitUntil { viewModel.quickAISession?.lastTurn.answer.isEmpty == false }
 
         viewModel.stopQuickAI()
         await task.value
 
-        XCTAssertEqual(viewModel.quickAISession?.answer, "床前")
-        XCTAssertEqual(viewModel.quickAISession?.state, .finished)
+        XCTAssertEqual(viewModel.quickAISession?.lastTurn.answer, "床前")
+        XCTAssertEqual(viewModel.quickAISession?.lastTurn.state, .finished)
     }
 
-    func testEditingQuestionDiscardsAnswerButStaysInQuickAIMode() async throws {
+    /// 输出期间可以写下一条消息的草稿：不清空回答、不中断输出，发送与重试都不响应。
+    func testDraftWhileStreamingKeepsAnswerAndCannotSend() async throws {
         let viewModel = makeQuickAIViewModel(answerer: HangingAIAnswerer())
         viewModel.toggleQuickAIMode()
         viewModel.query = "写一首诗"
         let task = try XCTUnwrap(viewModel.startQuickAI())
-        try await waitUntil { viewModel.quickAISession?.answer.isEmpty == false }
+        try await waitUntil { viewModel.quickAISession?.lastTurn.answer.isEmpty == false }
 
-        viewModel.query = "写一首词"
+        viewModel.query = "再写一首"
+
+        XCTAssertEqual(viewModel.quickAIReturnAction, QuickAISession.ReturnAction.none)
+        XCTAssertNil(viewModel.startQuickAI())
+        XCTAssertNil(viewModel.retryQuickAI())
+        XCTAssertEqual(viewModel.query, "再写一首")
+        XCTAssertEqual(viewModel.quickAISession?.turns.count, 1)
+        XCTAssertEqual(viewModel.quickAISession?.lastTurn.answer, "床前")
+        XCTAssertEqual(viewModel.quickAISession?.isStreaming, true)
+        XCTAssertTrue(viewModel.isExpanded)
+
+        viewModel.stopQuickAI()
         await task.value
-
-        XCTAssertNil(viewModel.quickAISession)
-        XCTAssertTrue(viewModel.isQuickAIModeActive)
-        XCTAssertFalse(viewModel.isExpanded)
     }
 
     func testAnswerToCopyExcludesThinking() async throws {
@@ -473,8 +540,42 @@ final class QuickAITests: XCTestCase {
         viewModel.query = "问题"
         try await XCTUnwrap(viewModel.startQuickAI()).value
 
-        XCTAssertEqual(viewModel.quickAISession?.answer, "<think>推理</think>答案")
+        XCTAssertEqual(viewModel.quickAISession?.lastTurn.answer, "<think>推理</think>答案")
         XCTAssertEqual(viewModel.quickAIAnswerToCopy, "答案")
+    }
+
+    /// 复制最后一条回答：新的一轮还没有可见内容（尚未到达或仍在推理）时复制上一条。
+    func testAnswerToCopyIsLatestVisibleAnswer() {
+        var session = QuickAISession(question: "第一问")
+        session.lastTurn.answer = "答一"
+        session.lastTurn.state = .finished
+        session.append(question: "第二问")
+        XCTAssertEqual(session.answerToCopy, "答一")
+
+        session.lastTurn.answer = "<think>推理"
+        XCTAssertEqual(session.answerToCopy, "答一")
+
+        session.lastTurn.answer = "<think>推理</think>答二"
+        XCTAssertEqual(session.answerToCopy, "答二")
+    }
+
+    /// 发给模型的历史只含有可见回答的轮次（输出到一半失败的部分回答也算），回答去掉推理内容，不含最后一轮。
+    func testHistoryOnlyIncludesEarlierTurnsWithVisibleAnswers() {
+        var session = QuickAISession(question: "第一问")
+        session.lastTurn.answer = "<think>推理</think>答一"
+        session.lastTurn.state = .finished
+        session.append(question: "第二问")
+        session.lastTurn.state = .failed("超时")
+        session.append(question: "第三问")
+        session.lastTurn.answer = "答到一半"
+        session.lastTurn.state = .failed("连接中断")
+        session.append(question: "第四问")
+        session.lastTurn.answer = "正在输出"
+
+        XCTAssertEqual(session.history, [
+            AIConversationTurn(question: "第一问", answer: "答一"),
+            AIConversationTurn(question: "第三问", answer: "答到一半"),
+        ])
     }
 
     func testScrollQuickAIAnswerOnlyWithSession() async throws {
@@ -493,34 +594,71 @@ final class QuickAITests: XCTestCase {
 
     func testReturnActionFollowsSessionState() {
         var session = QuickAISession(question: "问题")
-        XCTAssertEqual(session.returnAction, .none)
+        XCTAssertEqual(session.returnAction(hasDraft: false), .none)
+        XCTAssertEqual(session.returnAction(hasDraft: true), .none, "输出期间有草稿也不响应")
 
-        session.state = .finished
-        XCTAssertEqual(session.returnAction, .retry, "空回答应提示重试")
+        session.lastTurn.state = .finished
+        XCTAssertEqual(session.returnAction(hasDraft: false), .retry, "空回答应提示重试")
+        XCTAssertEqual(session.returnAction(hasDraft: true), .followUp)
 
-        session.answer = "<think>推理</think>"
-        XCTAssertEqual(session.returnAction, .retry, "只有思考内容视为空回答")
+        session.lastTurn.answer = "<think>推理</think>"
+        XCTAssertEqual(session.returnAction(hasDraft: false), .retry, "只有思考内容视为空回答")
 
-        session.answer = "答案"
-        XCTAssertEqual(session.returnAction, .copyAndClose)
+        session.lastTurn.answer = "答案"
+        XCTAssertEqual(session.returnAction(hasDraft: false), .copyAndClose)
+        XCTAssertEqual(session.returnAction(hasDraft: true), .followUp)
 
-        session.state = .failed("超时")
-        XCTAssertEqual(session.returnAction, .retry, "输出到一半失败也应重试")
+        session.lastTurn.state = .failed("超时")
+        XCTAssertEqual(session.returnAction(hasDraft: false), .retry, "输出到一半失败也应重试")
+        XCTAssertEqual(session.returnAction(hasDraft: true), .followUp, "失败后有草稿时追问")
+
+        session.append(question: "追问")
+        XCTAssertEqual(session.returnAction(hasDraft: false), .none, "只看最后一轮")
     }
 
-    func testRetryAfterFailureStartsNewSession() async throws {
-        let viewModel = makeQuickAIViewModel(
-            answerer: StubAIAnswerer(deltas: []),
-            settingsStore: MemoryAppSettingsStore()
-        )
+    func testReturnActionTreatsWhitespaceDraftAsEmpty() async throws {
+        let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: ["答案"]))
         viewModel.toggleQuickAIMode()
+        XCTAssertNil(viewModel.quickAIReturnAction, "尚未提问时回车即提问")
+
         viewModel.query = "问题"
         try await XCTUnwrap(viewModel.startQuickAI()).value
-        XCTAssertEqual(viewModel.quickAISession?.returnAction, .retry)
+        viewModel.query = "   "
 
-        let retry = try XCTUnwrap(viewModel.startQuickAI())
-        XCTAssertEqual(viewModel.quickAISession?.state, .streaming)
+        XCTAssertEqual(viewModel.quickAIReturnAction, .copyAndClose)
+        XCTAssertNil(viewModel.startQuickAI())
+    }
+
+    /// 重试只重来最后一轮：沿用这一轮的问题与此前各轮的问答，不新增轮次，输入框中的草稿不变。
+    func testRetryRestartsLastTurnWithSameQuestionAndHistory() async throws {
+        let answerer = StubAIAnswerer(deltas: ["半"], error: .httpStatus(500, nil))
+        let viewModel = makeQuickAIViewModel(answerer: answerer)
+        viewModel.toggleQuickAIMode()
+        viewModel.query = "第一问"
+        try await XCTUnwrap(viewModel.startQuickAI()).value
+        viewModel.query = "第二问"
+        try await XCTUnwrap(viewModel.startQuickAI()).value
+        XCTAssertEqual(viewModel.quickAIReturnAction, .retry)
+
+        viewModel.query = " "
+        let retry = try XCTUnwrap(viewModel.retryQuickAI())
+        XCTAssertEqual(viewModel.quickAISession?.lastTurn.state, .streaming)
+        XCTAssertEqual(viewModel.quickAISession?.lastTurn.answer, "")
+        XCTAssertEqual(viewModel.query, " ")
         await retry.value
+
+        XCTAssertEqual(viewModel.quickAISession?.turns.map(\.question), ["第一问", "第二问"])
+        XCTAssertEqual(answerer.recorder.questions, ["第一问", "第二问", "第二问"])
+        let earlierTurns = [AIConversationTurn(question: "第一问", answer: "半")]
+        XCTAssertEqual(answerer.recorder.histories, [[], earlierTurns, earlierTurns], "中途失败的部分回答也发送")
+    }
+
+    func testRetryRequiresFinishedConversation() {
+        let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: []))
+        viewModel.toggleQuickAIMode()
+
+        XCTAssertNil(viewModel.retryQuickAI())
+        XCTAssertNil(viewModel.quickAISession)
     }
 
     func testMarkQuickAIAnswerCopied() async throws {
@@ -723,17 +861,31 @@ final class QuickAITests: XCTestCase {
     }
 }
 
-/// 记录问答端口收到的接口配置。
+/// 记录问答端口每次收到的提问、此前各轮的问答与接口配置。
 private final class QuickAIRequestRecorder: @unchecked Sendable {
     private let lock = NSLock()
+    private var storedQuestions: [String] = []
+    private var storedHistories: [[AIConversationTurn]] = []
     private var storedConfigurations: [AIEndpointConfiguration] = []
+
+    var questions: [String] {
+        lock.withLock { storedQuestions }
+    }
+
+    var histories: [[AIConversationTurn]] {
+        lock.withLock { storedHistories }
+    }
 
     var configurations: [AIEndpointConfiguration] {
         lock.withLock { storedConfigurations }
     }
 
-    func record(_ configuration: AIEndpointConfiguration) {
-        lock.withLock { storedConfigurations.append(configuration) }
+    func record(question: String, history: [AIConversationTurn], configuration: AIEndpointConfiguration) {
+        lock.withLock {
+            storedQuestions.append(question)
+            storedHistories.append(history)
+            storedConfigurations.append(configuration)
+        }
     }
 }
 
@@ -750,10 +902,11 @@ private struct StubAIAnswerer: AIAnswering {
 
     func streamAnswer(
         to question: String,
+        history: [AIConversationTurn],
         systemPrompt: String,
         configuration: AIEndpointConfiguration
     ) -> AsyncThrowingStream<String, Error> {
-        recorder.record(configuration)
+        recorder.record(question: question, history: history, configuration: configuration)
         return AsyncThrowingStream { continuation in
             for delta in deltas {
                 continuation.yield(delta)
@@ -770,6 +923,7 @@ private final class HangingAIAnswerer: AIAnswering, @unchecked Sendable {
 
     func streamAnswer(
         to question: String,
+        history: [AIConversationTurn],
         systemPrompt: String,
         configuration: AIEndpointConfiguration
     ) -> AsyncThrowingStream<String, Error> {

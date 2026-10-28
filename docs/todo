@@ -433,7 +433,7 @@
 - **涉及文件**：
   - [UI/Panel/PanelAnimationCoordinator.swift](UI/Panel/PanelAnimationCoordinator.swift)、[UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)、[UI/Panel/LauncherView.swift](UI/Panel/LauncherView.swift)、[Features/Launcher/QuickAIAnswerView.swift](Features/Launcher/QuickAIAnswerView.swift)、[OITests/PanelAnimationCoordinatorTests.swift](OITests/PanelAnimationCoordinatorTests.swift)
 
-## [ ] Quick AI 多轮追问
+## [x] 26. Quick AI 多轮追问
 
 - **需求描述**：
   - 现在 Quick AI 只能一问一答：回答后想接着问，只能重新输入完整的问题，模型也不知道上一轮说了什么。先做最基本的多轮对话：回答完成后继续输入并按 `Enter` 就是追问，请求带上前面各轮的问答。
@@ -446,6 +446,16 @@
   - 回答区按轮次往下排列，每轮是「问题 + 回答」，问题以靠右的气泡显示；发送新问题时滚到底部；可以追问时页脚提示「↩ 追问」；
   - 发给模型的历史只包含有可见回答的轮次（中途中断的部分回答也算），回答去掉 `<think>` 推理内容，没有回答的失败轮次不发送；本次不做截断，上下文超长时服务返回的错误照常显示在这一轮下方；
   - 以下保持现状：面板失焦收起、再次呼出丢弃对话（见「Quick AI 回答不再轻易丢失」）；`Esc` 中断并关闭；`Tab` 返回检索即结束这段对话，再按 `Tab` 就是新对话，因此本次不加 `Cmd+N`；划词翻译的行为不变。
+- **实现说明**：
+  - 端口：[AIAnswering](Application/Ports/AIAnswering.swift) 新增 `history` 参数与 `AIConversationTurn`（此前一轮的提问与回答）；[OpenAICompatibleAIClient](Infrastructure/AI/OpenAICompatibleAIClient.swift) 把各轮依次作为 `user` / `assistant` 消息排在系统指令之后、本次提问之前；[AskQuickAI](Application/UseCases/AskQuickAI.swift) 经 [AIStreaming](Application/UseCases/AIStreaming.swift) 透传，划词翻译不带历史；
+  - 对话状态：[QuickAISession](Features/Launcher/LauncherState.swift) 由一问一答改为按轮次排列的 `turns`（每轮的问题、回答与状态），流式增量与完成、失败只写最后一轮；`history` 取最后一轮之前有可见回答的轮次，回答去掉 `<think>` 推理内容；`answerToCopy` 为最近一条有可见内容的回答（新的一轮还没有内容时复制上一条）；回车的作用改为 `returnAction(hasDraft:)`，新增「追问」：输出期间不响应，输入框有文字（去掉首尾空白后）时追问，否则最后一轮失败或没有回答时重试，有回答时复制并关闭；
+  - 视图模型：[LauncherViewModel](Features/Launcher/LauncherViewModel.swift) 改动输入框不再丢弃对话；`startQuickAI` 尚未提问时开始对话、已有对话时追加一轮，发送后清空输入框，上一轮仍在输出时不发送；新增 `retryQuickAI`，清空最后一轮并以同一个问题和此前各轮重新请求，输入框中的草稿不变；`quickAIReturnAction` 供面板按键与页脚提示共用；
+  - 面板：[LauncherPanelController](UI/Panel/LauncherPanelController.swift) 的 `Enter` 按 `quickAIReturnAction` 追问、复制并关闭或重试；`Cmd+C` 未选中文字时复制最后一条回答；
+  - 回答区：[QuickAIAnswerView](Features/Launcher/QuickAIAnswerView.swift) 按轮次往下排列，问题为靠右的气泡（过长时换行，左侧至少留出 80pt），每轮的错误显示在这一轮下方；轮数增加时滚到底部并恢复跟随输出；可以追问时页脚提示「↩ 追问」（[Localizable.xcstrings](Localizable.xcstrings) 新增英文 Follow Up）；
+  - 文档：[功能清单](docs/OI%20功能清单.md) 的 Quick AI 一节改为多轮追问的按键与显示；[README](README.md)（含[英文版](README.en.md)）、功能清单与[使用指南](docs/OI%20使用指南.md)的隐私说明写明追问会连同这段对话此前的问答一起发送；
+  - 测试：请求中历史消息的顺序、历史只含此前有可见回答的轮次（含中途失败的部分回答）、复制最近一条回答、回车作用（含输出期间有草稿、纯空白草稿）、追问带上此前各轮且不清空已有回答、输出期间输入草稿不影响回答且不能发送或重试、重试沿用问题与历史且不新增轮次、`Tab` 返回检索结束对话且保留草稿。
+- **涉及文件**：
+  - [Application/Ports/AIAnswering.swift](Application/Ports/AIAnswering.swift)、[Application/UseCases/AIStreaming.swift](Application/UseCases/AIStreaming.swift)、[Application/UseCases/AskQuickAI.swift](Application/UseCases/AskQuickAI.swift)、[Infrastructure/AI/OpenAICompatibleAIClient.swift](Infrastructure/AI/OpenAICompatibleAIClient.swift)、[Features/Launcher/LauncherState.swift](Features/Launcher/LauncherState.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Features/Launcher/QuickAIAnswerView.swift](Features/Launcher/QuickAIAnswerView.swift)、[UI/Panel/LauncherView.swift](UI/Panel/LauncherView.swift)、[UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)、[Localizable.xcstrings](Localizable.xcstrings)、[OITests/QuickAITests.swift](OITests/QuickAITests.swift)、[OITests/TranslatorTestSupport.swift](OITests/TranslatorTestSupport.swift)
 
 ## [ ] Quick AI 输入框移到底部
 
@@ -557,5 +567,4 @@
 
 - **搜索当前 App 的菜单项**：搜索前台 App 的菜单命令并显示其快捷键，`Enter` 执行；
 - **自定义 AI 指令**：保存常用提示词模板（润色、解释代码、总结），可引用选中文字或剪贴板，在启动器或划词气泡中调用；
-- **Quick AI 追问**：回答完成后可继续多轮追问；
 - **单位换算**：支持 `10 km in miles`、`100f to c` 等离线换算；

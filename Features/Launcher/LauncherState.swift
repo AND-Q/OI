@@ -29,34 +29,82 @@ enum LauncherRow: Hashable, Sendable {
     case result(SearchResult)
 }
 
-/// 一次 Quick AI 提问及其流式到达的回答，显示在结果列表的位置。
+/// 一段 Quick AI 对话：按轮次往下排列的提问与流式到达的回答，显示在结果列表的位置。
+/// 至少有一轮，只有最后一轮可能仍在输出。
 struct QuickAISession: Equatable, Sendable {
-    enum State: Equatable, Sendable {
-        case streaming
-        case finished
-        case failed(String)
+    /// 一轮提问与回答。
+    struct Turn: Equatable, Sendable {
+        enum State: Equatable, Sendable {
+            case streaming
+            case finished
+            case failed(String)
+        }
+
+        let question: String
+        var answer = ""
+        var state: State = .streaming
+
+        /// 显示、复制与发给模型的回答，不含 `<think>` 推理内容。
+        var visibleAnswer: String { MarkdownParser.removingThinking(from: answer) }
     }
 
-    let question: String
-    var answer = ""
-    var state: State = .streaming
-    /// `Cmd+C` 复制后在页脚给出反馈；回答继续增长时复位。
+    private(set) var turns: [Turn]
+    /// `Cmd+C` 复制后在页脚给出反馈；回答继续增长或开始新的一轮时复位。
     var isAnswerCopied = false
 
-    var isStreaming: Bool { state == .streaming }
+    init(question: String) {
+        turns = [Turn(question: question)]
+    }
+
+    /// 最后一轮：流式增量写入这一轮，重试也只重来这一轮。
+    var lastTurn: Turn {
+        get { turns[turns.count - 1] }
+        set { turns[turns.count - 1] = newValue }
+    }
+
+    var isStreaming: Bool { lastTurn.state == .streaming }
+
+    /// 追问：在末尾开始新的一轮。
+    mutating func append(question: String) {
+        turns.append(Turn(question: question))
+        isAnswerCopied = false
+    }
+
+    /// 重试：清空最后一轮的回答，以同一个问题重新输出。
+    mutating func restartLastTurn() {
+        lastTurn = Turn(question: lastTurn.question)
+        isAnswerCopied = false
+    }
+
+    /// 最后一轮之前、随最后一轮的提问发给模型的问答：只含有可见回答的轮次（输出到一半失败的部分回答也算），
+    /// 没有回答的失败轮次不发送。
+    var history: [AIConversationTurn] {
+        turns.dropLast().compactMap { turn in
+            let answer = turn.visibleAnswer
+            return answer.isEmpty ? nil : AIConversationTurn(question: turn.question, answer: answer)
+        }
+    }
+
+    /// 复制（`Enter` / `Cmd+C`）用的最后一条回答：最近一条有可见内容的回答，都没有时为 nil。
+    var answerToCopy: String? {
+        turns.lazy.map(\.visibleAnswer).last(where: { !$0.isEmpty })
+    }
 
     /// 回车在当前状态下的作用，面板按键与页脚提示共用同一判断。
     enum ReturnAction: Equatable, Sendable {
         case none
+        case followUp
         case copyAndClose
         case retry
     }
 
-    /// 输出期间不响应；失败（含输出到一半失败）或没有可复制的内容时重试；否则复制并关闭。
-    var returnAction: ReturnAction {
+    /// 输出期间不响应；输入框有文字（`hasDraft`）时追问；最后一轮失败（含输出到一半失败）或没有可复制的内容时
+    /// 重试这一轮；否则复制并关闭。
+    func returnAction(hasDraft: Bool) -> ReturnAction {
         if isStreaming { return .none }
-        if case .failed = state { return .retry }
-        return MarkdownParser.removingThinking(from: answer).isEmpty ? .retry : .copyAndClose
+        if hasDraft { return .followUp }
+        if case .failed = lastTurn.state { return .retry }
+        return lastTurn.visibleAnswer.isEmpty ? .retry : .copyAndClose
     }
 }
 

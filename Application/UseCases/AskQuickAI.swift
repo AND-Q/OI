@@ -22,9 +22,9 @@ struct AskQuickAI {
         )
     }
 
-    /// 按当前设置发起提问，并把回答增量逐段交给 `onDelta`。
+    /// 按当前设置发起提问（`history` 为同一段对话中此前各轮的问答），并把回答增量逐段交给 `onDelta`。
     /// 接口地址或模型缺失时不发起请求，直接抛出未配置错误。
-    func execute(question: String, onDelta: (String) -> Void) async throws {
-        try await streaming.stream(question, systemPrompt: Self.systemPrompt, onDelta: onDelta)
+    func execute(question: String, history: [AIConversationTurn], onDelta: (String) -> Void) async throws {
+        try await streaming.stream(question, history: history, systemPrompt: Self.systemPrompt, onDelta: onDelta)
     }
 }

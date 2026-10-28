@@ -30,7 +30,7 @@ English · [中文](README.md)
 
 ### AI and translation
 
-- **Quick AI**: press `Tab` in the panel to ask a question. Works with any OpenAI-compatible API (including local models such as Ollama) and streams Markdown answers.
+- **Quick AI**: press `Tab` in the panel to ask a question, then keep asking follow-ups. Works with any OpenAI-compatible API (including local models such as Ollama) and streams Markdown answers.
 - **Translator**: force click on the trackpad to translate the word under the pointer, or press `⌥D` to translate the selected text (the clipboard when nothing is selected). The translation streams into a bubble next to the original; bubbles can be dragged and pinned, and the original can be read aloud offline with the system voice.
 - **Screenshot translation**: for text you can't select, such as images or video subtitles, press `⌥S` and select an area of the screen. The text is recognized on your Mac, then translated.
 
@@ -114,7 +114,7 @@ Enter the API endpoint, model, and API key in **Settings… → Quick AI** and *
 | Notifications | Explaining why an app or file failed to open | The first time one is needed |
 
 - App search, file search, and quick queries run locally. Search terms and opened files are not recorded; only app launch counts and last-used times are kept for ranking, and you can turn that off in Settings.
-- Your question or the original text is sent to the API you entered only when you ask Quick AI or translate. Screenshots are recognized on your Mac and are never saved or uploaded; only the recognized text is sent.
+- Your question or the original text is sent to the API you entered only when you ask Quick AI or translate (a follow-up also sends the earlier questions and answers in the conversation). Screenshots are recognized on your Mac and are never saved or uploaded; only the recognized text is sent.
 - If Accessibility can't read the selected text when you press `⌥D` (in Chrome pages or PDFs in Preview, for example), OI presses `⌘C` once to read the selection, then immediately puts back what was on your clipboard. Clipboard managers may still record that copy.
 - Beyond that, OI only reads the model list from the API you entered when you click **Fetch Models** or **Test Connection** in Settings (no questions or text are sent), and only contacts GitHub when you choose **Check for Updates…**.
 

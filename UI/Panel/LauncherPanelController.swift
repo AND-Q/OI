@@ -334,15 +334,18 @@ final class LauncherPanelController {
         if isCommandPressed {
             searchWebAndDismiss()
         } else if viewModel.isQuickAIModeActive {
-            // 输入态 Enter 发起提问；有回答时按会话状态复制并关闭或重试，输出期间不响应。
-            if let session = viewModel.quickAISession {
-                switch session.returnAction {
+            // 尚未提问时 Enter 发起提问；已有对话时输入框有文字即追问，否则复制最后一条回答并关闭或重试这一轮，
+            // 输出期间不响应。
+            if let returnAction = viewModel.quickAIReturnAction {
+                switch returnAction {
+                case .followUp:
+                    viewModel.startQuickAI()
                 case .copyAndClose:
                     if let answer = viewModel.quickAIAnswerToCopy {
                         copyText(answer)
                     }
                 case .retry:
-                    viewModel.startQuickAI()
+                    viewModel.retryQuickAI()
                 case .none:
                     break
                 }
@@ -365,7 +368,7 @@ final class LauncherPanelController {
         if viewModel.quickAISession != nil,
            event.modifierFlags.contains(.command),
            !event.modifierFlags.contains(.option) {
-            // Quick AI 中 Cmd+C 优先复制选中的文字（输入框或回答区）；都没有选中时复制整段回答
+            // Quick AI 中 Cmd+C 优先复制选中的文字（输入框或回答区）；都没有选中时复制最后一条回答
             // 并保留面板，流式输出期间复制当前已到达的部分。
             if isSearchFieldFocused {
                 // 输入框选区直接交给系统复制；按选区长度判断，不依赖空选区时 copy: 的行为。

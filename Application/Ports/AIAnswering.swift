@@ -80,11 +80,19 @@ struct AIEndpointConfiguration: Sendable, Equatable {
     }
 }
 
+/// 多轮问答中此前的一轮：提问与模型的回答，追问时作为上下文随新的提问发送。
+struct AIConversationTurn: Sendable, Equatable {
+    let question: String
+    let answer: String
+}
+
 /// 流式问答端口：按到达顺序逐段产出回答文本增量。
-/// `systemPrompt` 由用例给出（Quick AI 问答与划词翻译各有指令）；取消消费方任务即中断底层请求。
+/// `systemPrompt` 由用例给出（Quick AI 问答与划词翻译各有指令）；`history` 为同一段对话中此前各轮的问答
+/// （Quick AI 追问时），依次排在提问之前；取消消费方任务即中断底层请求。
 protocol AIAnswering: Sendable {
     func streamAnswer(
         to question: String,
+        history: [AIConversationTurn],
         systemPrompt: String,
         configuration: AIEndpointConfiguration
     ) -> AsyncThrowingStream<String, Error>

@@ -220,6 +220,7 @@ struct RecordingAnswerer: AIAnswering {
 
     func streamAnswer(
         to question: String,
+        history: [AIConversationTurn],
         systemPrompt: String,
         configuration: AIEndpointConfiguration
     ) -> AsyncThrowingStream<String, Error> {
@@ -273,6 +274,7 @@ final class HangingAnswerer: AIAnswering, @unchecked Sendable {
 
     func streamAnswer(
         to question: String,
+        history: [AIConversationTurn],
         systemPrompt: String,
         configuration: AIEndpointConfiguration
     ) -> AsyncThrowingStream<String, Error> {

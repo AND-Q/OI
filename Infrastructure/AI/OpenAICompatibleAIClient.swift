@@ -17,11 +17,13 @@ struct OpenAICompatibleAIClient: AIAnswering, AIModelListing {
 
     func streamAnswer(
         to question: String,
+        history: [AIConversationTurn],
         systemPrompt: String,
         configuration: AIEndpointConfiguration
     ) -> AsyncThrowingStream<String, Error> {
         let request = Self.makeRequest(
             question: question,
+            history: history,
             systemPrompt: systemPrompt,
             configuration: configuration
         )
@@ -120,6 +122,7 @@ struct OpenAICompatibleAIClient: AIAnswering, AIModelListing {
 
     static func makeRequest(
         question: String,
+        history: [AIConversationTurn] = [],
         systemPrompt: String,
         configuration: AIEndpointConfiguration
     ) -> URLRequest {
@@ -133,12 +136,16 @@ struct OpenAICompatibleAIClient: AIAnswering, AIModelListing {
         if let apiKey = configuration.apiKey {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         }
+        // 追问时此前各轮的问答依次排在提问之前，模型才知道上文说了什么。
+        var messages = [RequestBody.Message(role: "system", content: systemPrompt)]
+        for turn in history {
+            messages.append(.init(role: "user", content: turn.question))
+            messages.append(.init(role: "assistant", content: turn.answer))
+        }
+        messages.append(.init(role: "user", content: question))
         let body = RequestBody(
             model: configuration.model,
-            messages: [
-                .init(role: "system", content: systemPrompt),
-                .init(role: "user", content: question),
-            ],
+            messages: messages,
             stream: true,
             reasoningEffort: configuration.reasoningEffort
         )

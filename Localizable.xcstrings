@@ -3101,6 +3101,22 @@
         }
       }
     },
+    "追问" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow Up"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "追问"
+          }
+        }
+      }
+    },
     "退出" : {
       "localizations" : {
         "en" : {

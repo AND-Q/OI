@@ -13,11 +13,7 @@ final class LauncherViewModel: ObservableObject {
 
     @Published var query = "" {
         didSet {
-            // Quick AI 模式下改动问题即丢弃旧回答、回到输入态，按 Enter 以新问题重新提问；
-            // 输入态不做应用与文件检索。
-            if query != oldValue {
-                discardQuickAISession()
-            }
+            // Quick AI 模式下输入框只是在写问题或下一条追问，不清空已有回答，也不做应用与文件检索。
             guard !isQuickAIModeActive else { return }
             refreshSearchResults()
         }
@@ -72,7 +68,7 @@ final class LauncherViewModel: ObservableObject {
     private var fileSearchTask: Task<Void, Never>?
     private var pathLookupTask: Task<Void, Never>?
     private lazy var quickAIRequest = StreamingRequest(flushInterval: LauncherViewModel.quickAIFlushInterval) { [weak self] text in
-        self?.quickAISession?.answer += text
+        self?.quickAISession?.lastTurn.answer += text
         self?.quickAISession?.isAnswerCopied = false
     }
     private var refreshGeneration = 0
@@ -391,11 +387,14 @@ final class LauncherViewModel: ObservableObject {
         }
     }
 
-    /// 复制（`Enter` / `Cmd+C`）用的回答，不含 `<think>` 推理内容；尚无可见内容时为 nil。
+    /// 复制（`Enter` / `Cmd+C`）用的最后一条回答，不含 `<think>` 推理内容；尚无可见内容时为 nil。
     var quickAIAnswerToCopy: String? {
-        guard let answer = quickAISession.map({ MarkdownParser.removingThinking(from: $0.answer) }),
-              !answer.isEmpty else { return nil }
-        return answer
+        quickAISession?.answerToCopy
+    }
+
+    /// 回车在 Quick AI 对话中的作用，面板按键与页脚提示共用；尚未提问时为 nil（回车即提问）。
+    var quickAIReturnAction: QuickAISession.ReturnAction? {
+        quickAISession?.returnAction(hasDraft: !normalizedQuery.isEmpty)
     }
 
     /// 回答区滚动一步（Quick AI 中的 `↑` / `↓`）。
@@ -422,35 +421,37 @@ final class LauncherViewModel: ObservableObject {
         }
     }
 
-    /// 把当前输入作为 Quick AI 问题提问（Quick AI 模式下按 `Enter`），回答流式写入 `quickAISession`。
-    /// 没有可提问的内容时返回 nil。
+    /// 把当前输入作为 Quick AI 问题发送（Quick AI 模式下按 `Enter`）：尚未提问时开始对话，已有对话时作为追问。
+    /// 问题移到回答区、输入框清空，回答流式写入最后一轮。没有可发送的内容或上一轮仍在输出时返回 nil。
     @discardableResult
     func startQuickAI() -> Task<Void, Never>? {
         let question = normalizedQuery
-        guard let askQuickAI, isQuickAIModeActive, !question.isEmpty else { return nil }
+        guard askQuickAI != nil, isQuickAIModeActive, !question.isEmpty,
+              quickAISession?.isStreaming != true else { return nil }
 
-        stopQuickAI()
-        isActionSheetVisible = false
-        quickAISession = QuickAISession(question: question)
-        updatePanelHeight()
-
-        // 中断（Esc、隐藏面板、改动输入）后到达的增量与错误由 `quickAIRequest` 丢弃。
-        return quickAIRequest.start { onDelta in
-            try await askQuickAI.execute(question: question, onDelta: onDelta)
-        } onCompletion: { [weak self] error in
-            if let error {
-                self?.quickAISession?.state = .failed(LauncherErrorMessage.message(for: error))
-            } else {
-                self?.quickAISession?.state = .finished
-            }
+        if quickAISession == nil {
+            quickAISession = QuickAISession(question: question)
+        } else {
+            quickAISession?.append(question: question)
         }
+        query = ""
+        return streamLastQuickAITurn()
+    }
+
+    /// 重试最后一轮（失败或没有收到回答时按 `Enter`）：沿用这一轮的问题，输入框中的草稿不变。
+    /// 没有对话或仍在输出时返回 nil。
+    @discardableResult
+    func retryQuickAI() -> Task<Void, Never>? {
+        guard quickAISession?.isStreaming == false else { return nil }
+        quickAISession?.restartLastTurn()
+        return streamLastQuickAITurn()
     }
 
     /// 中断进行中的回答，保留已经到达的内容，避免隐藏面板时在淡出途中改变面板高度。
     func stopQuickAI() {
         guard quickAIRequest.stop() else { return }
         if quickAISession?.isStreaming == true {
-            quickAISession?.state = .finished
+            quickAISession?.lastTurn.state = .finished
         }
     }
 
@@ -533,7 +534,27 @@ final class LauncherViewModel: ObservableObject {
         notifier.notify(title: notification.title, body: notification.body)
     }
 
-    /// 丢弃当前回答；Quick AI 模式本身保持不变。
+    /// 为最后一轮发起请求，带上此前各轮的问答（见 `QuickAISession.history`）。
+    private func streamLastQuickAITurn() -> Task<Void, Never>? {
+        guard let askQuickAI, let session = quickAISession else { return nil }
+        isActionSheetVisible = false
+        updatePanelHeight()
+
+        let question = session.lastTurn.question
+        let history = session.history
+        // 中断（Esc、隐藏面板、返回检索）后到达的增量与错误由 `quickAIRequest` 丢弃。
+        return quickAIRequest.start { onDelta in
+            try await askQuickAI.execute(question: question, history: history, onDelta: onDelta)
+        } onCompletion: { [weak self] error in
+            if let error {
+                self?.quickAISession?.lastTurn.state = .failed(LauncherErrorMessage.message(for: error))
+            } else {
+                self?.quickAISession?.lastTurn.state = .finished
+            }
+        }
+    }
+
+    /// 丢弃当前对话；Quick AI 模式本身保持不变。
     private func discardQuickAISession() {
         stopQuickAI()
         quickAIRequest.discard()
