@@ -9,10 +9,13 @@ struct QuickAIAnswerView: View {
 
     /// `↑` / `↓` 每次滚动的距离。
     private static let keyboardScrollStep: CGFloat = 60
+    /// 回答区上下边缘渐隐的高度。
+    private static let edgeFadeHeight: CGFloat = 20
 
     @State private var position = ScrollPosition(edge: .top)
     @State private var metrics = ScrollMetrics()
     @State private var isPinnedToBottom = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {
@@ -23,8 +26,11 @@ struct QuickAIAnswerView: View {
                             questionBubble(turn.question)
                             answer(of: turn)
                         }
+                        .transition(turnTransition)
                     }
                 }
+                // 只有追问新增一轮时带动画；流式增量与重试不改变轮数，照常立即上屏。
+                .animation(.easeOut(duration: 0.25), value: session.turns.count)
                 .textSelection(.enabled)
                 .padding(.horizontal, 22)
                 .padding(.vertical, 14)
@@ -49,10 +55,12 @@ struct QuickAIAnswerView: View {
                 guard session.isStreaming, isPinnedToBottom else { return }
                 position.scrollTo(edge: .bottom)
             }
-            // 发送新的问题时滚到底部，此后照常跟随这一轮的输出。
+            // 发送新的问题时平滑滚到底部，此后照常跟随这一轮的输出。
             .onChange(of: session.turns.count) {
                 isPinnedToBottom = true
-                position.scrollTo(edge: .bottom)
+                withAnimation(.easeOut(duration: 0.25)) {
+                    position.scrollTo(edge: .bottom)
+                }
             }
             .onChange(of: scrollRequest) { _, request in
                 let target = min(
@@ -63,6 +71,7 @@ struct QuickAIAnswerView: View {
                     position.scrollTo(y: target)
                 }
             }
+            .mask { edgeFadeMask }
 
             // 按住页脚拖动面板，方便对照屏幕内容看回答；回答区留给选中文字。
             footer
@@ -72,7 +81,28 @@ struct QuickAIAnswerView: View {
         }
     }
 
-    /// 提问显示为靠右的气泡，与左侧的回答区分开；过长时换行，左侧至少留出一段空白。
+    /// 新的一轮从下方淡入；开启「减弱动态效果」时只淡入。
+    private var turnTransition: AnyTransition {
+        reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 12))
+    }
+
+    /// 上下边缘柔和渐隐，内容不在面板边缘被硬生生截断：上方有翻过去的内容时淡出顶部，往上翻看、下方还有内容时
+    /// 淡出底部；停在底部跟随输出时底部不淡出，避免每批增量到达时最新一行忽明忽暗。
+    private var edgeFadeMask: some View {
+        let fadesTop = metrics.offset > 1
+        let fadesBottom = !isPinnedToBottom && metrics.offset < metrics.maxOffset - 1
+        return VStack(spacing: 0) {
+            LinearGradient(colors: [.black.opacity(fadesTop ? 0 : 1), .black], startPoint: .top, endPoint: .bottom)
+                .frame(height: Self.edgeFadeHeight)
+            Color.black
+            LinearGradient(colors: [.black, .black.opacity(fadesBottom ? 0 : 1)], startPoint: .top, endPoint: .bottom)
+                .frame(height: Self.edgeFadeHeight)
+        }
+        .animation(.easeOut(duration: 0.15), value: fadesTop)
+        .animation(.easeOut(duration: 0.15), value: fadesBottom)
+    }
+
+    /// 提问显示为靠右的强调色气泡，与左侧的回答区分开；过长时换行，左侧至少留出一段空白。
     private func questionBubble(_ question: String) -> some View {
         HStack(spacing: 0) {
             Spacer(minLength: 80)
@@ -82,7 +112,10 @@ struct QuickAIAnswerView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
-                .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+                .background(
+                    Color.accentColor.opacity(0.18),
+                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                )
         }
     }
 
@@ -92,12 +125,7 @@ struct QuickAIAnswerView: View {
         if visibleAnswer.isEmpty {
             switch turn.state {
             case .streaming:
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("正在思考…")
-                        .foregroundStyle(.secondary)
-                }
+                ThinkingIndicator()
             case .finished:
                 Text("没有收到回答")
                     .foregroundStyle(.secondary)
@@ -114,11 +142,19 @@ struct QuickAIAnswerView: View {
         }
     }
 
+    /// 失败原因显示为淡红底的圆角卡片，与检索的失败横幅一致；文字用正文颜色，服务返回的长原因也不刺眼。
     private func errorLabel(_ message: String) -> some View {
-        Label(message, systemImage: "exclamationmark.triangle.fill")
-            .font(.system(size: 13))
-            .foregroundStyle(.red)
-            .fixedSize(horizontal: false, vertical: true)
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundStyle(.red)
+            Text(message)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .font(.system(size: 13))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private var footer: some View {
@@ -161,6 +197,34 @@ struct QuickAIAnswerView: View {
             Text(title)
         }
         .foregroundStyle(.secondary)
+    }
+}
+
+/// 等待回答时三个依次起伏的小圆点；开启「减弱动态效果」时只明暗变化、不跳动。
+private struct ThinkingIndicator: View {
+    /// 一次起伏的周期（秒）。
+    private static let period: Double = 1.2
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        TimelineView(.animation) { context in
+            let time = context.date.timeIntervalSinceReferenceDate
+            HStack(spacing: 4) {
+                ForEach(0..<3, id: \.self) { index in
+                    // 每个圆点比前一个晚六分之一周期，只在正弦的上半周起伏，其余时间停在原处。
+                    let lift = max(0, sin(time * 2 * Double.pi / Self.period - Double(index) * Double.pi / 3))
+                    Circle()
+                        .frame(width: 6, height: 6)
+                        .opacity(0.35 + 0.65 * lift)
+                        .offset(y: reduceMotion ? 0 : CGFloat(-3 * lift))
+                }
+            }
+        }
+        .foregroundStyle(.secondary)
+        .frame(height: 18)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("正在思考…")
     }
 }
 
