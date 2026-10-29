@@ -67,14 +67,18 @@ struct QuickAIAnswerView<Input: View>: View {
             )
         } action: { old, new in
             metrics = new
-            // 只有滚动位置变化（手动、键盘或自动跟随）才更新贴底状态；内容增长不算离开底部。
-            if new.offset != old.offset {
-                isPinnedToBottom = new.isAtBottom
+            // 滚到底即恢复跟随，只有往上滚（手动或 `↑`）才离开底部：发送新问题时滚到底的动画途中，以及动画期间
+            // 内容又长高时，都不算离开；内容增长本身不改变偏移。
+            if new.isAtBottom {
+                isPinnedToBottom = true
+            } else if new.offset < old.offset {
+                isPinnedToBottom = false
             }
         }
-        // 流式输出期间仅在停留底部时跟随最新内容；往上翻看时不再被拉回。
+        // 停留底部时跟随最新内容，往上翻看时不再被拉回。不要求仍在输出：结束时最后一批增量与完成状态同时写入，
+        // 也要跟到底。
         .onChange(of: session.lastTurn.answer) {
-            guard session.isStreaming, isPinnedToBottom else { return }
+            guard isPinnedToBottom else { return }
             position.scrollTo(edge: .bottom)
         }
         // 发送新的问题时平滑滚到底部，此后照常跟随这一轮的输出。
@@ -95,7 +99,8 @@ struct QuickAIAnswerView<Input: View>: View {
         }
         // 底部经过追问框的内容由系统的滚动边缘效果渐进模糊，顶部仍用自己的渐隐。
         .scrollEdgeEffectStyle(.soft, for: .bottom)
-        .mask { topFadeMask }
+        // 遮罩要延伸到追问框下面，否则经过追问框的内容会在它上沿被整齐切掉。
+        .mask { topFadeMask.ignoresSafeArea(edges: .bottom) }
         // 追问框浮在对话底部：对话从玻璃胶囊下面滚过，玻璃才有内容可以折射。
         .safeAreaBar(edge: .bottom, spacing: 0) {
             composer
