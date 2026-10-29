@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Quick AI 回答区：按轮次往下排列的提问与流式显示的 Markdown 回答，下方是追问框与显示快捷键的页脚。
+/// Quick AI 回答区：按轮次往下排列的提问与流式显示的 Markdown 回答，下方是追问框。
 /// 追问框里的输入控件由面板提供（`input`），与顶部的检索框是同一种原生输入框。
 @MainActor
 struct QuickAIAnswerView<Input: View>: View {
@@ -93,12 +93,6 @@ struct QuickAIAnswerView<Input: View>: View {
 
             composer
                 .frame(height: LauncherLayout.quickAIComposerHeight)
-
-            // 按住页脚拖动面板，方便对照屏幕内容看回答；回答区留给选中文字。
-            footer
-                .frame(height: LauncherLayout.quickAIFooterHeight)
-                .contentShape(Rectangle())
-                .gesture(WindowDragGesture())
         }
     }
 
@@ -196,60 +190,56 @@ struct QuickAIAnswerView<Input: View>: View {
         .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
-    /// 对话下方的胶囊形追问框，右端提示回车此时的作用，与面板的 Enter 处理一致：输入框有文字时追问，
-    /// 失败或无内容时重试，否则复制并关闭；输出期间不提示。键帽底色加深，叠在胶囊的淡底上仍看得清。
+    /// 对话下方的胶囊形追问框：半径 18、左右与下方各留 14pt，与面板 32pt 的圆角同心。
     private var composer: some View {
         HStack(spacing: 10) {
             input
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            switch returnAction {
-            case .followUp:
-                shortcutHint("↩", "追问", keyBackgroundOpacity: 0.12)
-            case .copyAndClose:
-                shortcutHint("↩", "复制并关闭", keyBackgroundOpacity: 0.12)
-            case .retry:
-                shortcutHint("↩", "重试", keyBackgroundOpacity: 0.12)
-            case .none:
-                EmptyView()
-            }
+            hint
         }
         .font(.system(size: 12))
         .padding(.leading, 16)
         .padding(.trailing, 10)
         .frame(height: 36)
         .background(Color.primary.opacity(0.06), in: Capsule())
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 14)
+        .padding(.top, 8)
+        .padding(.bottom, 14)
     }
 
-    /// 页脚左右边距与对话文字、问题气泡对齐。
-    private var footer: some View {
-        HStack(spacing: 14) {
-            if session.isAnswerCopied {
-                Label("已复制到剪贴板", systemImage: "checkmark")
+    /// 追问框右端只放此刻最有用的一个提示：刚复制过时为「已复制」（写追问时让位给追问），输出期间为中断，
+    /// 否则为回车的作用，与面板的 Enter 处理一致：输入框有文字时追问，失败或无内容时重试，否则复制并关闭。
+    private var hint: some View {
+        Group {
+            if session.isAnswerCopied, returnAction != .followUp {
+                Label("已复制", systemImage: "checkmark")
                     .foregroundStyle(.secondary)
-                    .transition(.opacity)
+            } else {
+                switch returnAction {
+                case .followUp:
+                    shortcutHint("↩", "追问")
+                case .copyAndClose:
+                    shortcutHint("↩", "复制并关闭")
+                case .retry:
+                    shortcutHint("↩", "重试")
+                case .none:
+                    // 回车只在输出期间不响应，此时最需要知道的是怎样中断。
+                    shortcutHint("esc", "中断并关闭")
+                }
             }
-            Spacer()
-            shortcutHint("⌘C", "复制")
-            shortcutHint("⇥", "返回搜索")
-            shortcutHint("esc", session.isStreaming ? "中断并关闭" : "关闭")
         }
-        .font(.system(size: 12))
-        .padding(.horizontal, 22)
+        .transition(.opacity)
         .animation(.easeOut(duration: 0.2), value: session.isAnswerCopied)
     }
 
-    private func shortcutHint(
-        _ key: String,
-        _ title: LocalizedStringKey,
-        keyBackgroundOpacity: Double = 0.08
-    ) -> some View {
+    /// 键帽底色比胶囊的淡底深一些，叠在上面仍看得清。
+    private func shortcutHint(_ key: String, _ title: LocalizedStringKey) -> some View {
         HStack(spacing: 4) {
             Text(key)
                 .font(.system(size: 11, weight: .medium))
                 .padding(.horizontal, 5)
                 .padding(.vertical, 1)
-                .background(Color.primary.opacity(keyBackgroundOpacity))
+                .background(Color.primary.opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: 4))
             Text(title)
         }

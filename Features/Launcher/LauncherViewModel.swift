@@ -10,7 +10,7 @@ final class LauncherViewModel: ObservableObject {
     static let fileSectionTitle = String(localized: "文件与文件夹")
     /// 流式增量合并上屏的间隔：避免每个 token 都触发整段 Markdown 重新解析与重绘。
     static let quickAIFlushInterval: Duration = .milliseconds(50)
-    /// 页脚「已复制到剪贴板」的显示时长。
+    /// 追问框右端「已复制」的显示时长。
     static let quickAICopiedHintDuration: Duration = .seconds(2)
 
     @Published var query = "" {
@@ -395,7 +395,7 @@ final class LauncherViewModel: ObservableObject {
         quickAISession?.answerToCopy
     }
 
-    /// 回车在 Quick AI 对话中的作用，面板按键与页脚提示共用；尚未提问时为 nil（回车即提问）。
+    /// 回车在 Quick AI 对话中的作用，面板按键与追问框右端的提示共用；尚未提问时为 nil（回车即提问）。
     var quickAIReturnAction: QuickAISession.ReturnAction? {
         quickAISession?.returnAction(hasDraft: !normalizedQuery.isEmpty)
     }

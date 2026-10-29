@@ -50,7 +50,7 @@ final class LauncherPanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = false
-        // 只有 Quick AI 模式下能按住输入框以外的空白处（提问之后为标题栏）或页脚拖动（见 LauncherView），
+        // 只有 Quick AI 模式下能按住输入框以外的空白处（提问之后为标题栏）拖动（见 LauncherView），
         // 不随背景拖动，以免与选中回答冲突。
         panel.isMovable = true
         panel.isMovableByWindowBackground = false

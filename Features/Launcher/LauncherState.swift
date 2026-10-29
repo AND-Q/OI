@@ -51,7 +51,7 @@ struct QuickAISession: Equatable, Sendable {
     private(set) var turns: [Turn]
     /// 这段对话使用的模型（开始对话时设置中填写的模型名），显示在标题栏；未填写时为空。
     let modelName: String
-    /// `Cmd+C` 复制后在页脚给出反馈；显示一会儿后、回答继续增长或开始新的一轮时复位。
+    /// `Cmd+C` 复制后在追问框右端给出反馈；显示一会儿后、回答继续增长或开始新的一轮时复位。
     var isAnswerCopied = false
 
     init(question: String, modelName: String = "") {
@@ -93,7 +93,7 @@ struct QuickAISession: Equatable, Sendable {
         turns.lazy.map(\.visibleAnswer).last(where: { !$0.isEmpty })
     }
 
-    /// 回车在当前状态下的作用，面板按键与页脚提示共用同一判断。
+    /// 回车在当前状态下的作用，面板按键与追问框右端的提示共用同一判断。
     enum ReturnAction: Equatable, Sendable {
         case none
         case followUp

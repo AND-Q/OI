@@ -52,7 +52,7 @@ struct LauncherView: View {
                         results
                     }
                 }
-                // 展开动画开头的高度还容不下 Quick AI 的追问框与页脚时，内容贴顶排列、超出部分由面板裁掉，
+                // 展开动画开头的高度还容不下 Quick AI 的追问框时，内容贴顶排列、超出部分由面板裁掉，
                 // 不会向上盖住顶部一行。
                 .frame(height: max(0, animation.currentHeight - topRowHeight - 1), alignment: .top)
             }
