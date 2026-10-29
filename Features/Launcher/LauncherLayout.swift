@@ -25,7 +25,7 @@ enum LauncherLayout {
     static let quickAIHeight: CGFloat = 400
     /// 提问之后顶部标题栏的高度。
     static let quickAIHeaderHeight: CGFloat = 44
-    /// 对话下方追问框一行的高度：36pt 的胶囊，上方留 8pt、下方留 14pt。
+    /// 浮在对话底部的追问框一行的高度（对话从它下面滚过）：36pt 的胶囊，上方留 8pt、下方留 14pt。
     static let quickAIComposerHeight: CGFloat = 58
 
     /// 输入框下方展开区域显示的内容。

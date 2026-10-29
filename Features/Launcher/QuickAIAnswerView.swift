@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Quick AI 回答区：按轮次往下排列的提问与流式显示的 Markdown 回答，下方是追问框。
-/// 追问框里的输入控件由面板提供（`input`），与顶部的检索框是同一种原生输入框。
+/// Quick AI 回答区：按轮次往下排列的提问与流式显示的 Markdown 回答，追问框以玻璃胶囊浮在对话底部，
+/// 对话从它下面滚过。追问框里的输入控件由面板提供（`input`），与顶部的检索框是同一种原生输入框。
 @MainActor
 struct QuickAIAnswerView<Input: View>: View {
     let session: QuickAISession
@@ -13,7 +13,7 @@ struct QuickAIAnswerView<Input: View>: View {
 
     /// `↑` / `↓` 每次滚动的距离。
     private static var keyboardScrollStep: CGFloat { 60 }
-    /// 回答区上下边缘渐隐的高度。
+    /// 回答区顶部边缘渐隐的高度。
     private static var edgeFadeHeight: CGFloat { 20 }
 
     @State private var position = ScrollPosition(edge: .top)
@@ -36,64 +36,73 @@ struct QuickAIAnswerView<Input: View>: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    ForEach(Array(session.turns.enumerated()), id: \.offset) { _, turn in
-                        VStack(alignment: .leading, spacing: 10) {
-                            questionBubble(turn.question)
-                            answer(of: turn)
-                        }
-                        .transition(turnTransition)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                ForEach(Array(session.turns.enumerated()), id: \.offset) { _, turn in
+                    VStack(alignment: .leading, spacing: 10) {
+                        questionBubble(turn.question)
+                        answer(of: turn)
                     }
-                }
-                // 只有追问新增一轮时带动画；流式增量与重试不改变轮数，照常立即上屏。
-                .animation(.easeOut(duration: 0.25), value: session.turns.count)
-                .textSelection(.enabled)
-                .padding(.horizontal, 22)
-                .padding(.vertical, 14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .scrollPosition($position)
-            .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
-                ScrollMetrics(
-                    offset: geometry.contentOffset.y,
-                    maxOffset: max(geometry.contentSize.height - geometry.containerSize.height, 0),
-                    isAtBottom: geometry.visibleRect.maxY >= geometry.contentSize.height - 8
-                )
-            } action: { old, new in
-                metrics = new
-                // 只有滚动位置变化（手动、键盘或自动跟随）才更新贴底状态；内容增长不算离开底部。
-                if new.offset != old.offset {
-                    isPinnedToBottom = new.isAtBottom
+                    .transition(turnTransition)
                 }
             }
-            // 流式输出期间仅在停留底部时跟随最新内容；往上翻看时不再被拉回。
-            .onChange(of: session.lastTurn.answer) {
-                guard session.isStreaming, isPinnedToBottom else { return }
+            // 只有追问新增一轮时带动画；流式增量与重试不改变轮数，照常立即上屏。
+            .animation(.easeOut(duration: 0.25), value: session.turns.count)
+            .textSelection(.enabled)
+            .padding(.horizontal, 22)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .scrollPosition($position)
+        .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
+            // 底部留出的追问框高度（`contentInsets.bottom`）也可以滚动，滚到底时最后一行停在追问框上方。
+            let maxOffset = max(
+                geometry.contentSize.height + geometry.contentInsets.bottom - geometry.containerSize.height,
+                0
+            )
+            return ScrollMetrics(
+                offset: geometry.contentOffset.y,
+                maxOffset: maxOffset,
+                isAtBottom: geometry.contentOffset.y >= maxOffset - 8
+            )
+        } action: { old, new in
+            metrics = new
+            // 只有滚动位置变化（手动、键盘或自动跟随）才更新贴底状态；内容增长不算离开底部。
+            if new.offset != old.offset {
+                isPinnedToBottom = new.isAtBottom
+            }
+        }
+        // 流式输出期间仅在停留底部时跟随最新内容；往上翻看时不再被拉回。
+        .onChange(of: session.lastTurn.answer) {
+            guard session.isStreaming, isPinnedToBottom else { return }
+            position.scrollTo(edge: .bottom)
+        }
+        // 发送新的问题时平滑滚到底部，此后照常跟随这一轮的输出。
+        .onChange(of: session.turns.count) {
+            isPinnedToBottom = true
+            withAnimation(.easeOut(duration: 0.25)) {
                 position.scrollTo(edge: .bottom)
             }
-            // 发送新的问题时平滑滚到底部，此后照常跟随这一轮的输出。
-            .onChange(of: session.turns.count) {
-                isPinnedToBottom = true
-                withAnimation(.easeOut(duration: 0.25)) {
-                    position.scrollTo(edge: .bottom)
-                }
+        }
+        .onChange(of: scrollRequest) { _, request in
+            let target = min(
+                max(metrics.offset + CGFloat(request.direction) * Self.keyboardScrollStep, 0),
+                metrics.maxOffset
+            )
+            withAnimation(.easeOut(duration: 0.15)) {
+                position.scrollTo(y: target)
             }
-            .onChange(of: scrollRequest) { _, request in
-                let target = min(
-                    max(metrics.offset + CGFloat(request.direction) * Self.keyboardScrollStep, 0),
-                    metrics.maxOffset
-                )
-                withAnimation(.easeOut(duration: 0.15)) {
-                    position.scrollTo(y: target)
-                }
-            }
-            .mask { edgeFadeMask }
-
+        }
+        // 底部经过追问框的内容由系统的滚动边缘效果渐进模糊，顶部仍用自己的渐隐。
+        .scrollEdgeEffectStyle(.soft, for: .bottom)
+        .mask { topFadeMask }
+        // 追问框浮在对话底部：对话从玻璃胶囊下面滚过，玻璃才有内容可以折射。
+        .safeAreaBar(edge: .bottom, spacing: 0) {
             composer
                 .frame(height: LauncherLayout.quickAIComposerHeight)
         }
+        // 面板展开动画开头的高度还容不下追问框时保持追问框的高度，向下超出的部分由面板裁掉，不往上盖住标题栏。
+        .frame(minHeight: LauncherLayout.quickAIComposerHeight)
     }
 
     /// 新的一轮从下方淡入；开启「减弱动态效果」时只淡入。
@@ -101,20 +110,15 @@ struct QuickAIAnswerView<Input: View>: View {
         reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 12))
     }
 
-    /// 上下边缘柔和渐隐，内容不在面板边缘被硬生生截断：上方有翻过去的内容时淡出顶部，往上翻看、下方还有内容时
-    /// 淡出底部；停在底部跟随输出时底部不淡出，避免每批增量到达时最新一行忽明忽暗。
-    private var edgeFadeMask: some View {
+    /// 顶部边缘柔和渐隐：上方有翻过去的内容时淡出，内容不在标题栏下方被硬生生截断。
+    private var topFadeMask: some View {
         let fadesTop = metrics.offset > 1
-        let fadesBottom = !isPinnedToBottom && metrics.offset < metrics.maxOffset - 1
         return VStack(spacing: 0) {
             LinearGradient(colors: [.black.opacity(fadesTop ? 0 : 1), .black], startPoint: .top, endPoint: .bottom)
                 .frame(height: Self.edgeFadeHeight)
             Color.black
-            LinearGradient(colors: [.black, .black.opacity(fadesBottom ? 0 : 1)], startPoint: .top, endPoint: .bottom)
-                .frame(height: Self.edgeFadeHeight)
         }
         .animation(.easeOut(duration: 0.15), value: fadesTop)
-        .animation(.easeOut(duration: 0.15), value: fadesBottom)
     }
 
     /// 提问显示为靠右的强调色气泡，与左侧的回答区分开；过长时换行，左侧至少留出一段空白。
@@ -190,7 +194,7 @@ struct QuickAIAnswerView<Input: View>: View {
         .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
-    /// 对话下方的胶囊形追问框：半径 18、左右与下方各留 14pt，与面板 32pt 的圆角同心。
+    /// 对话底部的玻璃胶囊追问框：半径 18、左右与下方各留 14pt，与面板 32pt 的圆角同心。
     private var composer: some View {
         HStack(spacing: 10) {
             input
@@ -201,7 +205,7 @@ struct QuickAIAnswerView<Input: View>: View {
         .padding(.leading, 16)
         .padding(.trailing, 10)
         .frame(height: 36)
-        .background(Color.primary.opacity(0.06), in: Capsule())
+        .glassEffect(.regular, in: Capsule())
         .padding(.horizontal, 14)
         .padding(.top, 8)
         .padding(.bottom, 14)
