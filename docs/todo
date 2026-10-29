@@ -479,18 +479,27 @@
 - **涉及文件**：
   - [Features/Launcher/LauncherState.swift](Features/Launcher/LauncherState.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Features/Launcher/LauncherLayout.swift](Features/Launcher/LauncherLayout.swift)、[Features/Launcher/QuickAIAnswerView.swift](Features/Launcher/QuickAIAnswerView.swift)、[Features/Shared/MarkdownBlockView.swift](Features/Shared/MarkdownBlockView.swift)、[UI/Panel/LauncherView.swift](UI/Panel/LauncherView.swift)、[UI/Panel/LauncherSearchInput.swift](UI/Panel/LauncherSearchInput.swift)、[UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)、[Localizable.xcstrings](Localizable.xcstrings)、[OITests/QuickAITests.swift](OITests/QuickAITests.swift)、[OITests/LauncherSearchInputTests.swift](OITests/LauncherSearchInputTests.swift)
 
-## [ ] Quick AI 对话不再轻易丢失
+## [x] 28. Quick AI 对话不再轻易丢失
 
 - **需求描述**：
   - 现在两种情况会让对话消失：点到其他窗口（面板收起并中断输出）、关闭后再次呼出面板。拖动面板对照屏幕内容时，一点别的窗口对话就没了。改动输入框清空回答的问题已由「Quick AI 多轮追问」解决。
 - **需要做到**：
-  - 区分「结束」与「关闭」：点标题栏的 `‹` 或按 `Tab` 返回检索是结束，对话丢弃，与现在相同；按 `Esc` 或呼出快捷键收起面板是关闭，对话保留 5 分钟；
+  - 区分「结束」与「关闭」：点标题栏的 `‹` 或按 `Tab` 返回检索是结束，对话丢弃，与现在相同；`Enter` 复制并关闭表示这段对话已经用完，同样算结束；按 `Esc` 或呼出快捷键收起面板是关闭，对话保留 5 分钟；
   - 已提问后面板失去焦点（点到桌面或其他应用）时不收起、不中断输出，留在原处并继续浮在其他窗口之上；尚未提问时仍与检索模式一样，失焦即收起；
   - 面板留在屏幕上但不在前台时，按呼出快捷键回到面板，焦点在追问框；面板在前台时，按呼出快捷键关闭面板，对话保留；
   - 关闭后 5 分钟内再次呼出，直接回到上一段对话：恢复全部轮次，滚到最后一轮的顶部，焦点在追问框；想检索时按 `Tab` 或点 `‹` 返回检索，即结束这段对话，与现在相同；超过 5 分钟再呼出，照常以检索打开；
   - 关闭时还在输出的那一轮，恢复已经收到的内容，并在末尾标注「已中断」，`Enter` 为重试这一轮；
   - 新对话：按 `⌘N` 或点标题栏右侧的「新对话」按钮，丢弃当前对话，回到尚未提问的 Quick AI，焦点在顶部输入框；返回检索后再按 `Tab` 同样是新对话；
   - 超过 5 分钟或退出 OI 后不再恢复；对话只保存在内存中，不写入磁盘。
+- **实现说明**：
+  - 关闭与恢复：[LauncherViewModel](Features/Launcher/LauncherViewModel.swift) 新增 `prepareForDismissal`，面板收起时（[LauncherPanelController](UI/Panel/LauncherPanelController.swift) 的 `hide`）中断进行中的回答、保留已收到的内容，有对话时记下关闭时间；复制并关闭在收起后调用 `forgetQuickAIConversation` 清除关闭时间，不再恢复；`prepareForPresentation` 在关闭后 `quickAIRestoreInterval`（300 秒）内且对话仍在时保留对话、Quick AI 模式与追问框中的草稿，并递增 `quickAIRestoreRequest`，否则照常丢弃对话、以空的检索打开；返回检索（`‹` / `Tab`）与新对话丢弃对话时一并清除关闭时间，之后不再恢复；对话只在内存中；
+  - 失焦不收起：面板的 `onResignKey` 与应用失去激活的通知在已有对话时不再收起面板，输出照常进行，面板保持浮动层级留在其他窗口之上；尚未提问时照常收起；
+  - 呼出快捷键：有对话而面板不是 key 窗口时，`toggle` 改走 `show` 回到面板，其余情况与原来相同（检索中开着 Quick Look 预览时仍是关闭）；`show` 在面板已显示（对话留在屏幕上）时只激活并聚焦，不移动面板、不重置对话，焦点经 `requestFocus` 回到追问框；淡出途中再次呼出的处理不变；恢复的面板照常回到默认位置；
+  - 已中断：[QuickAISession](Features/Launcher/LauncherState.swift) 的轮次新增 `interrupted` 状态，`stopQuickAI` 把仍在输出的一轮标为已中断（原为已完成）；`returnAction` 对已中断与失败一样为重试；[QuickAIAnswerView](Features/Launcher/QuickAIAnswerView.swift) 在这一轮末尾显示次要色的「已中断」（[Localizable.xcstrings](Localizable.xcstrings) 新增英文 Interrupted）；收到 `restoreRequest` 时滚到最后一轮的顶部，面板正在淡入，不加滚动动画；
+  - 新对话：`startNewQuickAIConversation` 丢弃对话、保留 Quick AI 模式与草稿，顶部输入框随之重建并取得焦点；面板按键中 `⌘N` 只在有对话时处理；[LauncherView](UI/Panel/LauncherView.swift) 标题栏右侧加「新对话」按钮（`square.and.pencil`），与左侧的返回按钮共用 `QuickAIHeaderButton`，悬停提示「新对话（⌘N）」（新增英文 New Conversation (⌘N)）；
+  - 测试：5 分钟内再次呼出回到对话（全部轮次、草稿与滚动请求）、超时后以检索打开、返回检索与复制并关闭后不再恢复、关闭时仍在输出的一轮恢复后为已中断且回车重试、新对话丢弃对话并保留草稿、已提问后面板失去焦点不收起而尚未提问时收起；中断后的状态由已完成改为已中断。
+- **涉及文件**：
+  - [Features/Launcher/LauncherState.swift](Features/Launcher/LauncherState.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Features/Launcher/QuickAIAnswerView.swift](Features/Launcher/QuickAIAnswerView.swift)、[UI/Panel/LauncherView.swift](UI/Panel/LauncherView.swift)、[UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)、[Localizable.xcstrings](Localizable.xcstrings)、[OITests/QuickAITests.swift](OITests/QuickAITests.swift)
 
 ## [ ] 系统设置项直达
 

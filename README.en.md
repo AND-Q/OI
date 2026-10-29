@@ -30,7 +30,7 @@ English · [中文](README.md)
 
 ### AI and translation
 
-- **Quick AI**: press `Tab` in the panel to ask a question, then keep asking follow-ups. Works with any OpenAI-compatible API (including local models such as Ollama) and streams Markdown answers.
+- **Quick AI**: press `Tab` in the panel to ask a question, then keep asking follow-ups; reopen within 5 minutes of closing to pick up the conversation. Works with any OpenAI-compatible API (including local models such as Ollama) and streams Markdown answers.
 - **Translator**: force click on the trackpad to translate the word under the pointer, or press `⌥D` to translate the selected text (the clipboard when nothing is selected). The translation streams into a bubble next to the original; bubbles can be dragged and pinned, and the original can be read aloud offline with the system voice.
 - **Screenshot translation**: for text you can't select, such as images or video subtitles, press `⌥S` and select an area of the screen. The text is recognized on your Mac, then translated.
 

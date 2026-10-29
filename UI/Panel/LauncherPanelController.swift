@@ -63,8 +63,9 @@ final class LauncherPanelController {
         )
 
         // 面板失去 key 窗口（点到桌面或其他应用）时收起，与原生聚焦搜索的默认行为一致。
+        // 已向 Quick AI 提问时不收起：面板留在原处、继续输出，方便对照屏幕内容看回答，按 `Esc` 才关闭。
         panel.onResignKey = { [weak self] in
-            guard let self else { return }
+            guard let self, self.viewModel.quickAISession == nil else { return }
             if self.quickLook.isActive,
                let keyWindow = NSApp.keyWindow,
                keyWindow === QLPreviewPanel.shared() {
@@ -114,10 +115,11 @@ final class LauncherPanelController {
             }
             .store(in: &cancellables)
 
-        // 用户切换到其他应用时收起。
+        // 用户切换到其他应用时收起；已向 Quick AI 提问时同样留在原处。
         NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
             .sink { [weak self] _ in
-                self?.hide()
+                guard let self, self.viewModel.quickAISession == nil else { return }
+                self.hide()
             }
             .store(in: &cancellables)
     }
@@ -146,12 +148,21 @@ final class LauncherPanelController {
 
     func toggle() {
         // 淡出途中改走 show()：此时 hide() 会丢掉这次请求，按下的快捷键被吞掉。
-        (isVisible && !animationCoordinator.isDismissalInProgress) ? hide() : show()
+        // Quick AI 对话留在屏幕上、面板不在前台（点过其他应用）时，同样改走 show() 回到面板，而不是关闭。
+        let isConversationInBackground = viewModel.quickAISession != nil && !panel.isKeyWindow
+        (isVisible && !animationCoordinator.isDismissalInProgress && !isConversationInBackground) ? hide() : show()
     }
 
     func show() {
+        if panel.isVisible, !animationCoordinator.isDismissalInProgress {
+            // 已经显示（如 Quick AI 对话留在屏幕上）：回到面板，位置与会话都不变，焦点交回输入框。
+            NSApp.activate(ignoringOtherApps: true)
+            panel.makeKeyAndOrderFront(nil)
+            viewModel.requestFocus()
+            return
+        }
         guard !panel.isVisible else {
-            // 已经显示：重新聚焦，不重置会话。先撤销进行中的淡出，
+            // 淡出途中再次呼出：重新聚焦，不重置会话。先撤销进行中的淡出，
             // 否则淡出完成时会在这次唤起后立即把面板移出屏幕。
             NSApp.activate(ignoringOtherApps: true)
             animationCoordinator.cancelDismissal()
@@ -183,8 +194,8 @@ final class LauncherPanelController {
     func hide() {
         guard panel.isVisible, !animationCoordinator.isDismissalInProgress else { return }
         viewModel.dismissActionSheet()
-        // 只中断请求、保留已收到的回答，避免淡出途中面板高度收缩。
-        viewModel.stopQuickAI()
+        // 只中断请求、保留已收到的回答，避免淡出途中面板高度收缩；对话留待 5 分钟内再次呼出时恢复。
+        viewModel.prepareForDismissal()
         // 先启动淡出再收预览：还焦点回调看到 dismissal 进行中会自动跳过。
         animationCoordinator.fadeOutAndOrderOut()
         quickLook.close()
@@ -285,6 +296,11 @@ final class LauncherPanelController {
                 return markHandled(event)
             }
             return event
+        case UInt16(kVK_ANSI_N):
+            // Cmd+N 在 Quick AI 对话中开始新对话；其他时候保持系统默认行为。
+            guard event.modifierFlags.contains(.command), viewModel.quickAISession != nil else { return event }
+            viewModel.startNewQuickAIConversation()
+            return markHandled(event)
         case UInt16(kVK_ANSI_B):
             guard event.modifierFlags.contains(.command) else { return event }
             if let result = viewModel.selectedResult,
@@ -320,7 +336,7 @@ final class LauncherPanelController {
         } else if viewModel.isActionSheetVisible {
             viewModel.dismissActionSheet()
         } else if viewModel.quickAISession != nil {
-            // 已提问：Esc 一次即中断回答并关闭面板。
+            // 已提问：Esc 一次即中断回答并关闭面板，对话保留，5 分钟内再次呼出时恢复。
             hide()
         } else if viewModel.isQuickAIModeActive {
             // 尚未提问：Esc 返回检索，已输入的文字保留。
@@ -344,6 +360,8 @@ final class LauncherPanelController {
                 case .copyAndClose:
                     if let answer = viewModel.quickAIAnswerToCopy {
                         copyText(answer)
+                        // 复制并关闭表示这段对话已经用完，再次呼出时不再恢复。
+                        viewModel.forgetQuickAIConversation()
                     }
                 case .retry:
                     viewModel.retryQuickAI()

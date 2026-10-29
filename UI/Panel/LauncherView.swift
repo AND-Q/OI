@@ -37,6 +37,7 @@ struct LauncherView: View {
                             session: session,
                             returnAction: viewModel.quickAIReturnAction ?? QuickAISession.ReturnAction.none,
                             scrollRequest: viewModel.quickAIScrollRequest,
+                            restoreRequest: viewModel.quickAIRestoreRequest,
                             onCopyCode: onCopy
                         ) {
                             // 与顶部的输入框共用问题草稿；回车等按键同样由面板统一处理。
@@ -169,7 +170,8 @@ struct LauncherView: View {
         viewModel.quickAISession == nil ? LauncherLayout.searchHeight : LauncherLayout.quickAIHeaderHeight
     }
 
-    /// Quick AI 提问之后的标题栏：左边的 `‹` 与 `Tab` 相同，返回检索并结束这段对话；中间是「Quick AI · 模型名」。
+    /// Quick AI 提问之后的标题栏：左边的 `‹` 与 `Tab` 相同，返回检索并结束这段对话；中间是「Quick AI · 模型名」；
+    /// 右边的「新对话」与 `⌘N` 相同。
     private func quickAIHeader(modelName: String) -> some View {
         ZStack {
             HStack(spacing: 6) {
@@ -189,10 +191,13 @@ struct LauncherView: View {
             .padding(.horizontal, 64)
 
             HStack {
-                QuickAIBackButton {
+                QuickAIHeaderButton(systemImage: "chevron.left", help: "返回搜索") {
                     viewModel.toggleQuickAIMode()
                 }
                 Spacer()
+                QuickAIHeaderButton(systemImage: "square.and.pencil", help: "新对话（⌘N）") {
+                    viewModel.startNewQuickAIConversation()
+                }
             }
         }
         .padding(.horizontal, 14)
@@ -295,15 +300,17 @@ struct LauncherView: View {
     }
 }
 
-/// 标题栏左侧的返回按钮：悬停时显示圆形淡底。
-private struct QuickAIBackButton: View {
+/// 标题栏两侧的图标按钮（返回搜索、新对话）：悬停时显示圆形淡底。
+private struct QuickAIHeaderButton: View {
+    let systemImage: String
+    let help: LocalizedStringKey
     let action: () -> Void
 
     @State private var isHovered = false
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: "chevron.left")
+            Image(systemName: systemImage)
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(.secondary)
                 .frame(width: 28, height: 28)
@@ -312,7 +319,7 @@ private struct QuickAIBackButton: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
-        .help("返回搜索")
-        .accessibilityLabel("返回搜索")
+        .help(help)
+        .accessibilityLabel(help)
     }
 }

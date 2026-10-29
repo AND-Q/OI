@@ -7,6 +7,8 @@ struct QuickAIAnswerView<Input: View>: View {
     let session: QuickAISession
     let returnAction: QuickAISession.ReturnAction
     let scrollRequest: QuickAIScrollRequest
+    /// 再次呼出回到这段对话时递增，滚到最后一轮的顶部。
+    let restoreRequest: Int
     /// 复制代码块（代码块右上角的「复制」）。
     let onCopyCode: (String) -> Void
     let input: Input
@@ -28,12 +30,14 @@ struct QuickAIAnswerView<Input: View>: View {
         session: QuickAISession,
         returnAction: QuickAISession.ReturnAction,
         scrollRequest: QuickAIScrollRequest,
+        restoreRequest: Int,
         onCopyCode: @escaping (String) -> Void,
         @ViewBuilder input: () -> Input
     ) {
         self.session = session
         self.returnAction = returnAction
         self.scrollRequest = scrollRequest
+        self.restoreRequest = restoreRequest
         self.onCopyCode = onCopyCode
         self.input = input()
     }
@@ -85,6 +89,10 @@ struct QuickAIAnswerView<Input: View>: View {
             withAnimation(.easeOut(duration: 0.25)) {
                 position.scrollTo(id: session.turns.count - 1, anchor: .top)
             }
+        }
+        // 再次呼出回到这段对话时同样从最后一轮开始；面板正在淡入，不必再加滚动动画。
+        .onChange(of: restoreRequest) {
+            position.scrollTo(id: session.turns.count - 1, anchor: .top)
         }
         .onChange(of: scrollRequest) { _, request in
             let target = min(
@@ -157,6 +165,8 @@ struct QuickAIAnswerView<Input: View>: View {
             case .finished:
                 Text("没有收到回答")
                     .foregroundStyle(.secondary)
+            case .interrupted:
+                interruptedLabel
             case .failed(let message):
                 errorLabel(message)
             }
@@ -172,10 +182,20 @@ struct QuickAIAnswerView<Input: View>: View {
             if turn.state == .streaming {
                 ThinkingIndicator(dotSize: 4)
             }
+            if turn.state == .interrupted {
+                interruptedLabel
+            }
             if case .failed(let message) = turn.state {
                 errorLabel(message)
             }
         }
+    }
+
+    /// 输出到一半被中断（关闭面板等）时标在这一轮末尾；回车为重试这一轮。
+    private var interruptedLabel: some View {
+        Label("已中断", systemImage: "pause.circle")
+            .font(.system(size: 12))
+            .foregroundStyle(.secondary)
     }
 
     /// 回答中相邻两块的间距：同一列表的条目靠紧，标题与上文拉开、与下文靠近，其余为段落间距。

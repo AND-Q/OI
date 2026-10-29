@@ -12,6 +12,8 @@ final class LauncherViewModel: ObservableObject {
     static let quickAIFlushInterval: Duration = .milliseconds(50)
     /// 追问框右端「已复制」的显示时长。
     static let quickAICopiedHintDuration: Duration = .seconds(2)
+    /// 关闭面板后保留 Quick AI 对话的时长：在此之内再次呼出直接回到这段对话。
+    static let quickAIRestoreInterval: TimeInterval = 300
 
     @Published var query = "" {
         didSet {
@@ -50,6 +52,8 @@ final class LauncherViewModel: ObservableObject {
     @Published private(set) var isQuickAIModeActive = false
     @Published private(set) var quickAISession: QuickAISession?
     @Published private(set) var quickAIScrollRequest = QuickAIScrollRequest()
+    /// 再次呼出回到上一段对话时递增，回答区据此滚到最后一轮的顶部。
+    @Published private(set) var quickAIRestoreRequest = 0
 
     private let discoverApplications: DiscoverApplications
     private let launchApplication: LaunchApplication
@@ -70,6 +74,8 @@ final class LauncherViewModel: ObservableObject {
     private var fileSearchTask: Task<Void, Never>?
     private var pathLookupTask: Task<Void, Never>?
     private var quickAICopiedHintTask: Task<Void, Never>?
+    /// 带着 Quick AI 对话关闭面板的时间；对话结束或重新回到面板时清除。
+    private var quickAIClosedAt: Date?
     private lazy var quickAIRequest = StreamingRequest(flushInterval: LauncherViewModel.quickAIFlushInterval) { [weak self] text in
         self?.quickAISession?.lastTurn.answer += text
         self?.quickAISession?.isAnswerCopied = false
@@ -359,12 +365,32 @@ final class LauncherViewModel: ObservableObject {
         if isSearchingFiles { fileSearchState = .idle }
     }
 
+    /// 呼出面板前调用：关闭后 5 分钟内带着对话再次呼出时回到这段对话（全部轮次与追问框中的草稿），
+    /// 否则丢弃对话、以空的检索打开。
     func prepareForPresentation() {
         isActionSheetVisible = false
-        discardQuickAISession()
-        isQuickAIModeActive = false
-        query = ""
+        if let closedAt = quickAIClosedAt, quickAISession != nil,
+           now().timeIntervalSince(closedAt) < Self.quickAIRestoreInterval {
+            quickAIClosedAt = nil
+            quickAIRestoreRequest &+= 1
+        } else {
+            discardQuickAISession()
+            isQuickAIModeActive = false
+            query = ""
+        }
         refreshApplications(force: false)
+    }
+
+    /// 面板收起（`Esc`、呼出快捷键等）时调用：中断进行中的回答并保留已收到的内容，
+    /// 有对话时记下关闭时间，供再次呼出时恢复（见 `prepareForPresentation`）。
+    func prepareForDismissal() {
+        stopQuickAI()
+        quickAIClosedAt = quickAISession == nil ? nil : now()
+    }
+
+    /// 复制并关闭（`Enter`）表示这段对话已经用完：面板照常收起，再次呼出时不再恢复。
+    func forgetQuickAIConversation() {
+        quickAIClosedAt = nil
     }
 
     /// 标记应用目录有变动，下次呼出面板时刷新（由目录监听调用）。
@@ -424,6 +450,12 @@ final class LauncherViewModel: ObservableObject {
         }
     }
 
+    /// 新对话（`⌘N` 或标题栏的「新对话」）：丢弃当前对话，回到尚未提问的 Quick AI，追问框中的草稿留作新的问题。
+    func startNewQuickAIConversation() {
+        guard isQuickAIModeActive, quickAISession != nil else { return }
+        discardQuickAISession()
+    }
+
     /// 把当前输入作为 Quick AI 问题发送（Quick AI 模式下按 `Enter`）：尚未提问时开始对话，已有对话时作为追问。
     /// 问题移到回答区、输入框清空，回答流式写入最后一轮。没有可发送的内容或上一轮仍在输出时返回 nil。
     @discardableResult
@@ -442,7 +474,7 @@ final class LauncherViewModel: ObservableObject {
         return streamLastQuickAITurn()
     }
 
-    /// 重试最后一轮（失败或没有收到回答时按 `Enter`）：沿用这一轮的问题，输入框中的草稿不变。
+    /// 重试最后一轮（失败、被中断或没有收到回答时按 `Enter`）：沿用这一轮的问题，输入框中的草稿不变。
     /// 没有对话或仍在输出时返回 nil。
     @discardableResult
     func retryQuickAI() -> Task<Void, Never>? {
@@ -451,11 +483,11 @@ final class LauncherViewModel: ObservableObject {
         return streamLastQuickAITurn()
     }
 
-    /// 中断进行中的回答，保留已经到达的内容，避免隐藏面板时在淡出途中改变面板高度。
+    /// 中断进行中的回答，保留已经到达的内容并标为已中断，避免隐藏面板时在淡出途中改变面板高度。
     func stopQuickAI() {
         guard quickAIRequest.stop() else { return }
         if quickAISession?.isStreaming == true {
-            quickAISession?.lastTurn.state = .finished
+            quickAISession?.lastTurn.state = .interrupted
         }
     }
 
@@ -565,10 +597,11 @@ final class LauncherViewModel: ObservableObject {
         }
     }
 
-    /// 丢弃当前对话；Quick AI 模式本身保持不变。
+    /// 丢弃当前对话（之后不再恢复）；Quick AI 模式本身保持不变。
     private func discardQuickAISession() {
         stopQuickAI()
         quickAIRequest.discard()
+        quickAIClosedAt = nil
         guard quickAISession != nil else { return }
         quickAISession = nil
         updatePanelHeight()
