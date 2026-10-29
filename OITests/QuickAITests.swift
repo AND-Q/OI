@@ -672,6 +672,23 @@ final class QuickAITests: XCTestCase {
         XCTAssertEqual(viewModel.quickAISession?.isAnswerCopied, true)
     }
 
+    func testSessionKeepsModelNameFromSettingsForTitle() async throws {
+        let settingsStore = MemoryAppSettingsStore(initial: AppSettings(
+            quickAIBaseURL: "https://api.openai.com/v1",
+            quickAIModel: " gpt-4o-mini\n"
+        ))
+        let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: ["答案"]), settingsStore: settingsStore)
+        viewModel.toggleQuickAIMode()
+        viewModel.query = "问题"
+        try await XCTUnwrap(viewModel.startQuickAI()).value
+
+        settingsStore.save(AppSettings(quickAIBaseURL: "https://api.openai.com/v1", quickAIModel: "gpt-5"))
+        viewModel.query = "追问"
+        try await XCTUnwrap(viewModel.startQuickAI()).value
+
+        XCTAssertEqual(viewModel.quickAISession?.modelName, "gpt-4o-mini", "标题沿用开始对话时的模型名")
+    }
+
     func testPrepareForPresentationResetsQuickAISession() async throws {
         let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: ["回答"]))
         viewModel.toggleQuickAIMode()

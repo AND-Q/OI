@@ -49,11 +49,14 @@ struct QuickAISession: Equatable, Sendable {
     }
 
     private(set) var turns: [Turn]
-    /// `Cmd+C` 复制后在页脚给出反馈；回答继续增长或开始新的一轮时复位。
+    /// 这段对话使用的模型（开始对话时设置中填写的模型名），显示在标题栏；未填写时为空。
+    let modelName: String
+    /// `Cmd+C` 复制后在页脚给出反馈；显示一会儿后、回答继续增长或开始新的一轮时复位。
     var isAnswerCopied = false
 
-    init(question: String) {
+    init(question: String, modelName: String = "") {
         turns = [Turn(question: question)]
+        self.modelName = modelName
     }
 
     /// 最后一轮：流式增量写入这一轮，重试也只重来这一轮。

@@ -897,6 +897,22 @@
         }
       }
     },
+    "已复制" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copied"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已复制"
+          }
+        }
+      }
+    },
     "已复制到剪贴板" : {
       "localizations" : {
         "en" : {
@@ -2541,6 +2557,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "繁体中文"
+          }
+        }
+      }
+    },
+    "继续追问，按回车发送" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow up, press Return to send"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续追问，按回车发送"
           }
         }
       }

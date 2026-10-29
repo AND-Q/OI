@@ -20,9 +20,11 @@ enum LauncherLayout {
     static let actionSheetBottomInset: CGFloat = 12
     /// 结果列表上方失败横幅的高度（含顶部间距），计入展开高度，不挤占结果行。
     static let launchErrorBannerHeight: CGFloat = 32
-    /// Quick AI 回答区（回答与页脚）的固定高度，流式输出期间窗口不随内容变化尺寸。
+    /// Quick AI 回答区（对话、追问框与页脚）的固定高度，流式输出期间窗口不随内容变化尺寸。
     static let quickAIHeight: CGFloat = 400
-    static let quickAIFooterHeight: CGFloat = 32
+    /// 对话下方的追问框一行（含上下间距）与页脚的高度。
+    static let quickAIComposerHeight: CGFloat = 52
+    static let quickAIFooterHeight: CGFloat = 28
 
     /// 输入框下方展开区域显示的内容。
     enum ExpandedContent: Equatable {

@@ -10,6 +10,8 @@ final class LauncherViewModel: ObservableObject {
     static let fileSectionTitle = String(localized: "文件与文件夹")
     /// 流式增量合并上屏的间隔：避免每个 token 都触发整段 Markdown 重新解析与重绘。
     static let quickAIFlushInterval: Duration = .milliseconds(50)
+    /// 页脚「已复制到剪贴板」的显示时长。
+    static let quickAICopiedHintDuration: Duration = .seconds(2)
 
     @Published var query = "" {
         didSet {
@@ -67,6 +69,7 @@ final class LauncherViewModel: ObservableObject {
     private var loadTask: Task<Void, Never>?
     private var fileSearchTask: Task<Void, Never>?
     private var pathLookupTask: Task<Void, Never>?
+    private var quickAICopiedHintTask: Task<Void, Never>?
     private lazy var quickAIRequest = StreamingRequest(flushInterval: LauncherViewModel.quickAIFlushInterval) { [weak self] text in
         self?.quickAISession?.lastTurn.answer += text
         self?.quickAISession?.isAnswerCopied = false
@@ -430,7 +433,8 @@ final class LauncherViewModel: ObservableObject {
               quickAISession?.isStreaming != true else { return nil }
 
         if quickAISession == nil {
-            quickAISession = QuickAISession(question: question)
+            let modelName = settingsStore.load().quickAIModel.trimmingCharacters(in: .whitespacesAndNewlines)
+            quickAISession = QuickAISession(question: question, modelName: modelName)
         } else {
             quickAISession?.append(question: question)
         }
@@ -457,6 +461,13 @@ final class LauncherViewModel: ObservableObject {
 
     func markQuickAIAnswerCopied() {
         quickAISession?.isAnswerCopied = true
+        // 提示显示一会儿就收起；再次复制时重新计时。
+        quickAICopiedHintTask?.cancel()
+        quickAICopiedHintTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.quickAICopiedHintDuration)
+            guard !Task.isCancelled else { return }
+            self?.quickAISession?.isAnswerCopied = false
+        }
     }
 
     var currentAvailableActions: [ResultMenuAction] {

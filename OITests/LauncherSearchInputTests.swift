@@ -23,6 +23,18 @@ final class LauncherSearchInputTests: XCTestCase {
         XCTAssertEqual(changes, ["微信"])
     }
 
+    func testPlaceholderFollowsStyleAndQuickAIMode() {
+        let input = LauncherSearchInputView()
+        input.update(query: "", isQuickAIMode: false, focusRequest: 0)
+        XCTAssertEqual(input.textField.placeholderString, "聚焦搜索")
+        input.update(query: "", isQuickAIMode: true, focusRequest: 0)
+        XCTAssertEqual(input.textField.placeholderString, "向 AI 提问，按回车发送")
+
+        let followUp = LauncherSearchInputView(style: .followUp)
+        followUp.update(query: "", isQuickAIMode: true, focusRequest: 0)
+        XCTAssertEqual(followUp.textField.placeholderString, "继续追问，按回车发送")
+    }
+
     func testNativeSearchInputSubmitsThroughItsAction() throws {
         let input = LauncherSearchInputView()
         var submissions = 0

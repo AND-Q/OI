@@ -4,12 +4,13 @@ import SwiftUI
 /// 占位文字与搜索图标走 AppKit 原生的材质渲染。
 struct LauncherSearchInput: NSViewRepresentable {
     @Binding var query: String
+    var style: LauncherSearchInputView.Style = .search
     let isQuickAIMode: Bool
     let focusRequest: Int
     let onSubmit: () -> Void
 
     func makeNSView(context: Context) -> LauncherSearchInputView {
-        LauncherSearchInputView()
+        LauncherSearchInputView(style: style)
     }
 
     func updateNSView(_ nsView: LauncherSearchInputView, context: Context) {
@@ -20,13 +21,22 @@ struct LauncherSearchInput: NSViewRepresentable {
 }
 
 final class LauncherSearchInputView: NSView, NSTextFieldDelegate {
+    /// 面板顶部的检索框（Quick AI 的第一个问题也在这里输入），或 Quick AI 提问之后对话下方的追问框：
+    /// 追问框字号较小、没有搜索图标。
+    enum Style {
+        case search
+        case followUp
+    }
+
     let textField = NSTextField()
+    private let style: Style
     private let searchIcon = NSImageView()
     private var lastFocusRequest: Int?
     var onQueryChange: ((String) -> Void)?
     var onSubmit: (() -> Void)?
 
-    init() {
+    init(style: Style = .search) {
+        self.style = style
         super.init(frame: .zero)
 
         searchIcon.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: nil)?
@@ -39,7 +49,7 @@ final class LauncherSearchInputView: NSView, NSTextFieldDelegate {
         textField.isBezeled = false
         textField.drawsBackground = false
         textField.focusRingType = .none
-        textField.font = .systemFont(ofSize: 26, weight: .regular)
+        textField.font = .systemFont(ofSize: style == .search ? 26 : 15, weight: .regular)
         textField.textColor = .labelColor
         textField.placeholderString = String(localized: "聚焦搜索")
         textField.cell?.usesSingleLineMode = true
@@ -51,19 +61,30 @@ final class LauncherSearchInputView: NSView, NSTextFieldDelegate {
         textField.target = self
         textField.action = #selector(submit)
 
-        for view in [searchIcon, textField] {
-            view.translatesAutoresizingMaskIntoConstraints = false
-            addSubview(view)
+        switch style {
+        case .search:
+            for view in [searchIcon, textField] {
+                view.translatesAutoresizingMaskIntoConstraints = false
+                addSubview(view)
+            }
+            NSLayoutConstraint.activate([
+                searchIcon.leadingAnchor.constraint(equalTo: leadingAnchor),
+                searchIcon.centerYAnchor.constraint(equalTo: centerYAnchor),
+                searchIcon.widthAnchor.constraint(equalToConstant: 28),
+                searchIcon.heightAnchor.constraint(equalToConstant: 28),
+                textField.leadingAnchor.constraint(equalTo: searchIcon.trailingAnchor, constant: 14),
+                textField.trailingAnchor.constraint(equalTo: trailingAnchor),
+                textField.centerYAnchor.constraint(equalTo: centerYAnchor),
+            ])
+        case .followUp:
+            textField.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(textField)
+            NSLayoutConstraint.activate([
+                textField.leadingAnchor.constraint(equalTo: leadingAnchor),
+                textField.trailingAnchor.constraint(equalTo: trailingAnchor),
+                textField.centerYAnchor.constraint(equalTo: centerYAnchor),
+            ])
         }
-        NSLayoutConstraint.activate([
-            searchIcon.leadingAnchor.constraint(equalTo: leadingAnchor),
-            searchIcon.centerYAnchor.constraint(equalTo: centerYAnchor),
-            searchIcon.widthAnchor.constraint(equalToConstant: 28),
-            searchIcon.heightAnchor.constraint(equalToConstant: 28),
-            textField.leadingAnchor.constraint(equalTo: searchIcon.trailingAnchor, constant: 14),
-            textField.trailingAnchor.constraint(equalTo: trailingAnchor),
-            textField.centerYAnchor.constraint(equalTo: centerYAnchor),
-        ])
     }
 
     @available(*, unavailable)
@@ -72,7 +93,12 @@ final class LauncherSearchInputView: NSView, NSTextFieldDelegate {
     }
 
     func update(query: String, isQuickAIMode: Bool, focusRequest: Int) {
-        let placeholder = isQuickAIMode ? String(localized: "向 AI 提问，按回车发送") : String(localized: "聚焦搜索")
+        let placeholder = switch style {
+        case .search:
+            isQuickAIMode ? String(localized: "向 AI 提问，按回车发送") : String(localized: "聚焦搜索")
+        case .followUp:
+            String(localized: "继续追问，按回车发送")
+        }
         if textField.placeholderString != placeholder {
             textField.placeholderString = placeholder
             textField.setAccessibilityLabel(placeholder)

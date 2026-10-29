@@ -50,7 +50,7 @@ final class LauncherPanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = false
-        // 只有 Quick AI 模式下能按住输入框以外的空白处或页脚拖动（见 LauncherView），
+        // 只有 Quick AI 模式下能按住输入框以外的空白处（提问之后为标题栏）或页脚拖动（见 LauncherView），
         // 不随背景拖动，以免与选中回答冲突。
         panel.isMovable = true
         panel.isMovableByWindowBackground = false
@@ -92,7 +92,8 @@ final class LauncherPanelController {
             onAction: { [weak self] action, result in
                 self?.performMenuAction(action, for: result)
             },
-            onDismiss: { [weak self] in self?.hide() }
+            onDismiss: { [weak self] in self?.hide() },
+            onCopy: { [weak self] text in self?.writeToPasteboard(text) }
         )
         let hostingView = NSHostingView(rootView: launcherView)
         hostingView.autoresizingMask = [.width, .height]
@@ -614,7 +615,8 @@ final class LauncherPanelController {
         pasteboard.setString(value, forType: .string)
     }
 
-    /// 面板里唯一的文本输入是检索框，字段编辑器为第一响应者即表示焦点在输入框。
+    /// 面板里同时只有一个文本输入（顶部的检索框，或 Quick AI 提问之后对话下方的追问框），
+    /// 字段编辑器为第一响应者即表示焦点在输入框。
     private var isSearchFieldFocused: Bool {
         (panel.firstResponder as? NSTextView)?.isFieldEditor == true
     }
@@ -626,7 +628,7 @@ final class LauncherPanelController {
         return NSPasteboard.general.changeCount != changeCount
     }
 
-    /// 焦点交回检索框并把光标放到末尾，避免默认全选后下一个按键覆盖整个问题。
+    /// 焦点交回输入框（检索框或追问框）并把光标放到末尾，避免默认全选后下一个按键覆盖整个问题。
     private func focusSearchFieldAtEnd() {
         guard let input = panel.contentView?.firstDescendant(of: LauncherSearchInputView.self) else { return }
         panel.makeFirstResponder(input.textField)
