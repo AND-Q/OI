@@ -173,7 +173,7 @@ struct SettingsView: View {
             TextField(
                 "接口地址",
                 text: $viewModel.settings.quickAIBaseURL,
-                prompt: Text("https://api.openai.com/v1")
+                prompt: Text(verbatim: "https://api.openai.com/v1")
             )
             .autocorrectionDisabled()
             if viewModel.isQuickAIBaseURLPlaintext {
@@ -181,7 +181,7 @@ struct SettingsView: View {
                     .font(.footnote)
                     .foregroundStyle(.red)
             }
-            TextField("模型", text: $viewModel.settings.quickAIModel, prompt: Text("gpt-4o-mini"))
+            TextField("模型", text: $viewModel.settings.quickAIModel, prompt: Text(verbatim: "gpt-4o-mini"))
                 .autocorrectionDisabled()
             TextField("思考强度", text: $viewModel.settings.quickAIReasoningEffort, prompt: Text("留空不发送"))
                 .autocorrectionDisabled()
@@ -271,7 +271,7 @@ struct SettingsView: View {
             TextField(
                 "接口地址",
                 text: $viewModel.settings.translationBaseURL,
-                prompt: Text("https://api.openai.com/v1")
+                prompt: Text(verbatim: "https://api.openai.com/v1")
             )
             .autocorrectionDisabled()
             if viewModel.isTranslationBaseURLPlaintext {
@@ -279,7 +279,7 @@ struct SettingsView: View {
                     .font(.footnote)
                     .foregroundStyle(.red)
             }
-            TextField("模型", text: $viewModel.settings.translationModel, prompt: Text("gpt-4o-mini"))
+            TextField("模型", text: $viewModel.settings.translationModel, prompt: Text(verbatim: "gpt-4o-mini"))
                 .autocorrectionDisabled()
             TextField("思考强度", text: $viewModel.settings.translationReasoningEffort, prompt: Text("留空不发送"))
                 .autocorrectionDisabled()

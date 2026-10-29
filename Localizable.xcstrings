@@ -33,6 +33,22 @@
         }
       }
     },
+    "API Key" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API Key"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API Key"
+          }
+        }
+      }
+    },
     "API Key 与提问内容将明文传输" : {
       "localizations" : {
         "en" : {
