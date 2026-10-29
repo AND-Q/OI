@@ -205,6 +205,8 @@ struct QuickAIAnswerView<Input: View>: View {
         .padding(.leading, 16)
         .padding(.trailing, 10)
         .frame(height: 36)
+        // 纯白等明亮背景上玻璃几乎全透，叠一层淡底让胶囊有实体感；经过的内容仍会透过它被折射。
+        .background(Color.primary.opacity(0.05), in: Capsule())
         .glassEffect(.regular, in: Capsule())
         .padding(.horizontal, 14)
         .padding(.top, 8)
