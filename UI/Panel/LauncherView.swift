@@ -21,7 +21,7 @@ struct LauncherView: View {
                     searchBar
                 }
             }
-            .frame(height: LauncherLayout.searchHeight)
+            .frame(height: topRowHeight)
             // Quick AI 模式下按住输入框以外的空白处（提问之后为整个标题栏）拖动面板；检索模式下面板不可拖动。
             .contentShape(Rectangle())
             .gesture(WindowDragGesture(), including: viewModel.isQuickAIModeActive ? .all : .subviews)
@@ -54,7 +54,7 @@ struct LauncherView: View {
                 }
                 // 展开动画开头的高度还容不下 Quick AI 的追问框与页脚时，内容贴顶排列、超出部分由面板裁掉，
                 // 不会向上盖住顶部一行。
-                .frame(height: max(0, animation.currentHeight - LauncherLayout.searchHeight - 1), alignment: .top)
+                .frame(height: max(0, animation.currentHeight - topRowHeight - 1), alignment: .top)
             }
         }
         .frame(width: LauncherLayout.width, height: animation.currentHeight)
@@ -142,10 +142,8 @@ struct LauncherView: View {
             .frame(height: 36)
 
             if viewModel.isQuickAIModeActive {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 22))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 28, height: 28)
+                // Quick AI 模式由输入框左侧的 ✨ 表明，右侧不再重复。
+                EmptyView()
             } else if viewModel.isLoading {
                 ProgressView()
                     .controlSize(.small)
@@ -166,12 +164,17 @@ struct LauncherView: View {
         .padding(.horizontal, 20)
     }
 
+    /// 顶部一行的高度：提问之后的标题栏比检索行矮，省下的高度归回答区，面板总高度不变。
+    private var topRowHeight: CGFloat {
+        viewModel.quickAISession == nil ? LauncherLayout.searchHeight : LauncherLayout.quickAIHeaderHeight
+    }
+
     /// Quick AI 提问之后的标题栏：左边的 `‹` 与 `Tab` 相同，返回检索并结束这段对话；中间是「Quick AI · 模型名」。
     private func quickAIHeader(modelName: String) -> some View {
         ZStack {
             HStack(spacing: 6) {
                 Image(systemName: "sparkles")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.accentColor)
                 Text(verbatim: "Quick AI")
                     .fontWeight(.semibold)
                     .layoutPriority(1)

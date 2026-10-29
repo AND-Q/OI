@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// 占位文字与搜索图标走 AppKit 原生的材质渲染。
+/// 占位文字与搜索图标走 AppKit 原生的材质渲染；Quick AI 模式下搜索图标换成强调色的 ✨。
 struct LauncherSearchInput: NSViewRepresentable {
     @Binding var query: String
     var style: LauncherSearchInputView.Style = .search
@@ -31,6 +31,7 @@ final class LauncherSearchInputView: NSView, NSTextFieldDelegate {
     let textField = NSTextField()
     private let style: Style
     private let searchIcon = NSImageView()
+    private var isShowingQuickAIIcon = false
     private var lastFocusRequest: Int?
     var onQueryChange: ((String) -> Void)?
     var onSubmit: (() -> Void)?
@@ -39,8 +40,7 @@ final class LauncherSearchInputView: NSView, NSTextFieldDelegate {
         self.style = style
         super.init(frame: .zero)
 
-        searchIcon.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: nil)?
-            .withSymbolConfiguration(.init(pointSize: 24, weight: .regular))
+        searchIcon.image = Self.iconImage(named: "magnifyingglass")
         searchIcon.contentTintColor = .placeholderTextColor
         searchIcon.imageScaling = .scaleProportionallyDown
         searchIcon.setAccessibilityElement(false)
@@ -97,11 +97,17 @@ final class LauncherSearchInputView: NSView, NSTextFieldDelegate {
         case .search:
             isQuickAIMode ? String(localized: "向 AI 提问，按回车发送") : String(localized: "聚焦搜索")
         case .followUp:
-            String(localized: "继续追问，按回车发送")
+            String(localized: "继续追问")
         }
         if textField.placeholderString != placeholder {
             textField.placeholderString = placeholder
             textField.setAccessibilityLabel(placeholder)
+        }
+        // 左侧图标表明此时输入的是检索词还是问题。
+        if isShowingQuickAIIcon != isQuickAIMode {
+            isShowingQuickAIIcon = isQuickAIMode
+            searchIcon.image = Self.iconImage(named: isQuickAIMode ? "sparkles" : "magnifyingglass")
+            searchIcon.contentTintColor = isQuickAIMode ? .controlAccentColor : .placeholderTextColor
         }
 
         // SwiftUI 在面板动画期间也会更新这个桥接视图。输入法仍在组字时，绝不替换未上屏的文字。
@@ -117,6 +123,11 @@ final class LauncherSearchInputView: NSView, NSTextFieldDelegate {
                   self.textField.currentEditor() == nil else { return }
             window.makeFirstResponder(self.textField)
         }
+    }
+
+    private static func iconImage(named symbolName: String) -> NSImage? {
+        NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 24, weight: .regular))
     }
 
     func controlTextDidChange(_ notification: Notification) {

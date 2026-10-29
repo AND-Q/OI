@@ -2561,18 +2561,18 @@
         }
       }
     },
-    "继续追问，按回车发送" : {
+    "继续追问" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Follow up, press Return to send"
+            "value" : "Ask a follow-up"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "继续追问，按回车发送"
+            "value" : "继续追问"
           }
         }
       }

@@ -91,10 +91,6 @@ struct QuickAIAnswerView<Input: View>: View {
             }
             .mask { edgeFadeMask }
 
-            Color.primary.opacity(0.08)
-                .frame(height: 1)
-                .padding(.horizontal, 12)
-
             composer
                 .frame(height: LauncherLayout.quickAIComposerHeight)
 
@@ -201,18 +197,18 @@ struct QuickAIAnswerView<Input: View>: View {
     }
 
     /// 对话下方的胶囊形追问框，右端提示回车此时的作用，与面板的 Enter 处理一致：输入框有文字时追问，
-    /// 失败或无内容时重试，否则复制并关闭；输出期间不提示。
+    /// 失败或无内容时重试，否则复制并关闭；输出期间不提示。键帽底色加深，叠在胶囊的淡底上仍看得清。
     private var composer: some View {
         HStack(spacing: 10) {
             input
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             switch returnAction {
             case .followUp:
-                shortcutHint("↩", "追问")
+                shortcutHint("↩", "追问", keyBackgroundOpacity: 0.12)
             case .copyAndClose:
-                shortcutHint("↩", "复制并关闭")
+                shortcutHint("↩", "复制并关闭", keyBackgroundOpacity: 0.12)
             case .retry:
-                shortcutHint("↩", "重试")
+                shortcutHint("↩", "重试", keyBackgroundOpacity: 0.12)
             case .none:
                 EmptyView()
             }
@@ -225,6 +221,7 @@ struct QuickAIAnswerView<Input: View>: View {
         .padding(.horizontal, 16)
     }
 
+    /// 页脚左右边距与对话文字、问题气泡对齐。
     private var footer: some View {
         HStack(spacing: 14) {
             if session.isAnswerCopied {
@@ -238,17 +235,21 @@ struct QuickAIAnswerView<Input: View>: View {
             shortcutHint("esc", session.isStreaming ? "中断并关闭" : "关闭")
         }
         .font(.system(size: 12))
-        .padding(.horizontal, 18)
+        .padding(.horizontal, 22)
         .animation(.easeOut(duration: 0.2), value: session.isAnswerCopied)
     }
 
-    private func shortcutHint(_ key: String, _ title: LocalizedStringKey) -> some View {
+    private func shortcutHint(
+        _ key: String,
+        _ title: LocalizedStringKey,
+        keyBackgroundOpacity: Double = 0.08
+    ) -> some View {
         HStack(spacing: 4) {
             Text(key)
                 .font(.system(size: 11, weight: .medium))
                 .padding(.horizontal, 5)
                 .padding(.vertical, 1)
-                .background(Color.primary.opacity(0.08))
+                .background(Color.primary.opacity(keyBackgroundOpacity))
                 .clipShape(RoundedRectangle(cornerRadius: 4))
             Text(title)
         }

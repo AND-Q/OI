@@ -32,7 +32,7 @@ final class LauncherSearchInputTests: XCTestCase {
 
         let followUp = LauncherSearchInputView(style: .followUp)
         followUp.update(query: "", isQuickAIMode: true, focusRequest: 0)
-        XCTAssertEqual(followUp.textField.placeholderString, "继续追问，按回车发送")
+        XCTAssertEqual(followUp.textField.placeholderString, "继续追问")
     }
 
     func testNativeSearchInputSubmitsThroughItsAction() throws {
