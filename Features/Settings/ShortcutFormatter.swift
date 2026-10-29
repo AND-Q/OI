@@ -19,7 +19,8 @@ enum ShortcutFormatter {
         if let name = keyNames[keyCode] {
             return name
         }
-        return String(localized: "按键 \(Int(keyCode))")
+        // 键码先转为字符串再插值：整数插值会按地区加千位分隔（如 4,294,967,295）。
+        return String(localized: "按键 \(String(keyCode))")
     }
 
     static func displayName(for shortcut: GlobalShortcut) -> String {

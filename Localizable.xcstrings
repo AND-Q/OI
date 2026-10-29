@@ -1409,18 +1409,18 @@
         }
       }
     },
-    "按键 %lld" : {
+    "按键 %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Key %lld"
+            "value" : "Key %@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "按键 %lld"
+            "value" : "按键 %@"
           }
         }
       }
