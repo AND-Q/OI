@@ -13,12 +13,13 @@ struct QuickAIAnswerView<Input: View>: View {
 
     /// `↑` / `↓` 每次滚动的距离。
     private static var keyboardScrollStep: CGFloat { 60 }
-    /// 回答区顶部边缘渐隐的高度。
+    /// 回答区顶部边缘渐隐的高度；新问题滚到顶部后停在它下方。
     private static var edgeFadeHeight: CGFloat { 20 }
+    /// 对话上下的留白。
+    private static var contentVerticalPadding: CGFloat { 14 }
 
     @State private var position = ScrollPosition(edge: .top)
     @State private var metrics = ScrollMetrics()
-    @State private var isPinnedToBottom = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(
@@ -38,54 +39,46 @@ struct QuickAIAnswerView<Input: View>: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                ForEach(Array(session.turns.enumerated()), id: \.offset) { _, turn in
+                ForEach(Array(session.turns.enumerated()), id: \.offset) { index, turn in
                     VStack(alignment: .leading, spacing: 10) {
                         questionBubble(turn.question)
                         answer(of: turn)
                     }
+                    // 最后一轮至少占满可见区域，发送新问题时才能把它滚到顶部，回答在下方的空白里往下长。
+                    .frame(
+                        maxWidth: .infinity,
+                        minHeight: index == session.turns.count - 1 ? lastTurnMinHeight : nil,
+                        alignment: .topLeading
+                    )
+                    .id(index)
                     .transition(turnTransition)
                 }
             }
+            .scrollTargetLayout()
             // 只有追问新增一轮时带动画；流式增量与重试不改变轮数，照常立即上屏。
             .animation(.easeOut(duration: 0.25), value: session.turns.count)
             .textSelection(.enabled)
             .padding(.horizontal, 22)
-            .padding(.vertical, 14)
+            .padding(.vertical, Self.contentVerticalPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollPosition($position)
         .onScrollGeometryChange(for: ScrollMetrics.self) { geometry in
-            // 底部留出的追问框高度（`contentInsets.bottom`）也可以滚动，滚到底时最后一行停在追问框上方。
-            let maxOffset = max(
-                geometry.contentSize.height + geometry.contentInsets.bottom - geometry.containerSize.height,
-                0
-            )
+            // 追问框占去的底部（`contentInsets.bottom`）不算可见区域，但可以滚动，滚到底时最后一行停在追问框上方。
+            let viewportHeight = geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
             return ScrollMetrics(
                 offset: geometry.contentOffset.y,
-                maxOffset: maxOffset,
-                isAtBottom: geometry.contentOffset.y >= maxOffset - 8
+                maxOffset: max(geometry.contentSize.height - viewportHeight, 0),
+                viewportHeight: viewportHeight
             )
-        } action: { old, new in
+        } action: { _, new in
             metrics = new
-            // 滚到底即恢复跟随，只有往上滚（手动或 `↑`）才离开底部：发送新问题时滚到底的动画途中，以及动画期间
-            // 内容又长高时，都不算离开；内容增长本身不改变偏移。
-            if new.isAtBottom {
-                isPinnedToBottom = true
-            } else if new.offset < old.offset {
-                isPinnedToBottom = false
-            }
         }
-        // 停留底部时跟随最新内容，往上翻看时不再被拉回。不要求仍在输出：结束时最后一批增量与完成状态同时写入，
-        // 也要跟到底。
-        .onChange(of: session.lastTurn.answer) {
-            guard isPinnedToBottom else { return }
-            position.scrollTo(edge: .bottom)
-        }
-        // 发送新的问题时平滑滚到底部，此后照常跟随这一轮的输出。
+        // 发送新的问题时把这一轮平滑滚到顶部，回答在它下方往下长，输出期间不自动跟随到最后一行。
+        // 最后一轮的最小高度让它停在顶部渐隐区下方，不会顶到标题栏下沿。
         .onChange(of: session.turns.count) {
-            isPinnedToBottom = true
             withAnimation(.easeOut(duration: 0.25)) {
-                position.scrollTo(edge: .bottom)
+                position.scrollTo(id: session.turns.count - 1, anchor: .top)
             }
         }
         .onChange(of: scrollRequest) { _, request in
@@ -108,6 +101,12 @@ struct QuickAIAnswerView<Input: View>: View {
         }
         // 面板展开动画开头的高度还容不下追问框时保持追问框的高度，向下超出的部分由面板裁掉，不往上盖住标题栏。
         .frame(minHeight: LauncherLayout.quickAIComposerHeight)
+    }
+
+    /// 最后一轮的最小高度：可见区域减去上方的渐隐区与下方留白，正好能把这一轮滚到渐隐区下方；
+    /// 只有一轮时内容不超过可见区域，不会多出可滚动的空白。
+    private var lastTurnMinHeight: CGFloat {
+        max(metrics.viewportHeight - Self.edgeFadeHeight - Self.contentVerticalPadding, 0)
     }
 
     /// 新的一轮从下方淡入；开启「减弱动态效果」时只淡入。
@@ -292,9 +291,9 @@ private struct ThinkingIndicator: View {
     }
 }
 
-/// 回答区滚动状态：当前偏移、可滚动的最大偏移与是否停在底部。
+/// 回答区滚动状态：当前偏移、可滚动的最大偏移与追问框以上的可见高度。
 private struct ScrollMetrics: Equatable {
     var offset: CGFloat = 0
     var maxOffset: CGFloat = 0
-    var isAtBottom = true
+    var viewportHeight: CGFloat = 0
 }
