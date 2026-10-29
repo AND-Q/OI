@@ -129,7 +129,7 @@ In **System Settings → Trackpad → Point & Click**, set **Look up & data dete
 **A newly installed app doesn't show up?**
 Changes to the Applications folders are picked up the next time you open the panel; open it once and search again.
 
-See the [User Guide FAQ (Chinese)](docs/OI%20使用指南.md#14-常见问题) for more.
+See the [User Guide FAQ (Chinese)](docs/OI%20使用指南.md#15-常见问题) for more.
 
 ## Building from source
 
