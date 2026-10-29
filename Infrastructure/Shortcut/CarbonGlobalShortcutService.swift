@@ -5,13 +5,14 @@ enum GlobalShortcutError: LocalizedError {
     case registrationFailed(OSStatus)
 
     var errorDescription: String? {
+        // 错误码先转为字符串再插值：整数插值会按地区加千位分隔（如 -9,878）。
         switch self {
         case .eventHandlerInstallationFailed(let status):
-            String(localized: "无法安装全局快捷键事件处理器（\(Int(status))）")
+            String(localized: "无法安装全局快捷键事件处理器（\(String(status))）")
         case .registrationFailed(let status) where status == eventHotKeyExistsErr:
             String(localized: "该快捷键已被其他应用占用，请换一个组合")
         case .registrationFailed(let status):
-            String(localized: "无法注册全局快捷键（\(Int(status))）")
+            String(localized: "无法注册全局快捷键（\(String(status))）")
         }
     }
 }

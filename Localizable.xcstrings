@@ -1665,18 +1665,18 @@
         }
       }
     },
-    "无法安装全局快捷键事件处理器（%lld）" : {
+    "无法安装全局快捷键事件处理器（%@）" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn’t install the global shortcut handler (%lld)"
+            "value" : "Couldn’t install the global shortcut handler (%@)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "无法安装全局快捷键事件处理器（%lld）"
+            "value" : "无法安装全局快捷键事件处理器（%@）"
           }
         }
       }
@@ -1761,18 +1761,18 @@
         }
       }
     },
-    "无法注册全局快捷键（%lld）" : {
+    "无法注册全局快捷键（%@）" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn’t register the global shortcut (%lld)"
+            "value" : "Couldn’t register the global shortcut (%@)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "无法注册全局快捷键（%lld）"
+            "value" : "无法注册全局快捷键（%@）"
           }
         }
       }
