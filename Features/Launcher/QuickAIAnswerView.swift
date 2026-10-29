@@ -20,7 +20,6 @@ struct QuickAIAnswerView<Input: View>: View {
     @State private var metrics = ScrollMetrics()
     @State private var isPinnedToBottom = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.colorScheme) private var colorScheme
 
     init(
         session: QuickAISession,
@@ -206,12 +205,11 @@ struct QuickAIAnswerView<Input: View>: View {
         .padding(.leading, 16)
         .padding(.trailing, 10)
         .frame(height: 36)
-        // 比周围亮一层并带柔和阴影，像浮在对话上的一块：纯白背景上也看得出胶囊，又不靠压暗显得发灰；
-        // 底色只是半透明，经过的内容仍会透过它被折射。
-        .background {
+        // 不铺固定底色：玻璃会随背后的明暗自己调整，固定的底色在亮背景上发灰、在暗背景上又亮得刺眼，
+        // 还会盖住经过的内容。只加一圈细边，纯白背景上也看得清胶囊的边界。
+        .overlay {
             Capsule()
-                .fill(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.6))
-                .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.08), radius: 10, y: 3)
+                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
         }
         .glassEffect(.regular, in: Capsule())
         .padding(.horizontal, 14)
