@@ -445,7 +445,7 @@
   - 没有选中文字时 `Cmd+C` 复制最后一条回答；
   - 回答区按轮次往下排列，每轮是「问题 + 回答」，问题以靠右的气泡显示；发送新问题时滚到底部；可以追问时页脚提示「↩ 追问」；
   - 发给模型的历史只包含有可见回答的轮次（中途中断的部分回答也算），回答去掉 `<think>` 推理内容，没有回答的失败轮次不发送；本次不做截断，上下文超长时服务返回的错误照常显示在这一轮下方；
-  - 以下保持现状：面板失焦收起、再次呼出丢弃对话（见「Quick AI 回答不再轻易丢失」）；`Esc` 中断并关闭；`Tab` 返回检索即结束这段对话，再按 `Tab` 就是新对话，因此本次不加 `Cmd+N`；划词翻译的行为不变。
+  - 以下保持现状：面板失焦收起、再次呼出丢弃对话（见「Quick AI 对话不再轻易丢失」）；`Esc` 中断并关闭；`Tab` 返回检索即结束这段对话，再按 `Tab` 就是新对话，因此本次不加 `Cmd+N`；划词翻译的行为不变。
 - **实现说明**：
   - 端口：[AIAnswering](Application/Ports/AIAnswering.swift) 新增 `history` 参数与 `AIConversationTurn`（此前一轮的提问与回答）；[OpenAICompatibleAIClient](Infrastructure/AI/OpenAICompatibleAIClient.swift) 把各轮依次作为 `user` / `assistant` 消息排在系统指令之后、本次提问之前；[AskQuickAI](Application/UseCases/AskQuickAI.swift) 经 [AIStreaming](Application/UseCases/AIStreaming.swift) 透传，划词翻译不带历史；
   - 对话状态：[QuickAISession](Features/Launcher/LauncherState.swift) 由一问一答改为按轮次排列的 `turns`（每轮的问题、回答与状态），流式增量与完成、失败只写最后一轮；`history` 取最后一轮之前有可见回答的轮次，回答去掉 `<think>` 推理内容；`answerToCopy` 为最近一条有可见内容的回答（新的一轮还没有内容时复制上一条）；回车的作用改为 `returnAction(hasDraft:)`，新增「追问」：输出期间不响应，输入框有文字（去掉首尾空白后）时追问，否则最后一轮失败或没有回答时重试，有回答时复制并关闭；
@@ -479,15 +479,18 @@
 - **涉及文件**：
   - [Features/Launcher/LauncherState.swift](Features/Launcher/LauncherState.swift)、[Features/Launcher/LauncherViewModel.swift](Features/Launcher/LauncherViewModel.swift)、[Features/Launcher/LauncherLayout.swift](Features/Launcher/LauncherLayout.swift)、[Features/Launcher/QuickAIAnswerView.swift](Features/Launcher/QuickAIAnswerView.swift)、[Features/Shared/MarkdownBlockView.swift](Features/Shared/MarkdownBlockView.swift)、[UI/Panel/LauncherView.swift](UI/Panel/LauncherView.swift)、[UI/Panel/LauncherSearchInput.swift](UI/Panel/LauncherSearchInput.swift)、[UI/Panel/LauncherPanelController.swift](UI/Panel/LauncherPanelController.swift)、[Localizable.xcstrings](Localizable.xcstrings)、[OITests/QuickAITests.swift](OITests/QuickAITests.swift)、[OITests/LauncherSearchInputTests.swift](OITests/LauncherSearchInputTests.swift)
 
-## [ ] Quick AI 回答不再轻易丢失
+## [ ] Quick AI 对话不再轻易丢失
 
 - **需求描述**：
-  - 现在三种情况会让回答消失：回答后改动输入框里的任意一个字、点到其他窗口（面板收起并中断输出）、关闭后再次呼出面板。拖动面板对照屏幕内容时，一点别的窗口回答就没了。
+  - 现在两种情况会让对话消失：点到其他窗口（面板收起并中断输出）、关闭后再次呼出面板。拖动面板对照屏幕内容时，一点别的窗口对话就没了。改动输入框清空回答的问题已由「Quick AI 多轮追问」解决。
 - **需要做到**：
-  - 已有回答时改动输入框不清空回答：由「Quick AI 多轮追问」实现，按 `Enter` 是追问而不是替换回答；
-  - 已提问后面板失去焦点（点到桌面或其他应用）时不收起、不中断输出，按 `Esc` 才关闭；尚未提问时仍与检索模式一样，失焦即收起；
-  - 面板因此留在屏幕上时，再按呼出快捷键回到面板（输入框获得焦点），而不是关闭面板；
-  - 关闭面板后 5 分钟内再次呼出，输入框为空时按 `Tab` 恢复上一次的问题与回答；输出中途关闭的，恢复已经收到的内容。
+  - 区分「结束」与「关闭」：点标题栏的 `‹` 或按 `Tab` 返回检索是结束，对话丢弃，与现在相同；按 `Esc` 或呼出快捷键收起面板是关闭，对话保留 5 分钟；
+  - 已提问后面板失去焦点（点到桌面或其他应用）时不收起、不中断输出，留在原处并继续浮在其他窗口之上；尚未提问时仍与检索模式一样，失焦即收起；
+  - 面板留在屏幕上但不在前台时，按呼出快捷键回到面板，焦点在追问框；面板在前台时，按呼出快捷键关闭面板，对话保留；
+  - 关闭后 5 分钟内再次呼出，面板照常以检索打开：输入框为空时按 `Tab` 回到上一段对话的全部轮次并滚到最后一轮；输入框有文字时按 `Tab` 开始新对话，上一段丢弃；
+  - 关闭时还在输出的那一轮，恢复已经收到的内容，并在末尾标注「已中断」，`Enter` 为重试这一轮；
+  - 恢复的对话在标题栏右侧显示「新对话」按钮（`⌘N`），点按丢弃当前对话，回到尚未提问的 Quick AI；
+  - 超过 5 分钟或退出 OI 后不再恢复；对话只保存在内存中，不写入磁盘。
 
 ## [ ] 系统设置项直达
 
