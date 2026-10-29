@@ -12,7 +12,7 @@ final class LauncherViewModel: ObservableObject {
     static let quickAIFlushInterval: Duration = .milliseconds(50)
     /// 追问框右端「已复制」的显示时长。
     static let quickAICopiedHintDuration: Duration = .seconds(2)
-    /// 关闭面板后保留 Quick AI 对话的时长：在此之内再次呼出直接回到这段对话。
+    /// 收起面板后保留 Quick AI 对话的时长：在此之内再次呼出直接回到这段对话。
     static let quickAIRestoreInterval: TimeInterval = 300
 
     @Published var query = "" {
@@ -74,7 +74,7 @@ final class LauncherViewModel: ObservableObject {
     private var fileSearchTask: Task<Void, Never>?
     private var pathLookupTask: Task<Void, Never>?
     private var quickAICopiedHintTask: Task<Void, Never>?
-    /// 带着 Quick AI 对话关闭面板的时间；对话结束或重新回到面板时清除。
+    /// 带着 Quick AI 对话收起面板的时间；对话结束或重新回到面板时清除。
     private var quickAIClosedAt: Date?
     private lazy var quickAIRequest = StreamingRequest(flushInterval: LauncherViewModel.quickAIFlushInterval) { [weak self] text in
         self?.quickAISession?.lastTurn.answer += text
@@ -365,8 +365,8 @@ final class LauncherViewModel: ObservableObject {
         if isSearchingFiles { fileSearchState = .idle }
     }
 
-    /// 呼出面板前调用：关闭后 5 分钟内带着对话再次呼出时回到这段对话（全部轮次与追问框中的草稿），
-    /// 否则丢弃对话、以空的检索打开。
+    /// 呼出面板前调用：收起后 5 分钟内带着对话再次呼出时回到这段对话（全部轮次与追问框中的草稿），
+    /// 否则丢弃对话（中断仍在后台进行的回答）、以空的检索打开。
     func prepareForPresentation() {
         isActionSheetVisible = false
         if let closedAt = quickAIClosedAt, quickAISession != nil,
@@ -381,15 +381,17 @@ final class LauncherViewModel: ObservableObject {
         refreshApplications(force: false)
     }
 
-    /// 面板收起（`Esc`、呼出快捷键等）时调用：中断进行中的回答并保留已收到的内容，
-    /// 有对话时记下关闭时间，供再次呼出时恢复（见 `prepareForPresentation`）。
+    /// 面板收起（呼出快捷键、点到别处）时调用：有对话时记下收起时间，供再次呼出时恢复（见 `prepareForPresentation`）；
+    /// 进行中的回答在后台继续输出，回来时看到的是完整的回答。以 `Esc` 等结束对话的方式收起时随后调用
+    /// `endQuickAIConversation`。
     func prepareForDismissal() {
-        stopQuickAI()
         quickAIClosedAt = quickAISession == nil ? nil : now()
     }
 
-    /// 复制并关闭（`Enter`）表示这段对话已经用完：面板照常收起，再次呼出时不再恢复。
-    func forgetQuickAIConversation() {
+    /// `Esc` 与复制并关闭（`Enter`）结束这段对话：中断进行中的回答，面板照常收起，再次呼出时不再恢复；
+    /// 对话本身留到下次呼出时才丢弃，避免淡出途中面板高度收缩。
+    func endQuickAIConversation() {
+        stopQuickAI()
         quickAIClosedAt = nil
     }
 
@@ -474,7 +476,7 @@ final class LauncherViewModel: ObservableObject {
         return streamLastQuickAITurn()
     }
 
-    /// 重试最后一轮（失败、被中断或没有收到回答时按 `Enter`）：沿用这一轮的问题，输入框中的草稿不变。
+    /// 重试最后一轮（失败或没有收到回答时按 `Enter`）：沿用这一轮的问题，输入框中的草稿不变。
     /// 没有对话或仍在输出时返回 nil。
     @discardableResult
     func retryQuickAI() -> Task<Void, Never>? {
@@ -483,11 +485,11 @@ final class LauncherViewModel: ObservableObject {
         return streamLastQuickAITurn()
     }
 
-    /// 中断进行中的回答，保留已经到达的内容并标为已中断，避免隐藏面板时在淡出途中改变面板高度。
+    /// 中断进行中的回答，保留已经到达的内容，避免隐藏面板时在淡出途中改变面板高度。
     func stopQuickAI() {
         guard quickAIRequest.stop() else { return }
         if quickAISession?.isStreaming == true {
-            quickAISession?.lastTurn.state = .interrupted
+            quickAISession?.lastTurn.state = .finished
         }
     }
 

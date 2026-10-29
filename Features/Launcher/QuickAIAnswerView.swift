@@ -165,8 +165,6 @@ struct QuickAIAnswerView<Input: View>: View {
             case .finished:
                 Text("没有收到回答")
                     .foregroundStyle(.secondary)
-            case .interrupted:
-                interruptedLabel
             case .failed(let message):
                 errorLabel(message)
             }
@@ -182,21 +180,12 @@ struct QuickAIAnswerView<Input: View>: View {
             if turn.state == .streaming {
                 ThinkingIndicator(dotSize: 4)
             }
-            if turn.state == .interrupted {
-                interruptedLabel
-            }
             if case .failed(let message) = turn.state {
                 errorLabel(message)
             }
         }
     }
 
-    /// 输出到一半被中断（关闭面板等）时标在这一轮末尾；回车为重试这一轮。
-    private var interruptedLabel: some View {
-        Label("已中断", systemImage: "pause.circle")
-            .font(.system(size: 12))
-            .foregroundStyle(.secondary)
-    }
 
     /// 回答中相邻两块的间距：同一列表的条目靠紧，标题与上文拉开、与下文靠近，其余为段落间距。
     private static func spacing(between previous: MarkdownBlock, and block: MarkdownBlock) -> CGFloat {

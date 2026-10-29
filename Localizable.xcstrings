@@ -897,22 +897,6 @@
         }
       }
     },
-    "已中断" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Interrupted"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已中断"
-          }
-        }
-      }
-    },
     "已固定，点左上角的关闭按钮关闭" : {
       "localizations" : {
         "en" : {

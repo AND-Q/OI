@@ -37,8 +37,6 @@ struct QuickAISession: Equatable, Sendable {
         enum State: Equatable, Sendable {
             case streaming
             case finished
-            /// 输出到一半被中断（关闭面板等），保留已经收到的内容。
-            case interrupted
             case failed(String)
         }
 
@@ -103,17 +101,13 @@ struct QuickAISession: Equatable, Sendable {
         case retry
     }
 
-    /// 输出期间不响应；输入框有文字（`hasDraft`）时追问；最后一轮失败（含输出到一半失败）、被中断或没有可复制的内容时
+    /// 输出期间不响应；输入框有文字（`hasDraft`）时追问；最后一轮失败（含输出到一半失败）或没有可复制的内容时
     /// 重试这一轮；否则复制并关闭。
     func returnAction(hasDraft: Bool) -> ReturnAction {
         if isStreaming { return .none }
         if hasDraft { return .followUp }
-        switch lastTurn.state {
-        case .failed, .interrupted:
-            return .retry
-        case .streaming, .finished:
-            return lastTurn.visibleAnswer.isEmpty ? .retry : .copyAndClose
-        }
+        if case .failed = lastTurn.state { return .retry }
+        return lastTurn.visibleAnswer.isEmpty ? .retry : .copyAndClose
     }
 }
 

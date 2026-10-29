@@ -62,10 +62,10 @@ final class LauncherPanelController {
             initialHeight: LauncherLayout.searchHeight
         )
 
-        // 面板失去 key 窗口（点到桌面或其他应用）时收起，与原生聚焦搜索的默认行为一致。
-        // 已向 Quick AI 提问时不收起：面板留在原处、继续输出，方便对照屏幕内容看回答，按 `Esc` 才关闭。
+        // 面板失去 key 窗口（点到桌面或其他应用）时收起，与原生聚焦搜索的默认行为一致；Quick AI 对话随之保留，
+        // 回答在后台继续输出。把对话中的面板拖到旁边对照屏幕内容时例外，留在原处（见 `keepsConversationOnScreen`）。
         panel.onResignKey = { [weak self] in
-            guard let self, self.viewModel.quickAISession == nil else { return }
+            guard let self, !self.keepsConversationOnScreen else { return }
             if self.quickLook.isActive,
                let keyWindow = NSApp.keyWindow,
                keyWindow === QLPreviewPanel.shared() {
@@ -93,7 +93,8 @@ final class LauncherPanelController {
             onAction: { [weak self] action, result in
                 self?.performMenuAction(action, for: result)
             },
-            onDismiss: { [weak self] in self?.hide() },
+            // 视图中的 `onExitCommand`（`Esc`）收起面板，与按键处理一样结束 Quick AI 对话。
+            onDismiss: { [weak self] in self?.hideEndingConversation() },
             onCopy: { [weak self] text in self?.writeToPasteboard(text) }
         )
         let hostingView = NSHostingView(rootView: launcherView)
@@ -115,10 +116,10 @@ final class LauncherPanelController {
             }
             .store(in: &cancellables)
 
-        // 用户切换到其他应用时收起；已向 Quick AI 提问时同样留在原处。
+        // 用户切换到其他应用时收起；拖到旁边的 Quick AI 对话同样留在原处。
         NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
             .sink { [weak self] _ in
-                guard let self, self.viewModel.quickAISession == nil else { return }
+                guard let self, !self.keepsConversationOnScreen else { return }
                 self.hide()
             }
             .store(in: &cancellables)
@@ -132,6 +133,11 @@ final class LauncherPanelController {
 
     var isVisible: Bool { panel.isVisible }
     var isDismissalInProgress: Bool { animationCoordinator.isDismissalInProgress }
+
+    /// 已向 Quick AI 提问且拖动过面板：拖到旁边是为了边看屏幕内容边看回答，点到别处时留在原处、不收起。
+    private var keepsConversationOnScreen: Bool {
+        viewModel.quickAISession != nil && animationCoordinator.isMoved
+    }
 
     func stop() {
         if let keyMonitor {
@@ -148,7 +154,7 @@ final class LauncherPanelController {
 
     func toggle() {
         // 淡出途中改走 show()：此时 hide() 会丢掉这次请求，按下的快捷键被吞掉。
-        // Quick AI 对话留在屏幕上、面板不在前台（点过其他应用）时，同样改走 show() 回到面板，而不是关闭。
+        // Quick AI 对话留在屏幕上、面板不在前台（拖到旁边后点过其他应用）时，同样改走 show() 回到面板，而不是关闭。
         let isConversationInBackground = viewModel.quickAISession != nil && !panel.isKeyWindow
         (isVisible && !animationCoordinator.isDismissalInProgress && !isConversationInBackground) ? hide() : show()
     }
@@ -194,7 +200,7 @@ final class LauncherPanelController {
     func hide() {
         guard panel.isVisible, !animationCoordinator.isDismissalInProgress else { return }
         viewModel.dismissActionSheet()
-        // 只中断请求、保留已收到的回答，避免淡出途中面板高度收缩；对话留待 5 分钟内再次呼出时恢复。
+        // 对话与已收到的回答都保留，避免淡出途中面板高度收缩；回答在后台继续输出，5 分钟内再次呼出时恢复。
         viewModel.prepareForDismissal()
         // 先启动淡出再收预览：还焦点回调看到 dismissal 进行中会自动跳过。
         animationCoordinator.fadeOutAndOrderOut()
@@ -336,8 +342,8 @@ final class LauncherPanelController {
         } else if viewModel.isActionSheetVisible {
             viewModel.dismissActionSheet()
         } else if viewModel.quickAISession != nil {
-            // 已提问：Esc 一次即中断回答并关闭面板，对话保留，5 分钟内再次呼出时恢复。
-            hide()
+            // 已提问：Esc 一次即中断回答、关闭面板并结束这段对话；想待会儿回来时按呼出快捷键收起或点到别处。
+            hideEndingConversation()
         } else if viewModel.isQuickAIModeActive {
             // 尚未提问：Esc 返回检索，已输入的文字保留。
             viewModel.toggleQuickAIMode()
@@ -359,9 +365,8 @@ final class LauncherPanelController {
                     viewModel.startQuickAI()
                 case .copyAndClose:
                     if let answer = viewModel.quickAIAnswerToCopy {
-                        copyText(answer)
-                        // 复制并关闭表示这段对话已经用完，再次呼出时不再恢复。
-                        viewModel.forgetQuickAIConversation()
+                        writeToPasteboard(answer)
+                        hideEndingConversation()
                     }
                 case .retry:
                     viewModel.retryQuickAI()
@@ -626,6 +631,13 @@ final class LauncherPanelController {
     private func copyText(_ value: String) {
         writeToPasteboard(value)
         hide()
+    }
+
+    /// 收起面板并结束 Quick AI 对话（`Esc`、复制并关闭）：中断回答，再次呼出时不再恢复；
+    /// 按呼出快捷键或点到别处收起的对话才保留。
+    private func hideEndingConversation() {
+        hide()
+        viewModel.endQuickAIConversation()
     }
 
     private func writeToPasteboard(_ value: String) {

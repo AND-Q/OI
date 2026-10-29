@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Security
 import XCTest
@@ -506,8 +507,7 @@ final class QuickAITests: XCTestCase {
         await task.value
 
         XCTAssertEqual(viewModel.quickAISession?.lastTurn.answer, "床前")
-        XCTAssertEqual(viewModel.quickAISession?.lastTurn.state, .interrupted)
-        XCTAssertEqual(viewModel.quickAIReturnAction, .retry, "被中断的一轮回车为重试")
+        XCTAssertEqual(viewModel.quickAISession?.lastTurn.state, .finished)
     }
 
     /// 输出期间可以写下一条消息的草稿：不清空回答、不中断输出，发送与重试都不响应。
@@ -613,10 +613,6 @@ final class QuickAITests: XCTestCase {
         XCTAssertEqual(session.returnAction(hasDraft: false), .retry, "输出到一半失败也应重试")
         XCTAssertEqual(session.returnAction(hasDraft: true), .followUp, "失败后有草稿时追问")
 
-        session.lastTurn.state = .interrupted
-        XCTAssertEqual(session.returnAction(hasDraft: false), .retry, "输出到一半被中断也应重试")
-        XCTAssertEqual(session.returnAction(hasDraft: true), .followUp)
-
         session.append(question: "追问")
         XCTAssertEqual(session.returnAction(hasDraft: false), .none, "只看最后一轮")
     }
@@ -712,7 +708,7 @@ final class QuickAITests: XCTestCase {
 
     // MARK: - 关闭与恢复
 
-    /// 关闭后 5 分钟内再次呼出：回到上一段对话，全部轮次与追问框中的草稿都在，回答区滚到最后一轮。
+    /// 收起后 5 分钟内再次呼出：回到上一段对话，全部轮次与追问框中的草稿都在，回答区滚到最后一轮。
     func testReopeningWithinRestoreIntervalReturnsToConversation() async throws {
         let clock = DateHolder()
         let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: ["回答"]), now: { clock.date })
@@ -767,23 +763,38 @@ final class QuickAITests: XCTestCase {
         XCTAssertFalse(viewModel.isQuickAIModeActive)
     }
 
-    /// 复制并关闭表示对话已经用完：再次呼出时不再恢复。
-    func testCopyAndCloseIsNotRestored() async throws {
+    /// `Esc` 直接退出：关闭面板并结束对话，再次呼出时不再恢复。
+    func testEscapeEndsConversation() async throws {
         let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: ["回答"]))
+        let controller = LauncherPanelController(viewModel: viewModel, iconProvider: WorkspaceIconProvider())
+        defer { controller.stop() }
+        controller.show()
         viewModel.toggleQuickAIMode()
         viewModel.query = "问题"
         try await XCTUnwrap(viewModel.startQuickAI()).value
 
-        viewModel.prepareForDismissal()
-        viewModel.forgetQuickAIConversation()
-        viewModel.prepareForPresentation()
+        let escape = try XCTUnwrap(NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "\u{1b}",
+            charactersIgnoringModifiers: "\u{1b}",
+            isARepeat: false,
+            keyCode: 53
+        ))
+        XCTAssertNil(controller.handleKeyDown(escape))
+        XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
 
+        viewModel.prepareForPresentation()
         XCTAssertNil(viewModel.quickAISession)
         XCTAssertFalse(viewModel.isQuickAIModeActive)
     }
 
-    /// 关闭时还在输出的一轮：恢复后保留已收到的内容并标为已中断，回车为重试这一轮。
-    func testDismissalWhileStreamingRestoresInterruptedTurn() async throws {
+    /// 结束对话（`Esc`、复制并关闭）：中断仍在输出的回答，再次呼出时不再恢复。
+    func testEndingConversationStopsOutputAndIsNotRestored() async throws {
         let viewModel = makeQuickAIViewModel(answerer: HangingAIAnswerer())
         viewModel.toggleQuickAIMode()
         viewModel.query = "写一首诗"
@@ -791,12 +802,28 @@ final class QuickAITests: XCTestCase {
         try await waitUntil { viewModel.quickAISession?.lastTurn.answer.isEmpty == false }
 
         viewModel.prepareForDismissal()
+        viewModel.endQuickAIConversation()
+        await task.value
+        XCTAssertEqual(viewModel.quickAISession?.isStreaming, false)
+
+        viewModel.prepareForPresentation()
+        XCTAssertNil(viewModel.quickAISession)
+        XCTAssertFalse(viewModel.isQuickAIModeActive)
+    }
+
+    /// 收起不中断输出：回答在后台继续生成，再次呼出时看到完整的回答。
+    func testOutputContinuesWhileHidden() async throws {
+        let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: ["完整", "回答"]))
+        viewModel.toggleQuickAIMode()
+        viewModel.query = "问题"
+        let task = try XCTUnwrap(viewModel.startQuickAI())
+
+        viewModel.prepareForDismissal()
         await task.value
         viewModel.prepareForPresentation()
 
-        XCTAssertEqual(viewModel.quickAISession?.lastTurn.answer, "床前")
-        XCTAssertEqual(viewModel.quickAISession?.lastTurn.state, .interrupted)
-        XCTAssertEqual(viewModel.quickAIReturnAction, .retry)
+        XCTAssertEqual(viewModel.quickAISession?.lastTurn.answer, "完整回答")
+        XCTAssertEqual(viewModel.quickAISession?.lastTurn.state, .finished)
     }
 
     /// 新对话（`⌘N`）：丢弃当前对话，留在尚未提问的 Quick AI，追问框中的草稿成为新的问题。
@@ -815,8 +842,8 @@ final class QuickAITests: XCTestCase {
         XCTAssertFalse(viewModel.isExpanded)
     }
 
-    /// 已提问后面板失去焦点不收起，方便对照屏幕内容看回答；尚未提问时照常收起。
-    func testPanelStaysOnScreenWhenLosingFocusOnlyAfterAsking() async throws {
+    /// 对话中点到别处：面板收起，对话保留，再次呼出时回到这段对话。
+    func testLosingFocusHidesPanelAndKeepsConversation() async throws {
         let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: ["回答"]))
         let controller = LauncherPanelController(viewModel: viewModel, iconProvider: WorkspaceIconProvider())
         defer { controller.stop() }
@@ -826,12 +853,29 @@ final class QuickAITests: XCTestCase {
         try await XCTUnwrap(viewModel.startQuickAI()).value
 
         controller.panel.onResignKey?()
+        XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
+
+        viewModel.prepareForPresentation()
+        XCTAssertEqual(viewModel.quickAISession?.lastTurn.answer, "回答")
+    }
+
+    /// 对话中把面板拖到旁边后点到别处：留在原处，方便边看屏幕内容边看回答。
+    func testDraggedConversationStaysOnScreenWhenLosingFocus() async throws {
+        let viewModel = makeQuickAIViewModel(answerer: StubAIAnswerer(deltas: ["回答"]))
+        let controller = LauncherPanelController(viewModel: viewModel, iconProvider: WorkspaceIconProvider())
+        defer { controller.stop() }
+        controller.show()
+        viewModel.toggleQuickAIMode()
+        viewModel.query = "问题"
+        try await XCTUnwrap(viewModel.startQuickAI()).value
+
+        // 用户拖动：不经协调者移动面板。
+        let frame = controller.panel.frame
+        controller.panel.setFrameTopLeftPoint(NSPoint(x: frame.minX + 40, y: frame.maxY - 40))
+        controller.panel.onResignKey?()
+
         XCTAssertTrue(controller.isVisible)
         XCTAssertFalse(controller.isDismissalInProgress)
-
-        viewModel.startNewQuickAIConversation()
-        controller.panel.onResignKey?()
-        XCTAssertTrue(controller.isDismissalInProgress || !controller.isVisible)
     }
 
     // MARK: - 流式合并上屏

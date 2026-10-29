@@ -42,7 +42,7 @@ final class PanelAnimationCoordinator: ObservableObject {
     private var isDismissing = false
     /// 用户拖动过面板（只有 Quick AI 模式下能拖动，见 LauncherView）：左上角留在放下的位置，
     /// 高度变化时向下伸缩。每次呼出面板时复位，不记忆拖动后的位置。
-    private var isMoved = false
+    private(set) var isMoved = false
     /// 正在由 OI 自己设置面板几何：期间的移动通知不是用户拖动。
     private var isApplyingFrame = false
     private var moveObservers: [any NSObjectProtocol] = []
